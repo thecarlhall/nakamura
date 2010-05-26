@@ -276,7 +276,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+          <redirectTestOutputToFile>false</redirectTestOutputToFile>
         </configuration>
       </plugin>
       <plugin>
@@ -608,27 +608,17 @@
 <!-- ====================================================================== -->
 <!-- D I S T R I B U T I O N M A N A G E M E N T -->
 <!-- ====================================================================== -->
-  <distributionManagement> 
-    <downloadUrl>http://source.sakaiproject.org/maven2/</downloadUrl> 
-    <snapshotRepository> 
-       <uniqueVersion>false</uniqueVersion> 
-       <id>sakai-maven-snapshots-scp</id> 
-       <name>Sakai snapshot Repo</name> 
-       <url>scp://source.sakaiproject.org/var/www/html/maven2-snapshots</url> 
-       <layout>default</layout> 
-    </snapshotRepository> 
-    <repository> 
-      <uniqueVersion>false</uniqueVersion> 
-      <id>sakai-maven2-scp</id> 
-      <name>Sakai maven2 repository</name> 
-      <url>scp://source.sakaiproject.org/var/www/html/maven2</url> 
-      <layout>default</layout> 
-    </repository> 
-    <site> 
-      <id>sakai-site</id> 
-      <name>Sakai release Site</name> 
-      <url>scp://source.sakaiproject.org/var/www/html/release/nakamura/${project.version}</url> 
-    </site> 
+  <distributionManagement>
+    <snapshotRepository>
+      <id>myberkeley-snapshots</id>
+      <name>MyBerkeley Snapshots</name>
+      <url>dav:http://svn.media.berkeley.edu/nexus/content/repositories/myberkeley-snapshots/</url>
+    </snapshotRepository>
+    <repository>
+      <id>myberkeley</id>
+      <name>MyBerkeley</name>
+      <url>dav:http://svn.media.berkeley.edu/nexus/content/repositories/myberkeley/</url>
+    </repository>
   </distributionManagement>
 <!-- ====================================================================== -->
 <!-- R E P O S I T O R I E S -->
