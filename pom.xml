@@ -613,11 +613,13 @@
       <id>myberkeley-snapshots</id>
       <name>MyBerkeley Snapshots</name>
       <url>dav:http://svn.media.berkeley.edu/nexus/content/repositories/myberkeley-snapshots/</url>
+      <uniqueVersion>false</uniqueVersion>
     </snapshotRepository>
     <repository>
       <id>myberkeley</id>
       <name>MyBerkeley</name>
       <url>dav:http://svn.media.berkeley.edu/nexus/content/repositories/myberkeley/</url>
+      <uniqueVersion>false</uniqueVersion>
     </repository>
   </distributionManagement>
 <!-- ====================================================================== -->
@@ -657,18 +659,18 @@
       </snapshots>
       <url>https://source.sakaiproject.org/maven2/</url>
     </repository>
-    <repository> 
-      <id>sakai-snapshots</id> 
-      <name>Sakai Snapshots</name> 
-      <layout>default</layout> 
-      <url>http://source.sakaiproject.org/maven2-snapshots</url> 
-      <releases> 
-        <enabled>false</enabled> 
-      </releases> 
-      <snapshots> 
-        <enabled>true</enabled> 
-      </snapshots> 
-    </repository> 
+    <repository>
+      <id>sakai-snapshots</id>
+      <name>Sakai Snapshots</name>
+      <layout>default</layout>
+      <url>http://source.sakaiproject.org/maven2-snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
   </repositories>
   <pluginRepositories>
     <pluginRepository>
