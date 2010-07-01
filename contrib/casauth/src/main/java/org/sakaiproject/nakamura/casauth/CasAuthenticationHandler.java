@@ -19,6 +19,7 @@ package org.sakaiproject.nakamura.casauth;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
@@ -35,12 +36,15 @@ import org.jasig.cas.client.validation.Assertion;
 import org.jasig.cas.client.validation.Cas20ServiceTicketValidator;
 import org.jasig.cas.client.validation.TicketValidationException;
 import org.osgi.service.component.ComponentContext;
+import org.sakaiproject.nakamura.api.casauth.CasAuthConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.Dictionary;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -55,7 +59,17 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-@Component(immediate = true, label = "%auth.cas.name", description = "%auth.cas.description", enabled = true, metatype = true)
+/**
+ * This class integrates CAS SSO with the Sling authentication framework.
+ * Most of its logic is copied from org.jasig.cas.client servlet filters.
+ * The integration is needed only due to limitations on servlet filter
+ * support in the OSGi / Sling environment.
+ */
+@Component(immediate=true, label="%auth.cas.name", description="%auth.cas.description", enabled=true, metatype=true)
+@Properties(value={
+    @Property(name=org.osgi.framework.Constants.SERVICE_RANKING, value="5"),
+    @Property(name=AuthenticationHandler.TYPE_PROPERTY, value=CasAuthConstants.CAS_AUTH_TYPE, propertyPrivate=true)
+})
 @Service
 public final class CasAuthenticationHandler implements AuthenticationHandler, LoginModulePlugin {
 
@@ -74,10 +88,8 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   @Property(value = "/")
   static final String PATH_PROPERTY = AuthenticationHandler.PATH_PROPERTY;
 
-  @Property(name = org.osgi.framework.Constants.SERVICE_RANKING, value = "5")
-
   /** Defines the parameter to look for for the service. */
-  private String serviceParameterName = "service";
+  private static final String SERVICE_PARAMETER_NAME = "service";
 
   private static final Logger LOGGER = LoggerFactory
       .getLogger(CasAuthenticationHandler.class);
@@ -90,7 +102,13 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   private SlingRepository repository;
 
   /** Defines the parameter to look for for the artifact. */
-  private String artifactParameterName = "ticket";
+  private static final String ARTIFACT_PARAMETER_NAME = "ticket";
+
+  /**
+   * Define the set of authentication-related query parameters which should
+   * be removed from the "service" URL sent to the CAS server.
+   */
+  Set<String> filteredQueryStrings = new HashSet<String>(Arrays.asList(REQUEST_LOGIN_PARAMETER, ARTIFACT_PARAMETER_NAME));
 
   private boolean renew = false;
 
@@ -102,8 +120,6 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
 
   private String casServerLogoutUrl = null;
 
-  public static final String AUTH_TYPE = CasAuthenticationHandler.class.getName();
-
   public void dropCredentials(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     final HttpSession session = request.getSession(false);
@@ -111,7 +127,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       final Assertion assertion = (Assertion) session.getAttribute(CONST_CAS_ASSERTION);
       if (assertion != null) {
         session.removeAttribute(CONST_CAS_ASSERTION);
-        
+
         // TODO SlingAuthenticator tries to call dropCredentials on all
         // applicable AuthenticationHandler implementations, not just one.
         // Is there a better way of handling this?
@@ -134,7 +150,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       authnInfo = createAuthnInfo(assertion);
     } else {
       final String serviceUrl = constructServiceUrl(request, response);
-      final String ticket = CommonUtils.safeGetParameter(request, artifactParameterName);
+      final String ticket = CommonUtils.safeGetParameter(request, ARTIFACT_PARAMETER_NAME);
       final boolean wasGatewayed = this.gatewayStorage.hasGatewayedAlready(request,
           serviceUrl);
 
@@ -154,7 +170,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
     redirectToCas(request, response);
     return true;
   }
-  
+
   private static class CasPrincipal implements AttributePrincipal {
     private static final long serialVersionUID = -6232157660434175773L;
     private AttributePrincipal principal;
@@ -185,7 +201,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   private AuthenticationInfo createAuthnInfo(final Assertion assertion) {
     AuthenticationInfo authnInfo;
     AttributePrincipal principal = assertion.getPrincipal();
-    authnInfo = new AuthenticationInfo(AUTH_TYPE);
+    authnInfo = new AuthenticationInfo(CasAuthConstants.CAS_AUTH_TYPE);
     SimpleCredentials credentials = new SimpleCredentials(principal.getName(), new char[] {});
     credentials.setAttribute(CasPrincipal.class.getName(), new CasPrincipal(principal));
     authnInfo.put(AuthenticationInfo.CREDENTIALS, credentials);
@@ -205,9 +221,10 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
     } else {
       modifiedServiceUrl = serviceUrl;
     }
+    LOGGER.debug("Service URL = \"{}\"", modifiedServiceUrl);
 
     final String urlToRedirectTo = CommonUtils.constructRedirectUrl(
-        this.casServerLoginUrl, this.serviceParameterName, modifiedServiceUrl,
+        this.casServerLoginUrl, this.SERVICE_PARAMETER_NAME, modifiedServiceUrl,
         this.renew, gateway);
 
     LOGGER.debug("Redirecting to: \"{}\"", urlToRedirectTo);
@@ -230,9 +247,30 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
 
   private String constructServiceUrl(HttpServletRequest request,
       HttpServletResponse response) {
-    String serviceUrl = request.getRequestURL().toString();
-    serviceUrl = response.encodeURL(serviceUrl);
-    return serviceUrl;
+    // The service URL defaults to our original destination, including
+    // any query string parameters other than those directly involved
+    // in authentication (e.g., the CAS artifact parameter and the
+    // Sling authentication type parameter).
+    StringBuffer serviceUrl = request.getRequestURL();
+    String queryString = request.getQueryString();
+    if (queryString != null) {
+      boolean noQueryString = true;
+      String[] parameters = queryString.split("&");
+      for (String parameter : parameters) {
+        String[] keyAndValue = parameter.split("=", 2);
+        String key = keyAndValue[0];
+        if (!filteredQueryStrings.contains(key)) {
+          if (noQueryString) {
+            serviceUrl.append("?");
+            noQueryString = false;
+          } else {
+            serviceUrl.append("&");
+          }
+          serviceUrl.append(parameter);
+        }
+      }
+    }
+    return serviceUrl.toString();
   }
 
   @SuppressWarnings("unchecked")
@@ -247,7 +285,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   @SuppressWarnings("unchecked")
   public void addPrincipals(Set principals) {
   }
-  
+
   CasPrincipal getCasPrincipal(Credentials credentials) {
     CasPrincipal casPrincipal = null;
     if (credentials instanceof SimpleCredentials) {
