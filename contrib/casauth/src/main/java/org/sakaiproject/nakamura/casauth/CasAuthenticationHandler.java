@@ -23,8 +23,11 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.sling.commons.auth.Authenticator;
+import org.apache.sling.commons.auth.spi.AuthenticationFeedbackHandler;
 import org.apache.sling.commons.auth.spi.AuthenticationHandler;
 import org.apache.sling.commons.auth.spi.AuthenticationInfo;
+import org.apache.sling.commons.auth.spi.DefaultAuthenticationFeedbackHandler;
 import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.jcr.jackrabbit.server.security.AuthenticationPlugin;
 import org.apache.sling.jcr.jackrabbit.server.security.LoginModulePlugin;
@@ -71,7 +74,7 @@ import javax.servlet.http.HttpSession;
     @Property(name=AuthenticationHandler.TYPE_PROPERTY, value=CasAuthConstants.CAS_AUTH_TYPE, propertyPrivate=true)
 })
 @Service
-public final class CasAuthenticationHandler implements AuthenticationHandler, LoginModulePlugin {
+public final class CasAuthenticationHandler implements AuthenticationHandler, LoginModulePlugin, AuthenticationFeedbackHandler {
 
   @Property(value = "https://localhost:8443")
   protected static final String serverName = "auth.cas.server.name";
@@ -130,7 +133,8 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
 
         // TODO SlingAuthenticator tries to call dropCredentials on all
         // applicable AuthenticationHandler implementations, not just one.
-        // Is there a better way of handling this?
+        // Is there a way of handling this so that we do not interrupt the
+        // loop?
         if (casServerLogoutUrl != null && !casServerLogoutUrl.equals("")) {
           response.sendRedirect(casServerLogoutUrl);
         }
@@ -167,7 +171,22 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   public boolean requestCredentials(HttpServletRequest request,
       HttpServletResponse response) throws IOException {
     LOGGER.debug("requestCredentials called");
-    redirectToCas(request, response);
+    final String serviceUrl = constructServiceUrl(request, response);
+    Boolean gateway = Boolean.parseBoolean(request.getParameter("gateway"));
+    final String modifiedServiceUrl;
+    if (gateway) {
+      LOGGER.debug("Setting gateway attribute in session");
+      modifiedServiceUrl = this.gatewayStorage.storeGatewayInformation(request,
+          serviceUrl);
+    } else {
+      modifiedServiceUrl = serviceUrl;
+    }
+    LOGGER.debug("Service URL = \"{}\"", modifiedServiceUrl);
+    final String urlToRedirectTo = CommonUtils.constructRedirectUrl(
+        this.casServerLoginUrl, SERVICE_PARAMETER_NAME, modifiedServiceUrl,
+        this.renew, gateway);
+    LOGGER.debug("Redirecting to: \"{}\"", urlToRedirectTo);
+    response.sendRedirect(urlToRedirectTo);
     return true;
   }
 
@@ -206,29 +225,6 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
     credentials.setAttribute(CasPrincipal.class.getName(), new CasPrincipal(principal));
     authnInfo.put(AuthenticationInfo.CREDENTIALS, credentials);
     return authnInfo;
-  }
-
-  private void redirectToCas(HttpServletRequest request, HttpServletResponse response)
-      throws IOException {
-    final String serviceUrl = constructServiceUrl(request, response);
-    final String modifiedServiceUrl;
-
-    Boolean gateway = Boolean.parseBoolean(request.getParameter("gateway"));
-    if (gateway) {
-      LOGGER.debug("setting gateway attribute in session");
-      modifiedServiceUrl = this.gatewayStorage.storeGatewayInformation(request,
-          serviceUrl);
-    } else {
-      modifiedServiceUrl = serviceUrl;
-    }
-    LOGGER.debug("Service URL = \"{}\"", modifiedServiceUrl);
-
-    final String urlToRedirectTo = CommonUtils.constructRedirectUrl(
-        this.casServerLoginUrl, this.SERVICE_PARAMETER_NAME, modifiedServiceUrl,
-        this.renew, gateway);
-
-    LOGGER.debug("Redirecting to: \"{}\"", urlToRedirectTo);
-    response.sendRedirect(urlToRedirectTo);
   }
 
   private AuthenticationInfo getUserFromTicket(String ticket, String serviceUrl,
@@ -286,7 +282,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   public void addPrincipals(Set principals) {
   }
 
-  CasPrincipal getCasPrincipal(Credentials credentials) {
+  private CasPrincipal getCasPrincipal(Credentials credentials) {
     CasPrincipal casPrincipal = null;
     if (credentials instanceof SimpleCredentials) {
       SimpleCredentials simpleCredentials = (SimpleCredentials) credentials;
@@ -323,5 +319,65 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   public int impersonate(Principal principal, Credentials credentials)
       throws RepositoryException, FailedLoginException {
     return LoginModulePlugin.IMPERSONATION_DEFAULT;
+  }
+
+  /**
+   * {@inheritDoc}
+   * @see org.apache.sling.commons.auth.spi.AuthenticationFeedbackHandler#authenticationFailed(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, org.apache.sling.commons.auth.spi.AuthenticationInfo)
+   */
+  public void authenticationFailed(HttpServletRequest request,
+      HttpServletResponse response, AuthenticationInfo authInfo) {
+    LOGGER.debug("authenticationFailed called");
+    final HttpSession session = request.getSession(false);
+    if (session != null) {
+      final Assertion assertion = (Assertion) session.getAttribute(CONST_CAS_ASSERTION);
+      if (assertion != null) {
+        LOGGER.warn("CAS assertion is set", new Exception());
+      }
+    }
+  }
+
+  /**
+   * @param request
+   * @return the path to which the browser should be redirected after successful
+   * authentication, or null if no redirect was specified
+   */
+  private static String getRedirectPath(HttpServletRequest request) {
+    final String redirectPath;
+    Object resObj = request.getAttribute(Authenticator.LOGIN_RESOURCE);
+    if ((resObj instanceof String) && ((String) resObj).length() > 0) {
+      redirectPath = (String) resObj;
+    } else {
+      String resource = request.getParameter(Authenticator.LOGIN_RESOURCE);
+      if ((resource != null) && (resource.length() > 0)) {
+        redirectPath = resource;
+      } else {
+        redirectPath = null;
+      }
+    }
+    return redirectPath;
+  }
+
+  /**
+   * {@inheritDoc}
+   * @see org.apache.sling.commons.auth.spi.AuthenticationFeedbackHandler#authenticationSucceeded(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, org.apache.sling.commons.auth.spi.AuthenticationInfo)
+   */
+  public boolean authenticationSucceeded(HttpServletRequest request,
+      HttpServletResponse response, AuthenticationInfo authInfo) {
+    LOGGER.debug("authenticationSucceeded called");
+    boolean isHandled = false;
+    isHandled = DefaultAuthenticationFeedbackHandler.handleRedirect(request, response);
+    if (!isHandled) {
+      final String redirectPath = getRedirectPath(request);
+      if (redirectPath != null) {
+        try {
+          response.sendRedirect(redirectPath);
+        } catch (IOException e) {
+          LOGGER.error("Failed to send redirect to " + redirectPath, e);
+        }
+        isHandled = true;
+      }
+    }
+    return isHandled;
   }
 }
