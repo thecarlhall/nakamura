@@ -82,19 +82,19 @@ import javax.servlet.http.HttpSession;
 public final class CasAuthenticationHandler implements AuthenticationHandler, LoginModulePlugin, AuthenticationFeedbackHandler {
 
   @Property(value="https://localhost:8443")
-  protected static final String serverName = "auth.cas.server.name";
+  protected static final String CAS_SERVER_NAME = "auth.cas.server.name";
   private String casServerUrl = null;
 
   @Property(value="https://localhost:8443/cas/login")
-  protected static final String loginUrl = "auth.cas.server.login";
+  protected static final String CAS_LOGIN_URL = "auth.cas.server.login";
   private String casServerLoginUrl = null;
 
   @Property(value="")
-  protected static final String logoutUrl = "auth.cas.server.logout";
+  protected static final String CAS_LOGOUT_URL = "auth.cas.server.logout";
   private String casServerLogoutUrl = null;
 
   @Property(boolValue=false)
-  protected static final String AUTOCREATE_USER = "auth.cas.autocreate";
+  protected static final String CAS_AUTOCREATE_USER = "auth.cas.autocreate";
   private boolean autoCreateUser;
 
   /** Defines the parameter to look for for the service. */
@@ -122,6 +122,8 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   private boolean renew = false;
 
   private GatewayResolver gatewayStorage = new DefaultGatewayResolverImpl();
+
+  //----------- AuthenticationHandler interface ----------------------------
 
   public void dropCredentials(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
@@ -194,6 +196,127 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
     LOGGER.debug("Redirecting to: \"{}\"", urlToRedirectTo);
     response.sendRedirect(urlToRedirectTo);
     return true;
+  }
+
+  //----------- LoginModulePlugin interface ----------------------------
+
+  @SuppressWarnings("unchecked")
+  public void addPrincipals(Set principals) {
+  }
+
+  public boolean canHandle(Credentials credentials) {
+    return (getCasPrincipal(credentials) != null);
+  }
+
+  @SuppressWarnings("unchecked")
+  public void doInit(CallbackHandler callbackHandler, Session session, Map options)
+      throws LoginException {
+  }
+
+  public AuthenticationPlugin getAuthentication(Principal principal, Credentials credentials)
+      throws RepositoryException {
+    AuthenticationPlugin plugin = null;
+    if (canHandle(credentials)) {
+      plugin = new CasAuthentication(principal, this);
+    }
+    return plugin;
+  }
+
+  public Principal getPrincipal(Credentials credentials) {
+    return getCasPrincipal(credentials);
+  }
+
+  public int impersonate(Principal principal, Credentials credentials)
+      throws RepositoryException, FailedLoginException {
+    return LoginModulePlugin.IMPERSONATION_DEFAULT;
+  }
+
+  //----------- AuthenticationFeedbackHandler interface ----------------------------
+
+  /**
+   * {@inheritDoc}
+   * @see org.apache.sling.commons.auth.spi.AuthenticationFeedbackHandler#authenticationFailed(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, org.apache.sling.commons.auth.spi.AuthenticationInfo)
+   */
+  public void authenticationFailed(HttpServletRequest request,
+      HttpServletResponse response, AuthenticationInfo authInfo) {
+    LOGGER.debug("authenticationFailed called");
+    final HttpSession session = request.getSession(false);
+    if (session != null) {
+      final Assertion assertion = (Assertion) session.getAttribute(CONST_CAS_ASSERTION);
+      if (assertion != null) {
+        LOGGER.warn("CAS assertion is set", new Exception());
+      }
+    }
+  }
+
+  /**
+   * If a redirect is configured, this method will take care of the redirect.
+   * <p>
+   * If user auto-creation is configured, this method will check for an existing Authorizable
+   * that matches the principal. If not found, it creates a new Jackrabbit user
+   * with all properties blank except for the ID and a randomly generated password.
+   * WARNING: Currently this will not perform the extra work done by the Nakamura
+   * CreateUserServlet, and the resulting user will not be associated with a
+   * valid profile.
+   * <p>
+   * TODO This really needs to be dropped to allow for user pull, person directory
+   * integrations, etc. See SLING-1563 for the related issue of user population via OpenID.
+   *
+   * @see org.apache.sling.commons.auth.spi.AuthenticationFeedbackHandler#authenticationSucceeded(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, org.apache.sling.commons.auth.spi.AuthenticationInfo)
+   */
+  public boolean authenticationSucceeded(HttpServletRequest request,
+      HttpServletResponse response, AuthenticationInfo authInfo) {
+    LOGGER.debug("authenticationSucceeded called");
+
+    // If the plug-in is intended to verify the existence of a matching Authorizable,
+    // check that now.
+    if (this.autoCreateUser) {
+      boolean isUserValid = findOrCreateUser(authInfo);
+      if (!isUserValid) {
+        LOGGER.warn("CAS authentication succeeded but corresponding user not found or created");
+        try {
+          dropCredentials(request, response);
+        } catch (IOException e) {
+          LOGGER.error("Failed to drop credentials after CAS authentication by invalid user", e);
+        }
+        return true;
+      }
+    }
+
+    boolean isHandled = DefaultAuthenticationFeedbackHandler.handleRedirect(request, response);
+    if (!isHandled) {
+      final String redirectPath = getRedirectPath(request);
+      if (redirectPath != null) {
+        try {
+          response.sendRedirect(redirectPath);
+        } catch (IOException e) {
+          LOGGER.error("Failed to send redirect to " + redirectPath, e);
+        }
+        isHandled = true;
+      }
+    }
+    return isHandled;
+  }
+
+  //----------- OSGi integration ----------------------------
+
+  @Activate
+  protected void activate(Map<?, ?> properties) {
+    init(properties);
+  }
+
+  @Modified
+  protected void modified(Map<?, ?> properties) {
+    init(properties);
+  }
+
+  //----------- Internal ----------------------------
+
+  private void init(Map<?, ?> properties) {
+    casServerUrl = OsgiUtil.toString(properties.get(CAS_SERVER_NAME), "");
+    casServerLoginUrl = OsgiUtil.toString(properties.get(CAS_LOGIN_URL), "");
+    casServerLogoutUrl = OsgiUtil.toString(properties.get(CAS_LOGOUT_URL), "");
+    autoCreateUser = OsgiUtil.toBoolean(properties.get(CAS_AUTOCREATE_USER), false);
   }
 
   private static class CasPrincipal implements AttributePrincipal {
@@ -275,27 +398,6 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
     return serviceUrl.toString();
   }
 
-  private void init(Map<?, ?> properties) {
-    casServerUrl = OsgiUtil.toString(properties.get(serverName), "");
-    casServerLoginUrl = OsgiUtil.toString(properties.get(loginUrl), "");
-    casServerLogoutUrl = OsgiUtil.toString(properties.get(logoutUrl), "");
-    autoCreateUser = OsgiUtil.toBoolean(properties.get(AUTOCREATE_USER), false);
-  }
-
-  @Activate
-  protected void activate(Map<?, ?> properties) {
-    init(properties);
-  }
-
-  @Modified
-  protected void modified(Map<?, ?> properties) {
-    init(properties);
-  }
-
-  @SuppressWarnings("unchecked")
-  public void addPrincipals(Set principals) {
-  }
-
   private CasPrincipal getCasPrincipal(Credentials credentials) {
     CasPrincipal casPrincipal = null;
     if (credentials instanceof SimpleCredentials) {
@@ -306,77 +408,6 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       }
     }
     return casPrincipal;
-  }
-
-  public boolean canHandle(Credentials credentials) {
-    return (getCasPrincipal(credentials) != null);
-  }
-
-  @SuppressWarnings("unchecked")
-  public void doInit(CallbackHandler callbackHandler, Session session, Map options)
-      throws LoginException {
-  }
-
-  public AuthenticationPlugin getAuthentication(Principal principal, Credentials credentials)
-      throws RepositoryException {
-    AuthenticationPlugin plugin = null;
-    if (canHandle(credentials)) {
-      plugin = new CasAuthentication(principal, this);
-    }
-    return plugin;
-  }
-
-  public Principal getPrincipal(Credentials credentials) {
-    return getCasPrincipal(credentials);
-  }
-
-  public int impersonate(Principal principal, Credentials credentials)
-      throws RepositoryException, FailedLoginException {
-    return LoginModulePlugin.IMPERSONATION_DEFAULT;
-  }
-
-  /**
-   * {@inheritDoc}
-   * @see org.apache.sling.commons.auth.spi.AuthenticationFeedbackHandler#authenticationFailed(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, org.apache.sling.commons.auth.spi.AuthenticationInfo)
-   */
-  public void authenticationFailed(HttpServletRequest request,
-      HttpServletResponse response, AuthenticationInfo authInfo) {
-    LOGGER.debug("authenticationFailed called");
-    final HttpSession session = request.getSession(false);
-    if (session != null) {
-      final Assertion assertion = (Assertion) session.getAttribute(CONST_CAS_ASSERTION);
-      if (assertion != null) {
-        LOGGER.warn("CAS assertion is set", new Exception());
-      }
-    }
-  }
-
-  /**
-   * In imitation of sling.formauth, use the "resource" parameter to handle
-   * redirects.
-   * <p>
-   * TODO The "sling.auth.redirect" parameter seems to make more sense, but it
-   * currently causes a redirect to happen in SlingAuthenticator's
-   * getAnonymousResolver method before handlers get a chance to requestCredentials.
-   *
-   * @param request
-   * @return the path to which the browser should be redirected after successful
-   * authentication, or null if no redirect was specified
-   */
-  private static String getRedirectPath(HttpServletRequest request) {
-    final String redirectPath;
-    Object resObj = request.getAttribute(Authenticator.LOGIN_RESOURCE);
-    if ((resObj instanceof String) && ((String) resObj).length() > 0) {
-      redirectPath = (String) resObj;
-    } else {
-      String resource = request.getParameter(Authenticator.LOGIN_RESOURCE);
-      if ((resource != null) && (resource.length() > 0)) {
-        redirectPath = resource;
-      } else {
-        redirectPath = null;
-      }
-    }
-    return redirectPath;
   }
 
   private boolean findOrCreateUser(AuthenticationInfo authInfo) {
@@ -409,51 +440,30 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   }
 
   /**
-   * If a redirect is configured, this method will take care of the redirect.
+   * In imitation of sling.formauth, use the "resource" parameter to handle
+   * redirects.
    * <p>
-   * If user auto-creation is configured, this method will check for an existing Authorizable
-   * that matches the principal. If not found, it creates a new Jackrabbit user
-   * with all properties blank except for the ID and a randomly generated password.
-   * WARNING: Currently this will not perform the extra work done by the Nakamura
-   * CreateUserServlet, and the resulting user will not be associated with a
-   * valid profile.
-   * <p>
-   * TODO This really needs to be dropped to allow for user pull, person directory
-   * integrations, etc. See SLING-1563 for the related issue of user population via OpenID.
+   * TODO The "sling.auth.redirect" parameter seems to make more sense, but it
+   * currently causes a redirect to happen in SlingAuthenticator's
+   * getAnonymousResolver method before handlers get a chance to requestCredentials.
    *
-   * @see org.apache.sling.commons.auth.spi.AuthenticationFeedbackHandler#authenticationSucceeded(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, org.apache.sling.commons.auth.spi.AuthenticationInfo)
+   * @param request
+   * @return the path to which the browser should be redirected after successful
+   * authentication, or null if no redirect was specified
    */
-  public boolean authenticationSucceeded(HttpServletRequest request,
-      HttpServletResponse response, AuthenticationInfo authInfo) {
-    LOGGER.debug("authenticationSucceeded called");
-
-    // If the plug-in is intended to verify the existence of a matching Authorizable,
-    // check that now.
-    if (this.autoCreateUser) {
-      boolean isUserValid = findOrCreateUser(authInfo);
-      if (!isUserValid) {
-        LOGGER.warn("CAS authentication succeeded but corresponding user not found or created");
-        try {
-          dropCredentials(request, response);
-        } catch (IOException e) {
-          LOGGER.error("Failed to drop credentials after CAS authentication by invalid user", e);
-        }
-        return true;
+  private static String getRedirectPath(HttpServletRequest request) {
+    final String redirectPath;
+    Object resObj = request.getAttribute(Authenticator.LOGIN_RESOURCE);
+    if ((resObj instanceof String) && ((String) resObj).length() > 0) {
+      redirectPath = (String) resObj;
+    } else {
+      String resource = request.getParameter(Authenticator.LOGIN_RESOURCE);
+      if ((resource != null) && (resource.length() > 0)) {
+        redirectPath = resource;
+      } else {
+        redirectPath = null;
       }
     }
-
-    boolean isHandled = DefaultAuthenticationFeedbackHandler.handleRedirect(request, response);
-    if (!isHandled) {
-      final String redirectPath = getRedirectPath(request);
-      if (redirectPath != null) {
-        try {
-          response.sendRedirect(redirectPath);
-        } catch (IOException e) {
-          LOGGER.error("Failed to send redirect to " + redirectPath, e);
-        }
-        isHandled = true;
-      }
-    }
-    return isHandled;
+    return redirectPath;
   }
 }
