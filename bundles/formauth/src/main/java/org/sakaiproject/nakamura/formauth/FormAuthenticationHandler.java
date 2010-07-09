@@ -70,7 +70,6 @@ import javax.servlet.http.HttpServletResponse;
     @Property(name=AuthenticationHandler.TYPE_PROPERTY, value="SAKAIFORM")
 })
 public final class FormAuthenticationHandler implements AuthenticationHandler {
-//  @Property(name=AuthenticationHandler.TYPE_PROPERTY, value="SAKAIFORM", propertyPrivate=true)
 
   /**
    *
