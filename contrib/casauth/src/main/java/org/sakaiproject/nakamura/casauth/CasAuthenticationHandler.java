@@ -217,7 +217,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       throws RepositoryException {
     AuthenticationPlugin plugin = null;
     if (canHandle(credentials)) {
-      plugin = new CasAuthentication(principal, this);
+      plugin = new CasAuthentication(this);
     }
     return plugin;
   }

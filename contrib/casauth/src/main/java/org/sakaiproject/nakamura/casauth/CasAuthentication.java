@@ -17,30 +17,15 @@
  */
 package org.sakaiproject.nakamura.casauth;
 
-import org.apache.commons.lang.RandomStringUtils;
-import org.apache.jackrabbit.api.security.user.Authorizable;
-import org.apache.jackrabbit.api.security.user.UserManager;
-import org.apache.sling.jcr.api.SlingRepository;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.server.security.AuthenticationPlugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.security.Principal;
 
 import javax.jcr.Credentials;
 import javax.jcr.RepositoryException;
-import javax.jcr.Session;
 
 public class CasAuthentication implements AuthenticationPlugin {
-  private static final Logger LOGGER = LoggerFactory.getLogger(CasAuthentication.class);
-
-  private Principal principal;
   private CasAuthenticationHandler casAuthenticationHandler;
 
-  public CasAuthentication(Principal principal, CasAuthenticationHandler casAuthenticationHandler) {
-    this.principal = principal;
-    this.casAuthenticationHandler = casAuthenticationHandler;
+  public CasAuthentication(CasAuthenticationHandler casAuthenticationHandler) {    this.casAuthenticationHandler = casAuthenticationHandler;
   }
 
   /**
