@@ -18,9 +18,9 @@
     <artifactId>base</artifactId>
     <version>0.6</version>
   </parent>
-  <artifactId>org.sakaiproject.nakamura.formauth</artifactId>
+  <artifactId>org.sakaiproject.nakamura.formauth-myberkeley</artifactId>
   <packaging>bundle</packaging>
-  <version>0.6</version>
+  <version>0.6.1-SNAPSHOT</version>
   <name>Sakai Nakamura :: Form Auth Bundle</name>
   <description>Provides Form based authentication support to the request cycle and adds a URL against which form based authentication can be performed.</description>
   <build>
