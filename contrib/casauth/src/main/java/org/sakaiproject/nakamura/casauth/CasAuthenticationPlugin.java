@@ -22,10 +22,11 @@ import org.apache.sling.jcr.jackrabbit.server.security.AuthenticationPlugin;
 import javax.jcr.Credentials;
 import javax.jcr.RepositoryException;
 
-public class CasAuthentication implements AuthenticationPlugin {
+public class CasAuthenticationPlugin implements AuthenticationPlugin {
   private CasAuthenticationHandler casAuthenticationHandler;
 
-  public CasAuthentication(CasAuthenticationHandler casAuthenticationHandler) {    this.casAuthenticationHandler = casAuthenticationHandler;
+  public CasAuthenticationPlugin(CasAuthenticationHandler casAuthenticationHandler) {
+    this.casAuthenticationHandler = casAuthenticationHandler;
   }
 
   /**
