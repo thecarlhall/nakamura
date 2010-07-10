@@ -22,6 +22,11 @@ import org.apache.felix.scr.annotations.sling.SlingServlet;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.sakaiproject.nakamura.api.doc.BindingType;
+import org.sakaiproject.nakamura.api.doc.ServiceBinding;
+import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
+import org.sakaiproject.nakamura.api.doc.ServiceMethod;
+import org.sakaiproject.nakamura.api.doc.ServiceParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +47,13 @@ import javax.servlet.http.HttpServletResponse;
  * (including sling.commons.auth's LoginServlet) by setting the
  * sling:authRequestLogin request parameter to "CAS".
  */
+@ServiceDocumentation(name="CAS Login Servlet", shortDescription=
+    "Redirects to the configured CAS server, which will return on successful authentication.",
+    bindings = @ServiceBinding(type=BindingType.PATH, bindings="/system/sling/cas/login"),
+    methods = {
+    @ServiceMethod(name="GET, POST", parameters={
+        @ServiceParameter(name="resource", description="The path to return to (default is /)")
+    })})
 @SlingServlet(paths = { "/system/sling/cas/login" }, methods = { "GET", "POST" })
 public class CasLoginServlet extends SlingAllMethodsServlet {
   private static final long serialVersionUID = -1894135945816269913L;

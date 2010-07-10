@@ -139,19 +139,6 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       if (assertion != null) {
         LOGGER.debug("CAS Authentication attribute will be removed");
         session.removeAttribute(CONST_CAS_ASSERTION);
-
-        // TODO SlingAuthenticator tries to call dropCredentials on all
-        // applicable AuthenticationHandler implementations, not just one.
-        // Is there a way of handling this so that we do not interrupt the
-        // loop?
-        if (casServerLogoutUrl != null && casServerLogoutUrl.length() > 0) {
-          LOGGER.debug("About to redirect to {}", casServerLogoutUrl);
-          try {
-            response.sendRedirect(casServerLogoutUrl);
-          } catch (IOException e) {
-            LOGGER.error("Failed to send redirect to " + casServerLogoutUrl, e);
-          }
-        }
       }
     }
   }
@@ -333,6 +320,47 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       }
     }
     return returnPath;
+  }
+
+  /**
+   * If CAS SSO logout has been configured, drop this handler's credentials,
+   * invalidate this session, and then redirect to the CAS server's logout URL.
+   * <p>
+   * TODO This goes against the spirit of current development in Sling
+   * authentication mechanisms, since it bypasses the usual logout loop.
+   * If multiple authentication handlers were involved in
+   * authenticating the current session (e.g., if a trusted token service
+   * picked up the CAS authentication), their dropCredentials methods will
+   * not be called.
+   *
+   * @param request
+   * @param response
+   * @return true if the redirect occurred; false if normal Sling logout
+   * should continue instead
+   * @throws IOException
+   */
+  boolean casLogout(HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    boolean didRedirect = false;
+    if (casServerLogoutUrl != null && casServerLogoutUrl.length() > 0) {
+      dropCredentials(request, response);
+      final HttpSession session = request.getSession(false);
+      if (session != null) {
+        try {
+          session.invalidate();
+        } catch (IllegalStateException e) {
+          LOGGER.debug("Session already invalid", e);
+        }
+      }
+      LOGGER.info("About to redirect to {}", casServerLogoutUrl);
+      try {
+        response.sendRedirect(casServerLogoutUrl);
+        didRedirect = true;
+      } catch (IOException e) {
+        LOGGER.error("Failed to send redirect to " + casServerLogoutUrl, e);
+      }
+    }
+    return didRedirect;
   }
 
   //----------- Internal ----------------------------
