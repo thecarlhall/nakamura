@@ -25,6 +25,7 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.felix.scr.annotations.Services;
 import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.sling.commons.auth.Authenticator;
@@ -78,7 +79,12 @@ import javax.servlet.http.HttpSession;
     @Property(name=org.osgi.framework.Constants.SERVICE_RANKING, value="5"),
     @Property(name=AuthenticationHandler.TYPE_PROPERTY, value=CasAuthConstants.CAS_AUTH_TYPE, propertyPrivate=true)
 })
-@Service
+@Services({
+  @Service(value=CasAuthenticationHandler.class),
+  @Service(value=AuthenticationHandler.class),
+  @Service(value=LoginModulePlugin.class),
+  @Service(value=AuthenticationFeedbackHandler.class)
+})
 public final class CasAuthenticationHandler implements AuthenticationHandler, LoginModulePlugin, AuthenticationFeedbackHandler {
 
   @Property(value="https://localhost:8443")
@@ -299,6 +305,36 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
     init(properties);
   }
 
+  //----------- Package ----------------------------
+
+  /**
+   * In imitation of sling.formauth, use the "resource" parameter to determine
+   * where the browser should go after successful authentication.
+   * <p>
+   * TODO The "sling.auth.redirect" parameter seems to make more sense, but it
+   * currently causes a redirect to happen in SlingAuthenticator's
+   * getAnonymousResolver method before handlers get a chance to requestCredentials.
+   *
+   * @param request
+   * @return the path to which the browser should be directed after successful
+   * authentication, or null if no destination was specified
+   */
+  String getReturnPath(HttpServletRequest request) {
+    final String returnPath;
+    Object resObj = request.getAttribute(Authenticator.LOGIN_RESOURCE);
+    if ((resObj instanceof String) && ((String) resObj).length() > 0) {
+      returnPath = (String) resObj;
+    } else {
+      String resource = request.getParameter(Authenticator.LOGIN_RESOURCE);
+      if ((resource != null) && (resource.length() > 0)) {
+        returnPath = resource;
+      } else {
+        returnPath = null;
+      }
+    }
+    return returnPath;
+  }
+
   //----------- Internal ----------------------------
 
   private void init(Map<?, ?> properties) {
@@ -437,34 +473,6 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       }
     }
     return isUserValid;
-  }
-
-  /**
-   * In imitation of sling.formauth, use the "resource" parameter to determine
-   * where the browser should go after successful authentication.
-   * <p>
-   * TODO The "sling.auth.redirect" parameter seems to make more sense, but it
-   * currently causes a redirect to happen in SlingAuthenticator's
-   * getAnonymousResolver method before handlers get a chance to requestCredentials.
-   *
-   * @param request
-   * @return the path to which the browser should be directed after successful
-   * authentication, or null if no destination was specified
-   */
-  private static String getReturnPath(HttpServletRequest request) {
-    final String returnPath;
-    Object resObj = request.getAttribute(Authenticator.LOGIN_RESOURCE);
-    if ((resObj instanceof String) && ((String) resObj).length() > 0) {
-      returnPath = (String) resObj;
-    } else {
-      String resource = request.getParameter(Authenticator.LOGIN_RESOURCE);
-      if ((resource != null) && (resource.length() > 0)) {
-        returnPath = resource;
-      } else {
-        returnPath = null;
-      }
-    }
-    return returnPath;
   }
 
   private StringBuilder getServerName(HttpServletRequest request) {
