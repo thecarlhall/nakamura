@@ -100,18 +100,18 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   /** Defines the parameter to look for for the service. */
   private static final String SERVICE_PARAMETER_NAME = "service";
 
-  private static final Logger LOGGER = LoggerFactory
-      .getLogger(CasAuthenticationHandler.class);
+  /** Defines the parameter to look for for the artifact. */
+  private static final String ARTIFACT_PARAMETER_NAME = "ticket";
 
   /** Represents the constant for where the assertion will be located in memory. */
-  public static final String CONST_CAS_ASSERTION = "_const_cas_assertion_";
+  static final String CONST_CAS_ASSERTION = "_const_cas_assertion_";
+
+  private static final Logger LOGGER = LoggerFactory
+      .getLogger(CasAuthenticationHandler.class);
 
   // TODO Only needed for the automatic user creation.
   @Reference
   private SlingRepository repository;
-
-  /** Defines the parameter to look for for the artifact. */
-  private static final String ARTIFACT_PARAMETER_NAME = "ticket";
 
   /**
    * Define the set of authentication-related query parameters which should
@@ -283,19 +283,8 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
       }
     }
 
-    boolean isHandled = DefaultAuthenticationFeedbackHandler.handleRedirect(request, response);
-    if (!isHandled) {
-      final String redirectPath = getRedirectPath(request);
-      if (redirectPath != null) {
-        try {
-          response.sendRedirect(redirectPath);
-        } catch (IOException e) {
-          LOGGER.error("Failed to send redirect to " + redirectPath, e);
-        }
-        isHandled = true;
-      }
-    }
-    return isHandled;
+    // Check for the default post-authentication redirect.
+    return DefaultAuthenticationFeedbackHandler.handleRedirect(request, response);
   }
 
   //----------- OSGi integration ----------------------------
@@ -370,28 +359,39 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
     return authnInfo;
   }
 
+  /**
+   * @param request
+   * @param response
+   * @return the URL to which the CAS server should redirect after successful
+   * authentication. By default, this is the same URL from which authentication
+   * was initiated (minus authentication-related query strings like "ticket").
+   * A request attribute or parameter can be used to specify a different
+   * return path.
+   */
   private String constructServiceUrl(HttpServletRequest request,
       HttpServletResponse response) {
-    // The service URL defaults to our original destination, including
-    // any query string parameters other than those directly involved
-    // in authentication (e.g., the CAS artifact parameter and the
-    // Sling authentication type parameter).
-    StringBuffer serviceUrl = request.getRequestURL();
-    String queryString = request.getQueryString();
-    if (queryString != null) {
-      boolean noQueryString = true;
-      String[] parameters = queryString.split("&");
-      for (String parameter : parameters) {
-        String[] keyAndValue = parameter.split("=", 2);
-        String key = keyAndValue[0];
-        if (!filteredQueryStrings.contains(key)) {
-          if (noQueryString) {
-            serviceUrl.append("?");
-            noQueryString = false;
-          } else {
-            serviceUrl.append("&");
+    StringBuilder serviceUrl = getServerName(request);
+    String requestedReturnPath = getReturnPath(request);
+    if (requestedReturnPath != null && requestedReturnPath.length() > 0) {
+      serviceUrl.append(requestedReturnPath);
+    } else {
+      serviceUrl.append(request.getRequestURI());
+      String queryString = request.getQueryString();
+      if (queryString != null) {
+        boolean noQueryString = true;
+        String[] parameters = queryString.split("&");
+        for (String parameter : parameters) {
+          String[] keyAndValue = parameter.split("=", 2);
+          String key = keyAndValue[0];
+          if (!filteredQueryStrings.contains(key)) {
+            if (noQueryString) {
+              serviceUrl.append("?");
+              noQueryString = false;
+            } else {
+              serviceUrl.append("&");
+            }
+            serviceUrl.append(parameter);
           }
-          serviceUrl.append(parameter);
         }
       }
     }
@@ -440,30 +440,42 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   }
 
   /**
-   * In imitation of sling.formauth, use the "resource" parameter to handle
-   * redirects.
+   * In imitation of sling.formauth, use the "resource" parameter to determine
+   * where the browser should go after successful authentication.
    * <p>
    * TODO The "sling.auth.redirect" parameter seems to make more sense, but it
    * currently causes a redirect to happen in SlingAuthenticator's
    * getAnonymousResolver method before handlers get a chance to requestCredentials.
    *
    * @param request
-   * @return the path to which the browser should be redirected after successful
-   * authentication, or null if no redirect was specified
+   * @return the path to which the browser should be directed after successful
+   * authentication, or null if no destination was specified
    */
-  private static String getRedirectPath(HttpServletRequest request) {
-    final String redirectPath;
+  private static String getReturnPath(HttpServletRequest request) {
+    final String returnPath;
     Object resObj = request.getAttribute(Authenticator.LOGIN_RESOURCE);
     if ((resObj instanceof String) && ((String) resObj).length() > 0) {
-      redirectPath = (String) resObj;
+      returnPath = (String) resObj;
     } else {
       String resource = request.getParameter(Authenticator.LOGIN_RESOURCE);
       if ((resource != null) && (resource.length() > 0)) {
-        redirectPath = resource;
+        returnPath = resource;
       } else {
-        redirectPath = null;
+        returnPath = null;
       }
     }
-    return redirectPath;
+    return returnPath;
+  }
+
+  private StringBuilder getServerName(HttpServletRequest request) {
+    StringBuilder serverName = new StringBuilder();
+    String scheme = request.getScheme();
+    int port = request.getServerPort();
+    serverName.append(scheme).append("://").append(request.getServerName());
+    if ((port > 0) && (!"http".equals(scheme) || port != 80)
+        && (!"https".equals(scheme) || port != 443)) {
+      serverName.append(':').append(port);
+    }
+    return serverName;
   }
 }
