@@ -56,7 +56,7 @@ public class CasLogoutServlet extends SlingAllMethodsServlet {
   private static final Logger LOGGER = LoggerFactory.getLogger(CasLogoutServlet.class);
 
   @Reference
-  protected CasAuthenticationHandler casAuthenticationHandler;
+  protected transient CasAuthenticationHandler casAuthenticationHandler;
 
   @Reference(cardinality=ReferenceCardinality.OPTIONAL_UNARY, policy=ReferencePolicy.DYNAMIC)
   private Authenticator authenticator;
@@ -64,7 +64,6 @@ public class CasLogoutServlet extends SlingAllMethodsServlet {
   @Override
   protected void service(SlingHttpServletRequest request,
       SlingHttpServletResponse response) throws ServletException, IOException {
-    LOGGER.warn("Request authType={}", request.getAuthType());
     if (!casAuthenticationHandler.casLogout(request, response)) {
       final Authenticator authenticator = this.authenticator;
       if (authenticator != null) {

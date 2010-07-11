@@ -62,12 +62,11 @@ public class CasLoginServlet extends SlingAllMethodsServlet {
   private static final Logger LOGGER = LoggerFactory.getLogger(CasLoginServlet.class);
 
   @Reference
-  protected CasAuthenticationHandler casAuthenticationHandler;
+  protected transient CasAuthenticationHandler casAuthenticationHandler;
 
   @Override
   protected void service(SlingHttpServletRequest request,
       SlingHttpServletResponse response) throws ServletException, IOException {
-
     // Check for possible loop after authentication.
     if (request.getAuthType() != null) {
       String redirectTarget = casAuthenticationHandler.getReturnPath(request);

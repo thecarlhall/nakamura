@@ -342,23 +342,28 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
   boolean casLogout(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
     boolean didRedirect = false;
-    if (casServerLogoutUrl != null && casServerLogoutUrl.length() > 0) {
-      dropCredentials(request, response);
-      final HttpSession session = request.getSession(false);
-      if (session != null) {
+    final String authType = request.getAuthType();
+    if (CasAuthConstants.CAS_AUTH_TYPE.equals(authType)) {
+      if (casServerLogoutUrl != null && casServerLogoutUrl.length() > 0) {
+        dropCredentials(request, response);
+        final HttpSession session = request.getSession(false);
+        if (session != null) {
+          try {
+            session.invalidate();
+          } catch (IllegalStateException e) {
+            LOGGER.debug("Session already invalid", e);
+          }
+        }
+        LOGGER.info("About to redirect to {}", casServerLogoutUrl);
         try {
-          session.invalidate();
-        } catch (IllegalStateException e) {
-          LOGGER.debug("Session already invalid", e);
+          response.sendRedirect(casServerLogoutUrl);
+          didRedirect = true;
+        } catch (IOException e) {
+          LOGGER.error("Failed to send redirect to " + casServerLogoutUrl, e);
         }
       }
-      LOGGER.info("About to redirect to {}", casServerLogoutUrl);
-      try {
-        response.sendRedirect(casServerLogoutUrl);
-        didRedirect = true;
-      } catch (IOException e) {
-        LOGGER.error("Failed to send redirect to " + casServerLogoutUrl, e);
-      }
+    } else {
+      LOGGER.info("CAS logout requested for non-CAS session; authType={}", authType);
     }
     return didRedirect;
   }
