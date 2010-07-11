@@ -17,6 +17,8 @@
  */
 package org.sakaiproject.nakamura.casauth;
 
+import static org.sakaiproject.nakamura.api.casauth.CasAuthConstants.CAS_LOGIN_PATH;
+
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.sling.SlingServlet;
 import org.apache.sling.api.SlingHttpServletRequest;
@@ -49,12 +51,12 @@ import javax.servlet.http.HttpServletResponse;
  */
 @ServiceDocumentation(name="CAS Login Servlet", shortDescription=
     "Redirects to the configured CAS server, which will return on successful authentication.",
-    bindings = @ServiceBinding(type=BindingType.PATH, bindings="/system/sling/cas/login"),
+    bindings = @ServiceBinding(type=BindingType.PATH, bindings=CAS_LOGIN_PATH),
     methods = {
     @ServiceMethod(name="GET, POST", parameters={
         @ServiceParameter(name="resource", description="The path to return to (default is /)")
     })})
-@SlingServlet(paths = { "/system/sling/cas/login" }, methods = { "GET", "POST" })
+@SlingServlet(paths = { CAS_LOGIN_PATH }, methods = { "GET", "POST" })
 public class CasLoginServlet extends SlingAllMethodsServlet {
   private static final long serialVersionUID = -1894135945816269913L;
   private static final Logger LOGGER = LoggerFactory.getLogger(CasLoginServlet.class);

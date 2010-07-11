@@ -17,6 +17,8 @@
  */
 package org.sakaiproject.nakamura.casauth;
 
+import static org.sakaiproject.nakamura.api.casauth.CasAuthConstants.CAS_LOGOUT_PATH;
+
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
@@ -25,6 +27,7 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.auth.Authenticator;
+import org.sakaiproject.nakamura.api.casauth.CasAuthConstants;
 import org.sakaiproject.nakamura.api.doc.BindingType;
 import org.sakaiproject.nakamura.api.doc.ServiceBinding;
 import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
@@ -45,9 +48,9 @@ import javax.servlet.ServletException;
  */
 @ServiceDocumentation(name="CAS Logout Servlet", shortDescription=
     "Log out of local authentication and then redirect to log out of the CAS server.",
-    bindings = @ServiceBinding(type=BindingType.PATH, bindings="/system/sling/cas/login"),
+    bindings = @ServiceBinding(type=BindingType.PATH, bindings=CasAuthConstants.CAS_LOGOUT_PATH),
     methods = {@ServiceMethod(name="GET, POST")})
-@SlingServlet(paths = { "/system/sling/cas/logout" }, methods = { "GET", "POST" })
+@SlingServlet(paths = { CAS_LOGOUT_PATH }, methods = { "GET", "POST" })
 public class CasLogoutServlet extends SlingAllMethodsServlet {
   private static final long serialVersionUID = -8413852795940695719L;
   private static final Logger LOGGER = LoggerFactory.getLogger(CasLogoutServlet.class);

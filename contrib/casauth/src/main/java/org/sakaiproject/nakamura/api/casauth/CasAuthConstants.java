@@ -29,4 +29,6 @@ public class CasAuthConstants {
    */
   public static final String CAS_AUTH_TYPE = "CAS";
 
+  public static final String CAS_LOGIN_PATH = "/system/sling/cas/login";
+  public static final String CAS_LOGOUT_PATH = "/system/sling/cas/logout";
 }
