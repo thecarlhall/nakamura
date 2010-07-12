@@ -117,7 +117,7 @@ public final class CasAuthenticationHandler implements AuthenticationHandler, Lo
 
   // TODO Only needed for the automatic user creation.
   @Reference
-  private SlingRepository repository;
+  protected transient SlingRepository repository;
 
   /**
    * Define the set of authentication-related query parameters which should

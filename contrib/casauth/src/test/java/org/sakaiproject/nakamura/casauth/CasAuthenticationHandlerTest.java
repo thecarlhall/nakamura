@@ -4,11 +4,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.jackrabbit.api.JackrabbitSession;
+import org.apache.jackrabbit.api.security.user.AuthorizableExistsException;
+import org.apache.jackrabbit.api.security.user.User;
 import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.sling.commons.auth.spi.AuthenticationInfo;
 import org.apache.sling.jcr.api.SlingRepository;
@@ -22,6 +29,9 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.SimpleCredentials;
@@ -30,11 +40,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-
 @RunWith(MockitoJUnitRunner.class)
 public class CasAuthenticationHandlerTest {
   private CasAuthenticationHandler casAuthenticationHandler;
-  private CasAuthenticationPlugin casAuthentication;
+  private CasAuthenticationPlugin casAuthenticationPlugin;
   private SimpleCredentials casCredentials;
   @Mock
   HttpServletRequest request;
@@ -56,9 +65,12 @@ public class CasAuthenticationHandlerTest {
   @Before
   public void setUp() throws RepositoryException {
     casAuthenticationHandler = new CasAuthenticationHandler();
+    casAuthenticationHandler.repository = repository;
     when(adminSession.getUserManager()).thenReturn(userManager);
     when(repository.loginAdministrative(null)).thenReturn(adminSession);
   }
+
+  // AuthenticationHandler tests.
 
   @Test
   public void testAuthenticateNoTicket() {
@@ -102,6 +114,8 @@ public class CasAuthenticationHandlerTest {
     assertEquals(casCredentials.getUserID(), "joe");
   }
 
+  // LoginModulePlugin tests.
+
   @Test
   public void testCanHandleCasCredentials() throws RepositoryException {
     setUpCasCredentials();
@@ -125,38 +139,71 @@ public class CasAuthenticationHandlerTest {
     assertEquals(LoginModulePlugin.IMPERSONATION_DEFAULT, casAuthenticationHandler.impersonate(null, null));
   }
 
+  // AuthenticationPlugin tests.
+
   @Test
   public void testDoNotAuthenticateUser() throws RepositoryException {
-    casAuthentication = new CasAuthenticationPlugin(casAuthenticationHandler);
-    assertFalse(casAuthentication.authenticate(casCredentials));
+    casAuthenticationPlugin = new CasAuthenticationPlugin(casAuthenticationHandler);
+    assertFalse(casAuthenticationPlugin.authenticate(casCredentials));
   }
 
   @Test
   public void testAuthenticateUser() throws RepositoryException {
     setUpCasCredentials();
-    casAuthentication = new CasAuthenticationPlugin(casAuthenticationHandler);
-    assertTrue(casAuthentication.authenticate(casCredentials));
+    casAuthenticationPlugin = new CasAuthenticationPlugin(casAuthenticationHandler);
+    assertTrue(casAuthenticationPlugin.authenticate(casCredentials));
   }
 
-  // TODO Add AuthenticationSuccess tests for user creation
-/*
-  @Test
-  public void testAuthenticateExistingUser() throws RepositoryException {
-    User jcrUser = mock(User.class);
-    when(jcrUser.getID()).thenReturn("joe");
-    when(userManager.getAuthorizable(anyString())).thenReturn(jcrUser);
-    setUpCasCredentials();
-    casAuthentication = new CasAuthenticationPlugin(casAuthenticationHandler);
-    assertTrue(casAuthentication.authenticate(casCredentials));
+  // AuthenticationFeedbackHandler tests.
+
+  private void setAutocreateUser(String bool) {
+    Map<String, String> properties = new HashMap<String, String>();
+    properties.put(CasAuthenticationHandler.CAS_AUTOCREATE_USER, bool);
+    casAuthenticationHandler.activate(properties);
   }
 
   @Test
-  public void testAuthenticateUnknownUser() throws RepositoryException {
+  public void testUnknownUserNoCreation() throws AuthorizableExistsException, RepositoryException {
+    setAutocreateUser("false");
     setUpCasCredentials();
-    casAuthentication = new CasAuthenticationPlugin(casAuthenticationHandler);
-    assertTrue(casAuthentication.authenticate(casCredentials));
+    AuthenticationInfo authenticationInfo = casAuthenticationHandler.extractCredentials(request, response);
+    boolean actionTaken = casAuthenticationHandler.authenticationSucceeded(request, response, authenticationInfo);
+    assertFalse(actionTaken);
+    verify(userManager, never()).createUser(anyString(), anyString());
+    verify(userManager, never()).createUser(anyString(), anyString(), any(Principal.class), anyString());
+  }
+
+  @Test
+  public void testUnknownUserWithCreation() throws AuthorizableExistsException, RepositoryException {
+    setAutocreateUser("true");
+    setUpCasCredentials();
+    AuthenticationInfo authenticationInfo = casAuthenticationHandler.extractCredentials(request, response);
+    boolean actionTaken = casAuthenticationHandler.authenticationSucceeded(request, response, authenticationInfo);
+    assertFalse(actionTaken);
     verify(userManager).createUser(eq("joe"), anyString());
   }
-*/
 
+  @Test
+  public void testUnknownUserWithFailedCreation() throws AuthorizableExistsException, RepositoryException {
+    setAutocreateUser("true");
+    doThrow(new AuthorizableExistsException("Hey Joe")).when(userManager).createUser(anyString(), anyString());
+    setUpCasCredentials();
+    AuthenticationInfo authenticationInfo = casAuthenticationHandler.extractCredentials(request, response);
+    boolean actionTaken = casAuthenticationHandler.authenticationSucceeded(request, response, authenticationInfo);
+    assertTrue(actionTaken);
+    verify(userManager).createUser(eq("joe"), anyString());
+  }
+
+  @Test
+  public void testKnownUserWithCreation() throws AuthorizableExistsException, RepositoryException {
+    setAutocreateUser("true");
+    User jcrUser = mock(User.class);
+    when(jcrUser.getID()).thenReturn("joe");
+    when(userManager.getAuthorizable("joe")).thenReturn(jcrUser);
+    setUpCasCredentials();
+    AuthenticationInfo authenticationInfo = casAuthenticationHandler.extractCredentials(request, response);
+    boolean actionTaken = casAuthenticationHandler.authenticationSucceeded(request, response, authenticationInfo);
+    assertFalse(actionTaken);
+    verify(userManager, never()).createUser(eq("joe"), anyString());
+  }
 }
