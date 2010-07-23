@@ -34,6 +34,9 @@ import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.SlingPostConstants;
 import org.osgi.service.component.ComponentContext;
+import org.osgi.service.event.EventAdmin;
+import org.sakaiproject.nakamura.api.auth.trusted.RequestTrustValidator;
+import org.sakaiproject.nakamura.api.auth.trusted.RequestTrustValidatorService;
 import org.sakaiproject.nakamura.api.doc.BindingType;
 import org.sakaiproject.nakamura.api.doc.ServiceBinding;
 import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
@@ -47,11 +50,13 @@ import org.sakaiproject.nakamura.api.user.UserConstants;
 import org.sakaiproject.nakamura.user.NameSanitizer;
 import org.sakaiproject.nakamura.util.IOUtils;
 import org.sakaiproject.nakamura.util.osgi.BindingListener;
+import org.sakaiproject.nakamura.util.osgi.EventUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.Dictionary;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -187,11 +192,24 @@ public class CreateSakaiUserServlet extends AbstractUserPostServlet implements B
      */
     private transient SlingRepository repository;
 
+    /**
+     * Used to launch OSGi events.
+     * 
+     * @scr.reference
+     */
+    protected transient EventAdmin eventAdmin;
+
     private String adminUserId = null;
 
     private Object lock = new Object();
 
     private boolean active = false;
+
+    /**
+     * 
+     * @scr.reference
+     */
+    protected RequestTrustValidatorService requestTrustValidatorService;
 
     /** Returns the JCR repository used by this service. */
     @SuppressWarnings(justification="OSGi Managed", value={"UWF_UNWRITTEN_FIELD"})
@@ -331,13 +349,28 @@ public class CreateSakaiUserServlet extends AbstractUserPostServlet implements B
             log.warn("Failed to determin if the user is an admin, assuming not. Cause: "+ex.getMessage());
             administrator = false;
           }
+          if (!administrator) {
+            if (!selfRegistrationEnabled) {
+              throw new RepositoryException(
+                  "Sorry, registration of new users is not currently enabled. Please try again later.");
+            }
 
+            boolean trustedRequest = false;
+            String trustMechanism = request.getParameter(":create-auth");
+            if (trustMechanism != null) {
+              RequestTrustValidator validator = requestTrustValidatorService
+                  .getValidator(trustMechanism);
+              if (validator != null
+                  && validator.getLevel() >= RequestTrustValidator.CREATE_USER
+                  && validator.isTrusted(request)) {
+                trustedRequest = true;
+              }
+            }
 
-        // make sure user self-registration is enabled
-        if (!administrator && !selfRegistrationEnabled) {
-            throw new RepositoryException(
-                "Sorry, registration of new users is not currently enabled.  Please try again later.");
-        }
+            if (selfRegistrationEnabled && !trustedRequest) {
+              throw new RepositoryException("Untrusted request.");
+            }
+          }
 
         Session session = request.getResourceResolver().adaptTo(Session.class);
         if (session == null) {
@@ -369,8 +402,6 @@ public class CreateSakaiUserServlet extends AbstractUserPostServlet implements B
 
             UserManager userManager = AccessControlUtil.getUserManager(selfRegSession);
 
-                Map<String, RequestProperty> reqProperties = collectContent(
-                    request, response);
 
                 User user = userManager.createUser(principalName,
                     digestPassword(pwd));
@@ -381,6 +412,8 @@ public class CreateSakaiUserServlet extends AbstractUserPostServlet implements B
 
                 String userPath = AuthorizableResourceProvider.SYSTEM_USER_MANAGER_USER_PREFIX
                     + user.getID();
+                Map<String, RequestProperty> reqProperties = collectContent(
+                    request, response, userPath);
 
                 response.setPath(userPath);
                 response.setLocation(userPath);
@@ -399,6 +432,17 @@ public class CreateSakaiUserServlet extends AbstractUserPostServlet implements B
                 }
                 if (selfRegSession.hasPendingChanges()) {
                     selfRegSession.save();
+                }
+                
+                // Launch an OSGi event for creating a user.
+                try {
+                  Dictionary<String, String> properties = new Hashtable<String, String>();
+                  properties.put(UserConstants.EVENT_PROP_USERID, principalName);
+                  EventUtils
+                      .sendOsgiEvent(properties, UserConstants.TOPIC_USER_CREATED, eventAdmin);
+                } catch (Exception e) {
+                  // Trap all exception so we don't disrupt the normal behaviour.
+                  log.error("Failed to launch an OSGi event for creating a user.", e);
                 }
         } catch ( AuthorizableExistsException e) {
           log.warn(e.getMessage());

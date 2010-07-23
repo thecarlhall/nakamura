@@ -19,11 +19,11 @@
   <parent>
     <groupId>org.sakaiproject.nakamura</groupId>
     <artifactId>base</artifactId>
-    <version>0.6</version>
+    <version>0.7-SNAPSHOT</version>
   </parent>
   <artifactId>org.sakaiproject.nakamura.tika</artifactId>
   <packaging>bundle</packaging>
-  <version>0.6-0.6</version>
+  <version>0.7-0.7-SNAPSHOT</version>
   <name>Sakai Nakamura :: Tika Bundle</name>
   <description>Wraps the Tika functionality but uses a slightly different tika-mimetypes.xml for extracting HTML.</description>
   <build>
@@ -45,7 +45,8 @@
               <includeArtifactIds>tika-core,tika-parsers</includeArtifactIds>
               <excludeTransitive>false</excludeTransitive>
               <outputDirectory> ${project.build.outputDirectory} </outputDirectory>
-              <excludes>META-INF/MANIFEST.MF</excludes>
+              <excludes>META-INF/MANIFEST.MF,org/apache/tika/mime/tika-mimetypes.xml,org/apache/tika/tika-config.xml</excludes>
+<!--  To Debug Mimetypes use this one              <excludes>META-INF/MANIFEST.MF,org/apache/tika/mime/tika-mimetypes.xml,org/apache/tika/tika-config.xml,org/apache/tika/mime/MimeTypes.class</excludes> -->
             </configuration>
           </execution>
         </executions>
@@ -83,12 +84,12 @@
     <dependency>
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
-      <version>0.6</version>
+      <version>0.7</version>
     </dependency>
     <dependency>
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-parsers</artifactId>
-      <version>0.6</version>
+      <version>0.7</version>
     </dependency>
   </dependencies>
 </project>

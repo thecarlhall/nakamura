@@ -2,8 +2,7 @@
 
 #Sakai 3 Demo
 export K2_TAG="HEAD"
-export K2_ARTIFACT="org.sakaiproject.nakamura.app-0.6.jar"
-export UX_TAG="v_0.3.0_release"
+export UX_TAG="0.4.0"
 
 # Treat unset variables as an error when performing parameter expansion
 set -o nounset
@@ -39,17 +38,18 @@ rm -rf sakai3
 rm -rf ~/.m2/repository/org/sakaiproject
 
 # build sakai 3
-echo "Building K2@$K2_TAG UX_TAG@$UX_TAG..."
+echo "Building Nakamura@$K2_TAG UX@$UX_TAG..."
 cd $BUILD_DIR
 mkdir sakai3
 cd sakai3
-git clone -q git://github.com/ieb/open-experiments.git
-cd open-experiments
-mvn -B -e clean install -Dmaven.test.skip=true -Dsakai-ux-tag=$UX_TAG
+git clone -q git://github.com/sakaiproject/nakamura.git
+cd nakamura
+mvn -B -e clean install -Dmaven.test.skip=true -Dux=$UX_TAG
 
 # start sakai 3 instance
 echo "Starting sakai3 instance..."
 cd app/target/
+K2_ARTIFACT=`find . -name "org.sakaiproject.nakamura.app*[^sources].jar"`
 java $K2_OPTS -jar $K2_ARTIFACT -p 8008 -f - > $BUILD_DIR/logs/sakai3-run.log.txt 2>&1 &
 
 # final cleanup

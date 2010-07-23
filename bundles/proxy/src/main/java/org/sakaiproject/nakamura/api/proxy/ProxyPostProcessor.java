@@ -20,6 +20,7 @@ package org.sakaiproject.nakamura.api.proxy;
 import org.apache.sling.api.SlingHttpServletResponse;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  *
@@ -27,20 +28,26 @@ import java.io.IOException;
 public interface ProxyPostProcessor {
 
   /**
-   * 
+   *
    */
   public static final String SAKAI_POSTPROCESSOR = "sakai:postprocessor";
 
-
   /**
+   * @param templateParams
+   *          The parameters used to fill out the template. These are supplied as request
+   *          parameters.
    * @param response
+   *          The response that will be sent to the user.
    * @param proxyResponse
-   * @throws IOException 
+   *          The response as it came back from the remote resource.
+   * @throws IOException
    */
-  void process(SlingHttpServletResponse response, ProxyResponse proxyResponse) throws IOException;
+  void process(Map<String, Object> templateParams, SlingHttpServletResponse response,
+      ProxyResponse proxyResponse) throws IOException;
 
   /**
-   * @return
+   * @return The name of this ProxyPostProcessor. Nodes that want this processor to be run
+   *         should set the sakai:postprocessor property to this value.
    */
   String getName();
 

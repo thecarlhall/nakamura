@@ -16,11 +16,11 @@
   <parent>
     <groupId>org.sakaiproject.nakamura</groupId>
     <artifactId>base</artifactId>
-    <version>0.6</version>
+    <version>0.7-SNAPSHOT</version>
   </parent>
-  <artifactId>org.sakaiproject.nakamura.casauth-myberkeley</artifactId>
+  <artifactId>org.sakaiproject.nakamura.casauth</artifactId>
   <packaging>bundle</packaging>
-  <version>0.6.1-SNAPSHOT</version>
+  <version>0.7-SNAPSHOT</version>
   <name>Sakai Nakamura :: CAS Auth Bundle</name>
   <description>Provides CAS based authentication support to the request cycle.</description>
   <build>
@@ -85,7 +85,7 @@
     <dependency>
       <groupId>org.apache.sling</groupId>
       <artifactId>org.apache.sling.commons.auth</artifactId>
-      <version>0.9.0-20100524</version>
+      <version>0.9.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.apache.sling</groupId>
@@ -96,18 +96,18 @@
      <dependency>
       <groupId>org.apache.sling</groupId>
       <artifactId>org.apache.sling.jcr.base</artifactId>
-      <version>2.0.7-20100524</version>
+      <version>2.0.7-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.apache.sling</groupId>
       <artifactId>org.apache.sling.jcr.jackrabbit.server</artifactId>
-      <version>2.0.7-20100524</version>
+      <version>2.0.7-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.sling</groupId>
       <artifactId>org.apache.sling.servlets.post</artifactId>
-      <version>2.0.5-20100524</version>
+      <version>2.0.5-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.jasig.cas</groupId>
@@ -117,12 +117,12 @@
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
       <artifactId>org.sakaiproject.nakamura.doc</artifactId>
-      <version>0.6</version>
+      <version>0.7-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
       <artifactId>org.sakaiproject.nakamura.user</artifactId>
-      <version>0.6</version>
+      <version>0.7-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
