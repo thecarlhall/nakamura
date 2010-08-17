@@ -23,22 +23,20 @@ import org.apache.sling.servlets.post.Modification;
 import javax.jcr.Session;
 
 /**
- * 
+ *
  */
 public interface AuthorizablePostProcessor {
 
   /**
+   * Method which will be called after a Sakai user or group has been created or modified,
+   * and before the Sakai user or group is deleted.
+   *
    * @param authorizable
    * @param session
-   * @param changes
+   * @param change describes what sort of change has occurred (or is about to occur)
    * @throws Exception
    */
   void process(Authorizable authorizable, Session session, Modification change)
       throws Exception;
-
-  /**
-   * @return the sequence in which this should be invoked 0 is first.
-   */
-  int getSequence();
 
 }

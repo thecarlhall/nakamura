@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.sakaiproject.nakamura</groupId>
   <artifactId>base</artifactId>
-  <version>0.7-SNAPSHOT</version>
+  <version>0.8-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Sakai Nakamura Project</name>
   <description> Sakai Nakamura is an OSGi server built ontop of Apache Sling, supporting Sakai 3. </description>
@@ -88,6 +88,7 @@
         <module>bundles/captcha</module>
         <module>bundles/webdav</module>
         <module>bundles/privacy</module>
+        <module>bundles/pages</module>
       </modules>
     </profile>
     <profile>
@@ -103,6 +104,9 @@
         <module>contrib/remotefiles</module>
         <!-- to build oracle you must download and install oracle.jar first  <module>contrib/oracle-jdbc</module> -->
         <module>contrib/sitejoin</module>
+        <module>contrib/foreignprincipal</module>
+        <module>contrib/rootconfig</module>
+        <module>contrib/ssoauth</module>
        </modules>
     </profile>
     <profile>
@@ -760,6 +764,12 @@
         <scope>test</scope>
       </dependency>
       <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-all</artifactId>
+        <version>1.8.5</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
         <groupId>org.subethamail</groupId>
         <artifactId>subethasmtp-wiser</artifactId>
         <version>1.2</version>
@@ -821,7 +831,7 @@
         <groupId>javax.jcr</groupId>
         <artifactId>jcr</artifactId>
         <version>2.0</version>
-        <scope>compile</scope> 
+        <scope>compile</scope>
       </dependency>
 
 <!-- Jetty, for utilities -->

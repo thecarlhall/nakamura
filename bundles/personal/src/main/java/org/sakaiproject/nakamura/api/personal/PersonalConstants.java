@@ -18,7 +18,7 @@
 package org.sakaiproject.nakamura.api.personal;
 
 /**
- * 
+ *
  */
 public interface PersonalConstants {
 
@@ -38,7 +38,7 @@ public interface PersonalConstants {
    * The name of the public folder
    */
   public static final String PUBLIC = "public";
-  
+
   /**
    * The resource type of personal private stores.
    */
@@ -76,5 +76,24 @@ public interface PersonalConstants {
    * Property name for the user's preferred means of message delivery
    */
   public static final String PREFERRED_MESSAGE_TRANSPORT = "preferredMessageTransport";
+
+  /**
+   * Hackish way to deliver a JSON string to a content importer for a new profile.
+   * TODO Replace with something more maintainable.
+   */
+  public static final String PROFILE_JSON_IMPORT_PROPERTY = "sakai:authprofile_import";
+
+  /**
+   * Property name for the full title/name of a group.
+   * ie:
+   * Title: The 2010 Mathematics 101 class.
+   * Authorizable id: the-2010-mathematics-101-class
+   */
+  public static final String GROUP_TITLE_PROPERTY = "sakai:group-title";
+
+  /**
+   * Property name for the description of a group.
+   */
+  public static final String GROUP_DESCRIPTION_PROPERTY = "sakai:group-description";
 
 }
