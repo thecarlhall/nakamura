@@ -104,18 +104,15 @@ public class PersonalAuthorizablePostProcessor implements AuthorizablePostProces
   }
 
   /**
-   * @param request
-   * @param changes
-   * @throws Exception
+   * {@inheritDoc}
+   * @see org.sakaiproject.nakamura.api.user.AuthorizablePostProcessor#process(org.apache.jackrabbit.api.security.user.Authorizable, javax.jcr.Session, org.apache.sling.servlets.post.Modification, java.util.Map)
    */
-  public void process(Authorizable authorizable, Session session, Modification change)
-      throws Exception {
-    if (ModificationType.DELETE.equals(change.getType())) {
-      deleteHomeNode(session, authorizable);
-    } else {
+  public void process(Authorizable authorizable, Session session, Modification change,
+      Map<String, Object[]> parameters) throws Exception {
+    if (!ModificationType.DELETE.equals(change.getType())) {
       LOGGER.debug("Processing  {} ", authorizable.getID());
       try {
-        createHomeFolder(session, authorizable, change);
+        createHomeFolder(session, authorizable, change, parameters);
         fireEvent(session, authorizable.getID(), change);
         LOGGER.debug("DoneProcessing  {} ", authorizable.getID());
       } catch (Exception ex) {
@@ -134,7 +131,7 @@ public class PersonalAuthorizablePostProcessor implements AuthorizablePostProces
    * @throws PathNotFoundException
    */
   private void updateProperties(Session session, Node profileNode,
-      Authorizable athorizable, Modification change) throws RepositoryException {
+      Authorizable athorizable, Modification change, Map<String, Object[]> parameters) throws RepositoryException {
 
       String dest = change.getDestination();
       if (dest == null) {
@@ -156,9 +153,9 @@ public class PersonalAuthorizablePostProcessor implements AuthorizablePostProces
       return;
     }
 
-    // This awful hack is a workaround for KERN-929.
-    // TODO DO NOT LET THIS BECOME PERMANENT.
-    ProfileImporter.importFromAuthorizable(profileNode, athorizable, contentImporter, session);
+    // If the client sent a parameter specifying new Profile content,
+    // apply it now.
+    ProfileImporter.importFromParameters(profileNode, parameters, contentImporter, session);
 
     // build a blacklist set of properties that should be kept private
     Set<String> privateProperties = new HashSet<String>();
@@ -209,7 +206,8 @@ public class PersonalAuthorizablePostProcessor implements AuthorizablePostProces
    * @return
    * @throws RepositoryException
    */
-  private Node createHomeFolder(Session session, Authorizable authorizable, Modification change) throws RepositoryException {
+  private Node createHomeFolder(Session session, Authorizable authorizable,
+      Modification change, Map<String, Object[]> parameters) throws RepositoryException {
     String homeFolderPath = PersonalUtils.getHomeFolder(authorizable);
 
     Node homeNode = JcrUtils.deepGetOrCreateNode(session, homeFolderPath);
@@ -259,7 +257,7 @@ public class PersonalAuthorizablePostProcessor implements AuthorizablePostProces
     Node profileNode = createProfile(session, authorizable);
 
     // Update the values on the profile node.
-    updateProperties(session, profileNode, authorizable, change);
+    updateProperties(session, profileNode, authorizable, change, parameters);
     return homeNode;
   }
 
@@ -389,17 +387,6 @@ public class PersonalAuthorizablePostProcessor implements AuthorizablePostProces
     LOGGER.debug("Creating Public  for {} at   {} ", athorizable.getID(), publicPath);
     Node publicNode = JcrUtils.deepGetOrCreateNode(session, publicPath);
     return publicNode;
-  }
-
-  private void deleteHomeNode(Session session, Authorizable athorizable)
-      throws RepositoryException {
-    if (athorizable != null) {
-      String path = PersonalUtils.getHomeFolder(athorizable);
-      if (session.itemExists(path)) {
-        Node node = (Node) session.getItem(path);
-        node.remove();
-      }
-    }
   }
 
   private String nodeTypeForAuthorizable(boolean isGroup) {
