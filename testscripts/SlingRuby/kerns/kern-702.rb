@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+# Add all files in testscripts\SlingRuby\lib directory to ruby "require" search path
+require 'ruby-lib-dir.rb'
+
 require 'set'
 require 'sling/test'
 include SlingSearch
@@ -23,7 +26,7 @@ class TC_Kern702Test < Test::Unit::TestCase
     assert_equal("200", res.code, "Expected to get site: #{res.body}")
     @log.debug res.body
     props = JSON.parse(res.body)
-    # assert_equal("/var/templates/site/systemtemplate", props["sakai:site-template"])
+    # assert_equal("/var/templates/sitetest/systemtemplate", props["sakai:site-template"])
     assert_equal(sitename, props["name"])
     assert_equal(sitename, props["description"])
     newname = "New Name for Test Site #{m}"

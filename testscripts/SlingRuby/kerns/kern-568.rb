@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+# Add all files in testscripts\SlingRuby\lib directory to ruby "require" search path
+require 'ruby-lib-dir.rb'
+
 require 'sling/sling'
 require 'sling/test'
 require 'sling/authz'
@@ -42,9 +45,9 @@ class TC_Kern568Test < Test::Unit::TestCase
 
     # Note that ruby and the the server JVM have to be in the same timezone for this to pass.
     # This should not pose a problem because testing is generally against localhost but is worth noting.
-    msec = (Time.now.to_f * 1000).to_i
-    now = Time.at(msec / 1000.0)
+    now = Time.now
     expected = now.xmlschema(3)
+    msec = (now.to_f * 1000).to_i
 
     params = {"t" => msec}
     home = user.home_path_for(@s)

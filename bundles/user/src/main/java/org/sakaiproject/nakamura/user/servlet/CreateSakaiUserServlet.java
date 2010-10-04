@@ -145,7 +145,11 @@ import javax.servlet.http.HttpServletResponse;
         @ServiceParameter(name=":name", description="The name of the new user (required)"),
         @ServiceParameter(name="pwd", description="The password of the new user (required)"),
         @ServiceParameter(name="pwdConfirm", description="The password of the new user (required)"),
-        @ServiceParameter(name="",description="Additional parameters become user node properties (optional)")
+        @ServiceParameter(name="",description="Additional parameters become user node properties, " +
+        		"except for parameters starting with ':', which are only forwarded to post-processors (optional)"),
+        @ServiceParameter(name=":create-auth", description="The name of a per request authentication " +
+        		"mechanism eg capatcha, callers will also need to add parameters to satisfy the " +
+        		"authentication method,  (optional)")
     },
     response={
     @ServiceResponse(code=200,description="Success, a redirect is sent to the users resource locator with HTML describing status."),
@@ -236,6 +240,7 @@ public class CreateSakaiUserServlet extends AbstractUserPostServlet  {
      * @param componentContext The OSGi <code>ComponentContext</code> of this
      *            component.
      */
+    @Override
     protected void activate(ComponentContext componentContext) {
         super.activate(componentContext);
         Dictionary<?, ?> props = componentContext.getProperties();
@@ -298,7 +303,9 @@ public class CreateSakaiUserServlet extends AbstractUserPostServlet  {
             }
 
             if (selfRegistrationEnabled && !trustedRequest) {
-              throw new RepositoryException("Untrusted request.");
+              response.setStatus(HttpServletResponse.SC_UNAUTHORIZED, "Untrusted request.");
+              log.error("Untrusted request.");
+              return;
             }
           }
 

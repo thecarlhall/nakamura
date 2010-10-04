@@ -111,6 +111,7 @@ public class CropItServletTest extends AbstractEasyMockTest {
 
     expect(imgNode.isNodeType("nt:file")).andReturn(true);
     expect(imgNode.getName()).andReturn("people.png");
+    expect(imgNode.getPath()).andReturn("/path/to/the/file/people.png");
     expect(imgNode.hasNode("jcr:content")).andReturn(true);
     expect(imgNode.getNode("jcr:content")).andReturn(imgContentNode);
 

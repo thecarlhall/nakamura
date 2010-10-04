@@ -17,8 +17,6 @@
  */
 package org.sakaiproject.nakamura.imap;
 
-import static org.jboss.netty.channel.Channels.pipeline;
-
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.DefaultConfigurationBuilder;
 import org.apache.commons.configuration.HierarchicalConfiguration;
@@ -32,22 +30,23 @@ import org.apache.james.imap.api.process.ImapProcessor;
 import org.apache.james.imap.decode.ImapDecoder;
 import org.apache.james.imap.encode.ImapEncoder;
 import org.apache.james.imap.encode.main.DefaultImapEncoderFactory;
-import org.apache.james.imap.jcr.GlobalMailboxSessionJCRRepository;
-import org.apache.james.imap.jcr.JCRMailboxManager;
-import org.apache.james.imap.jcr.JCRMailboxSessionMapperFactory;
-import org.apache.james.imap.jcr.JCRSubscriptionManager;
-import org.apache.james.imap.jcr.JCRVmNodeLocker;
-import org.apache.james.imap.mailbox.MailboxManager;
-import org.apache.james.imap.mailbox.MailboxSession;
 import org.apache.james.imap.main.DefaultImapDecoderFactory;
 import org.apache.james.imap.main.ImapRequestStreamHandler;
 import org.apache.james.imap.processor.main.DefaultImapProcessorFactory;
-import org.apache.james.imap.store.Authenticator;
 import org.apache.james.imapserver.netty.ImapStreamChannelUpstreamHandler;
+import org.apache.james.mailbox.MailboxManager;
+import org.apache.james.mailbox.MailboxSession;
+import org.apache.james.mailbox.jcr.GlobalMailboxSessionJCRRepository;
+import org.apache.james.mailbox.jcr.JCRMailboxManager;
+import org.apache.james.mailbox.jcr.JCRMailboxSessionMapperFactory;
+import org.apache.james.mailbox.jcr.JCRSubscriptionManager;
+import org.apache.james.mailbox.jcr.JCRVmNodeLocker;
+import org.apache.james.mailbox.store.Authenticator;
 import org.apache.james.socket.netty.AbstractConfigurableAsyncServer;
 import org.apache.sling.jcr.api.SlingRepository;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
+import org.jboss.netty.channel.DefaultChannelPipeline;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.handler.connection.ConnectionLimitUpstreamHandler;
 import org.jboss.netty.handler.connection.ConnectionPerIpLimitUpstreamHandler;
@@ -110,20 +109,19 @@ public class NakamuraNioImapServer extends AbstractConfigurableAsyncServer imple
     JCRVmNodeLocker nodeLocker = new JCRVmNodeLocker();
     JCRMailboxSessionMapperFactory jcrMailboxSessionMapperFactory = new JCRMailboxSessionMapperFactory(sessionRepos, nodeLocker);
     JCRSubscriptionManager jcrSubscriptionManager = new JCRSubscriptionManager(jcrMailboxSessionMapperFactory);
-    MailboxManager mailboxManager = new JCRMailboxManager( jcrMailboxSessionMapperFactory, userManager, jcrSubscriptionManager );
+//    MailboxManager mailboxManager = new JCRMailboxManager( jcrMailboxSessionMapperFactory, userManager, jcrSubscriptionManager );
+    MailboxManager mailboxManager = new JCRMailboxManager( jcrMailboxSessionMapperFactory, userManager, nodeLocker );
 
-    final DefaultImapProcessorFactory defaultImapProcessorFactory = new DefaultImapProcessorFactory();
     MailboxSession session = mailboxManager.createSystemSession("test", jcLog);
     mailboxManager.startProcessingRequest(session);
     //mailboxManager.deleteEverything(session);
     mailboxManager.endProcessingRequest(session);
     mailboxManager.logout(session, false);
 
-    defaultImapProcessorFactory.configure(mailboxManager);
-
     decoder = new DefaultImapDecoderFactory().buildImapDecoder();
     encoder = new DefaultImapEncoderFactory().buildImapEncoder();
-    processor = defaultImapProcessorFactory.buildImapProcessor();
+    processor = DefaultImapProcessorFactory.createDefaultProcessor(mailboxManager,
+        jcrSubscriptionManager);
     setDNSService(dnsServer);
     setLog(jcLog);
     URL configUrl = getClass().getResource("/imap-config.xml");
@@ -174,7 +172,7 @@ public class NakamuraNioImapServer extends AbstractConfigurableAsyncServer imple
       return new ChannelPipelineFactory() {
 
           public ChannelPipeline getPipeline() throws Exception {
-              ChannelPipeline pipeline = pipeline();
+              ChannelPipeline pipeline = new DefaultChannelPipeline();
               pipeline.addLast("connectionLimit", new ConnectionLimitUpstreamHandler(NakamuraNioImapServer.this.connectionLimit));
 
               pipeline.addLast("connectionPerIpLimit", new ConnectionPerIpLimitUpstreamHandler(NakamuraNioImapServer.this.connPerIP));

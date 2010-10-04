@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.sakaiproject.nakamura</groupId>
   <artifactId>base</artifactId>
-  <version>0.8-SNAPSHOT</version>
+  <version>0.9-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Sakai Nakamura Project</name>
   <description> Sakai Nakamura is an OSGi server built ontop of Apache Sling, supporting Sakai 3. </description>
@@ -89,6 +89,8 @@
         <module>bundles/webdav</module>
         <module>bundles/privacy</module>
         <module>bundles/pages</module>
+        <module>bundles/userinitializer</module>
+        <module>bundles/http</module>
       </modules>
     </profile>
     <profile>
@@ -110,6 +112,13 @@
        </modules>
     </profile>
     <profile>
+       <id>ucam</id>
+       <modules>
+        <module>contrib/ucam</module>
+        <module>contrib/mysql-jdbc</module>
+       </modules>
+    </profile>
+    <profile>
        <id>sandbox</id>
        <modules>
         <module>sandbox/jaxrs</module>
@@ -117,7 +126,9 @@
         <module>sandbox/sessiontest</module>
         <module>sandbox/sitetemplates</module>
         <module>sandbox/imap</module>
-        <module>sandbox/drools</module>
+        <!-- <module>sandbox/drools</module> DISABLED TO MAKE THE 0.8 RELEASE -->
+        <!-- follow the setup in sandbox/eventexplorer/README.txt before enabling this -->
+        <!-- <module>sandbox/eventexplorer</module> -->
        </modules>
     </profile>
     <profile>

@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+# Add all files in testscripts\SlingRuby\lib directory to ruby "require" search path
+require 'ruby-lib-dir.rb'
+
 require 'sling/test'
 
 class TC_Kern726Test < Test::Unit::TestCase
@@ -13,7 +16,7 @@ class TC_Kern726Test < Test::Unit::TestCase
     @s.switch_user(sitecreator)
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{siteparent}/#{siteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => siteid,
       "description" => siteid,
       "id" => siteid,
@@ -29,21 +32,21 @@ class TC_Kern726Test < Test::Unit::TestCase
     newsiteid = "testothersite_#{m}"
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{siteparent}/#{siteid}/#{newsiteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => newsiteid,
       "description" => newsiteid,
       "id" => newsiteid)
     assert_not_equal("200", res.code, "Non-members should not be able to create site under site")
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{siteresource}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => newsiteid,
       "description" => newsiteid,
       "id" => newsiteid)
     assert_not_equal("200", res.code, "Non-members should not be able to overwrite site resource")
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{siteparent}/#{newsiteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => newsiteid,
       "description" => newsiteid,
       "id" => newsiteid)

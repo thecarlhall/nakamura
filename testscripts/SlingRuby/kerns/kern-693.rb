@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+# Add all files in testscripts\SlingRuby\lib directory to ruby "require" search path
+require 'ruby-lib-dir.rb'
+
 require 'sling/test'
 
 class TC_Kern693Test < Test::Unit::TestCase
@@ -11,7 +14,7 @@ class TC_Kern693Test < Test::Unit::TestCase
     @s.switch_user(sitecreator)
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{originalsiteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => originalsiteid,
       "description" => originalsiteid,
       "id" => originalsiteid)
@@ -22,7 +25,7 @@ class TC_Kern693Test < Test::Unit::TestCase
       ":sitepath" => "/#{newsite}",
       ":moveFrom" => "/sites/#{originalsiteid}",
       ":copyFrom" => "/sites/#{originalsiteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate")
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate")
     assert_equal("400", res.code, "Contradictory instructions were accepted")
   end
 
@@ -52,7 +55,7 @@ class TC_Kern693Test < Test::Unit::TestCase
     @s.switch_user(sitecreator)
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{originalsiteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => originalsitename,
       "description" => originalsitename,
       "id" => originalsiteid)
@@ -80,7 +83,7 @@ class TC_Kern693Test < Test::Unit::TestCase
     @s.switch_user(sitecreator)
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{originalsiteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => originalsitename,
       "description" => originalsitename,
       "id" => originalsiteid)
@@ -116,7 +119,7 @@ class TC_Kern693Test < Test::Unit::TestCase
     @s.switch_user(sitecreator)
     res = @s.execute_post(@s.url_for("/sites.createsite.json"),
       ":sitepath" => "/#{originalsiteid}",
-      "sakai:site-template" => "/var/templates/site/systemtemplate",
+      "sakai:site-template" => "/var/templates/sitetest/systemtemplate",
       "name" => originalsiteid,
       "description" => originalsiteid,
       "id" => originalsiteid)

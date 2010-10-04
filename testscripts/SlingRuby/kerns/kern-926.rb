@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+# Add all files in testscripts\SlingRuby\lib directory to ruby "require" search path
+require 'ruby-lib-dir.rb'
+
 require 'sling/test'
 require 'sling/file'
 require 'sling/users'
@@ -88,9 +91,9 @@ class TC_Kern926Test < Test::Unit::TestCase
     m = Time.now.to_i.to_s
 
     # Create some users
-    owner = create_user("creator-#{m}")
-    viewer = create_user("manager-#{m}")
-    groupuser = create_user("groupuser-#{m}")
+    owner = create_user("creator2-#{m}")
+    viewer = create_user("manager2-#{m}")
+    groupuser = create_user("groupuser2-#{m}")
 
     @s.switch_user(owner)
     content = Time.now.to_f

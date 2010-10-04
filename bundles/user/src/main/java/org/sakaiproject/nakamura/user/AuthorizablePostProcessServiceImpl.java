@@ -40,6 +40,8 @@ import org.sakaiproject.nakamura.api.user.AuthorizablePostProcessService;
 import org.sakaiproject.nakamura.api.user.AuthorizablePostProcessor;
 import org.sakaiproject.nakamura.api.user.UserConstants;
 import org.sakaiproject.nakamura.util.osgi.AbstractOrderedService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -51,6 +53,37 @@ import javax.jcr.Session;
 @Component(immediate=true)
 @Service(value=AuthorizablePostProcessService.class)
 @References({
+    /**
+     * Below is the list of required Authorizable post-processors.
+     * Expect redundant bind/unbind calls, since the same post-processors
+     * will be added via the dynamic multiple service reference defined below.
+     * TODO Configure the post-processor dependencies via a service property?
+     */
+    @Reference(name="Personal",
+       target="(&(service.pid=org.sakaiproject.nakamura.personal.PersonalAuthorizablePostProcessor))",
+       referenceInterface=AuthorizablePostProcessor.class,
+        bind="bindAuthorizablePostProcessor",
+        unbind="unbindAuthorizablePostProcessor"),
+    @Reference(name="Calendar",
+        target="(&(service.pid=org.sakaiproject.nakamura.calendar.CalendarAuthorizablePostProcessor))",
+        referenceInterface=AuthorizablePostProcessor.class,
+        bind="bindAuthorizablePostProcessor",
+        unbind="unbindAuthorizablePostProcessor"),
+    @Reference(name="Connections",
+        target="(&(service.pid=org.sakaiproject.nakamura.connections.ConnectionsUserPostProcessor))",
+        referenceInterface=AuthorizablePostProcessor.class,
+        bind="bindAuthorizablePostProcessor",
+        unbind="unbindAuthorizablePostProcessor"),
+    @Reference(name="Messages",
+        target="(&(service.pid=org.sakaiproject.nakamura.message.MessageAuthorizablePostProcessor))",
+        referenceInterface=AuthorizablePostProcessor.class,
+        bind="bindAuthorizablePostProcessor",
+        unbind="unbindAuthorizablePostProcessor"),
+    @Reference(name="Pages",
+        target="(&(service.pid=org.sakaiproject.nakamura.pages.PagesAuthorizablePostProcessor))",
+        referenceInterface=AuthorizablePostProcessor.class,
+        bind="bindAuthorizablePostProcessor",
+        unbind="unbindAuthorizablePostProcessor"),
     @Reference(name="PostProcessors",cardinality=ReferenceCardinality.OPTIONAL_MULTIPLE,
         policy=ReferencePolicy.DYNAMIC,
         referenceInterface=AuthorizablePostProcessor.class,
@@ -58,14 +91,19 @@ import javax.jcr.Session;
         bind="bindAuthorizablePostProcessor",
         unbind="unbindAuthorizablePostProcessor")})
 public class AuthorizablePostProcessServiceImpl extends AbstractOrderedService<AuthorizablePostProcessor> implements AuthorizablePostProcessService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizablePostProcessServiceImpl.class);
 
   @Reference
   protected SlingRepository repository;
 
   AuthorizablePostProcessor sakaiUserProcessor;
   AuthorizablePostProcessor sakaiGroupProcessor;
-  DefaultAuthorizablesLoader defaultAuthorizablesLoader;
   private AuthorizablePostProcessor[] orderedServices = new AuthorizablePostProcessor[0];
+
+  public AuthorizablePostProcessServiceImpl() {
+    this.sakaiUserProcessor = new SakaiUserProcessor();
+    this.sakaiGroupProcessor = new SakaiGroupProcessor();
+  }
 
   /**
    * {@inheritDoc}
@@ -131,6 +169,7 @@ public class AuthorizablePostProcessServiceImpl extends AbstractOrderedService<A
   /**
    * @return
    */
+  @Override
   protected Comparator<AuthorizablePostProcessor> getComparator(final Map<AuthorizablePostProcessor, Map<String, Object>> propertiesMap) {
     return new Comparator<AuthorizablePostProcessor>() {
       public int compare(AuthorizablePostProcessor o1, AuthorizablePostProcessor o2) {
@@ -143,17 +182,12 @@ public class AuthorizablePostProcessServiceImpl extends AbstractOrderedService<A
   }
 
   protected void bindAuthorizablePostProcessor(AuthorizablePostProcessor service, Map<String, Object> properties) {
+    LOGGER.debug("About to add service " + service);
     addService(service, properties);
-    if (defaultAuthorizablesLoader != null) {
-      defaultAuthorizablesLoader.initDefaultUsers();
-    }
   }
 
   protected void unbindAuthorizablePostProcessor(AuthorizablePostProcessor service, Map<String, Object> properties) {
     removeService(service, properties);
-    if (defaultAuthorizablesLoader != null) {
-      defaultAuthorizablesLoader.initDefaultUsers();
-    }
   }
 
   /**
@@ -167,18 +201,15 @@ public class AuthorizablePostProcessServiceImpl extends AbstractOrderedService<A
 
   @Activate
   protected void activate(ComponentContext componentContext) {
+    LOGGER.debug("activate called");
     this.sakaiUserProcessor = new SakaiUserProcessor();
     this.sakaiGroupProcessor = new SakaiGroupProcessor();
-    this.defaultAuthorizablesLoader = new DefaultAuthorizablesLoader(this,
-        componentContext, repository);
-    defaultAuthorizablesLoader.initDefaultUsers();
   }
 
   @Deactivate
   protected void deactivate(ComponentContext componentContext) {
     this.sakaiUserProcessor = null;
     this.sakaiGroupProcessor = null;
-    this.defaultAuthorizablesLoader = null;
   }
 
   private void doInternalProcessing(Authorizable authorizable, Session session,

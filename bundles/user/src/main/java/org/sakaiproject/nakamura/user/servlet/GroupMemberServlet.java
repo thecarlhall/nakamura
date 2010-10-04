@@ -34,6 +34,8 @@ import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.sakaiproject.nakamura.api.profile.ProfileService;
 import org.sakaiproject.nakamura.api.user.UserConstants;
 import org.sakaiproject.nakamura.util.ExtendedJSONWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -41,8 +43,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -63,6 +65,7 @@ import javax.servlet.http.HttpServletResponse;
     @Property(name = "service.description", value = "Renders the members or managers for a group") })
 public class GroupMemberServlet extends SlingSafeMethodsServlet {
 
+  private static final Logger logger = LoggerFactory.getLogger(GroupMemberServlet.class);
   private static final long serialVersionUID = 7976930178619974246L;
 
   @Reference
@@ -109,6 +112,7 @@ public class GroupMemberServlet extends SlingSafeMethodsServlet {
     }
 
     try {
+      response.setContentType("application/json");
       TreeMap<String, Authorizable> map = null;
       if (selectors.contains("managers")) {
         map = getManagers(request, group, comparator);
@@ -138,14 +142,19 @@ public class GroupMemberServlet extends SlingSafeMethodsServlet {
       while (iterator.hasNext() && i < items) {
         Entry<String, Authorizable> entry = iterator.next();
         Authorizable au = entry.getValue();
-        ValueMap profile = null;
+        ValueMap profile;
         if(selectors.contains("detailed")){
           profile = profileService.getProfileMap(au, session);
         }else{
           profile = profileService.getCompactProfileMap(au, session);
         }
-        writer.valueMap(profile);
-        i++;
+        if (profile != null) {
+          writer.valueMap(profile);
+          i++;
+        } else {
+          // profile wasn't found.  safe to ignore and not include the group
+          logger.info("Profile not found for " + au.getID());
+        }
       }
       writer.endArray();
 
@@ -204,8 +213,12 @@ public class GroupMemberServlet extends SlingSafeMethodsServlet {
   }
 
   /**
-   * Get the managers for a group. These should be stored in the
-   * {@link UserConstants#PROP_GROUP_MANAGERS}.
+   * KERN-1026 changed the results of this to be the authz's that are members of the
+   * managers group associated to a group rather than the group managers associated to the
+   * group.
+   * <p>
+   * <del>Get the managers for a group. These should be stored in the
+   * {@link UserConstants#PROP_GROUP_MANAGERS}.</del>
    *
    * @param request
    * @param group
@@ -219,14 +232,23 @@ public class GroupMemberServlet extends SlingSafeMethodsServlet {
     TreeMap<String, Authorizable> map = new TreeMap<String, Authorizable>(comparator);
 
     // KERN-949 will probably change this.
+    // note above was made before this was changed to retrieving members of the managers
+    // group and may not apply.
     Session session = request.getResourceResolver().adaptTo(Session.class);
     UserManager um = AccessControlUtil.getUserManager(session);
-    Value[] managerValues = group.getProperty(UserConstants.PROP_GROUP_MANAGERS);
-    if (managerValues != null) {
-      for (Value manager : managerValues) {
-        Authorizable au = um.getAuthorizable(manager.getString());
-        String name = getName(au);
-        map.put(name, au);
+    Value[] managersGroup = group.getProperty(UserConstants.PROP_MANAGERS_GROUP);
+    if (managersGroup != null && managersGroup.length == 1) {
+      String mgrGroupName = managersGroup[0].getString();
+
+      Group mgrGroup = (Group) um.getAuthorizable(mgrGroupName);
+
+      Iterator<Authorizable> members = mgrGroup.getMembers();
+      while (members.hasNext()) {
+        Authorizable member = members.next();
+        String prinName = member.getPrincipal().getName();
+        Authorizable mau = um.getAuthorizable(prinName);
+        String name = getName(mau);
+        map.put(name, mau);
       }
     }
     return map;

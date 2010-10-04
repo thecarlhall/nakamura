@@ -54,7 +54,7 @@ public class CropItProcessor {
   private static final Logger LOGGER = LoggerFactory.getLogger(CropItProcessor.class);
 
   /**
-   * 
+   *
    * @param session
    *          The JCR session
    * @param x
@@ -92,6 +92,7 @@ public class CropItProcessor {
       if (imgNode != null) {
 
         String imgName = imgNode.getName();
+        String imgPath = imgNode.getPath();
         // nt:file
         if (imgNode.isNodeType(JCRConstants.NT_FILE)) {
           imgNode = imgNode.getNode(JCRConstants.JCR_CONTENT);
@@ -102,16 +103,22 @@ public class CropItProcessor {
           Node parentNode = imgNode.getParent();
           if (parentNode.isNodeType(JCRConstants.NT_FILE)) {
             imgName = parentNode.getName();
+            imgPath = parentNode.getPath();
           }
         } else {
           throw new ImageException(500, "Invalid image");
         }
 
+        String mimeType = "unknown";
+        if (imgNode.hasProperty(JCRConstants.JCR_MIMETYPE) ) {
+          mimeType = imgNode.getProperty(JCRConstants.JCR_MIMETYPE).getString();
+        }
+
         // Read the image
         Binary content = imgNode.getProperty(JCRConstants.JCR_DATA).getBinary();
         if ( content.getSize() > 100L*1024L*1024L ) {
-          throw new ImageException(406, "Image too large to crop > 100MB "+content.getSize());
-          
+          throw new ImageException(406, "Image "+imgPath+" too large to crop > 100MB Si "+content.getSize());
+
         }
         in = content.getStream();
         try {
@@ -153,13 +160,13 @@ public class CropItProcessor {
 
             // Create the image.
             byte[] image = scaleAndWriteToByteArray(iWidth, iHeight, subImage, imgName, info);
-            
+
             if ( image != null ) {
 
               String sPath = save + iWidth + "x" + iHeight + "_" + imgName;
               // Save new image to JCR.
               saveImageToJCR(sPath, info.getMimeType(), image, imgNode, session);
-  
+
               arrFiles[i] = sPath;
             } else {
               LOGGER.warn("Failed to scale image "+img+" to "+iWidth+" by "+iHeight+" defaulting to full size");
@@ -168,11 +175,13 @@ public class CropItProcessor {
           }
         } catch (ImageReadException e) {
           // This is not a valid image.
-          LOGGER.error("Can't parse this format.", e);
-          throw new ImageException(406, "Can't parse this format.");
+          LOGGER.error("Can't parse this format. Image {}, mime Type {} :{}", new Object[]{imgPath, mimeType, e.getMessage()});
+          LOGGER.debug("Cause: ", e);
+          throw new ImageException(406, "Can't parse this format.  Image "+imgPath+", mime Type "+mimeType);
         } catch (ImageWriteException e) {
-          LOGGER.error("Can't crop this image.", e);
-          throw new ImageException(406, "Can't crop this image.");
+          LOGGER.error("Can't crop this Image {}, mime Type {}  :{} ", new Object[]{imgPath, mimeType, e.getMessage()});
+          LOGGER.debug("Cause: ", e);
+          throw new ImageException(406, "Can't crop this Image "+imgPath+", mime Type "+mimeType);
         }
       } else {
         throw new ImageException(400, "No image file found.");
@@ -205,7 +214,7 @@ public class CropItProcessor {
    * @return
    * @throws IOException
    * @throws ImageReadException
-   * @throws ImageException 
+   * @throws ImageException
    */
   protected static BufferedImage getBufferedImage(byte[] bytes, ImageInfo info)
       throws ImageReadException, IOException, ImageException {
@@ -219,13 +228,20 @@ public class CropItProcessor {
       imgBuf = ImageIO.read(new ByteArrayInputStream(bytes));
     } else {
       imgBuf = Sanselan.getBufferedImage(bytes);
+
+      // KERN-1113 Sanselan doesn't read the image type correctly when working with some
+      // PNG's.  Alpha layer is tricky.
+      if (imgBuf.getType() == 0) {
+        imgBuf = ImageIO.read(new ByteArrayInputStream(bytes));
+      }
     }
+
     return imgBuf;
   }
 
   /**
    * Will save a stream of an image to the JCR.
-   * 
+   *
    * @param path
    *          The JCR path to save the image in.
    * @param mimetype
@@ -276,7 +292,7 @@ public class CropItProcessor {
   /**
    * This method will scale an image to a desired width and height and shall output the
    * stream of that scaled image.
-   * 
+   *
    * @param width
    *          The desired width of the scaled image.
    * @param height
@@ -306,6 +322,8 @@ public class CropItProcessor {
       // Write to stream.
       if (info.getFormat() == ImageFormat.IMAGE_FORMAT_JPEG) {
         ImageIO.write(imgScaled, "jpg", out);
+      } else if (info.getFormat() == ImageFormat.IMAGE_FORMAT_PNG) {
+        ImageIO.write(imgScaled, "png", out);
       } else {
         Sanselan.writeImage(imgScaled, out, info.getFormat(), null);
       }
@@ -323,7 +341,7 @@ public class CropItProcessor {
    * http://today.java.net/pub/a/today/2007/04/03/perils-of-image-getscaledinstance.html.
    * Image.getScaledInstance() is not very efficient or fast and this leverages the
    * graphics classes directly for a better and faster image scaling algorithm.
-   * 
+   *
    * @param img
    * @param targetWidth
    * @param targetHeight
@@ -331,7 +349,7 @@ public class CropItProcessor {
    */
   protected static BufferedImage getScaledInstance(BufferedImage img, int targetWidth,
       int targetHeight) {
-    BufferedImage ret = (BufferedImage) img;
+    BufferedImage ret = img;
 
     // Use multi-step technique: start with original size, then
     // scale down in multiple passes with drawImage()

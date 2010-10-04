@@ -63,21 +63,35 @@ public class ProfileImporter {
     }
   };
 
+  /**
+   * Import a profile using a parameter provided in the request.
+   * @param profileNode
+   * @param parameters
+   * @param contentImporter
+   * @param session
+   * @param defaultJson
+   */
   public static void importFromParameters(Node profileNode, Map<String, Object[]> parameters, ContentImporter contentImporter,
-      Session session) {
+      Session session, String defaultJson) {
+    String json = defaultJson;
     Object[] profileParameterValues = parameters.get(PROFILE_JSON_IMPORT_PARAMETER);
     if (profileParameterValues != null) {
-      if ((profileParameterValues.length == 1) && (profileParameterValues instanceof String[])) {
-        String json = (String) profileParameterValues[0];
-        try {
-          importFromJsonString(profileNode, json, contentImporter, session);
-        } catch (RepositoryException e) {
-          LOGGER.error("Unable to import content for profile node " + profileNode, e);
-        } catch (IOException e) {
-          LOGGER.error("Unable to import content for profile node " + profileNode, e);
-        }
+      if ((profileParameterValues.length == 1) && (profileParameterValues[0] instanceof String)) {
+        json = (String) profileParameterValues[0];
       } else {
-        LOGGER.warn("Improperly formatted profile import parameter: {}", profileParameterValues);
+        LOGGER.warn(
+            "Improperly formatted profile import parameter: {}; using default: {}",
+            profileParameterValues, defaultJson);
+      }
+    }
+
+    if (json != null) {
+      try {
+        importFromJsonString(profileNode, json, contentImporter, session);
+      } catch (RepositoryException e) {
+        LOGGER.error("Unable to import content for profile node " + profileNode, e);
+      } catch (IOException e) {
+        LOGGER.error("Unable to import content for profile node " + profileNode, e);
       }
     }
   }
@@ -86,6 +100,6 @@ public class ProfileImporter {
       Session session) throws RepositoryException, IOException {
     ByteArrayInputStream contentStream = new ByteArrayInputStream(json.getBytes());
     contentImporter.importContent(profileNode, CONTENT_ROOT_NAME, contentStream, importOptions, null);
-    LOGGER.info("Imported content to {} from JSON string '{}'", profileNode.getPath(), json);
+    LOGGER.debug("Imported content to {} from JSON string '{}'", profileNode.getPath(), json);
   }
 }

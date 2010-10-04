@@ -4,7 +4,8 @@
 # don't forget to trust the svn certificate permanently: svn info https://source.sakaiproject.org/svn
 
 export K2_TAG="HEAD"
-export S2_TAG="tags/sakai-2.7.0-rc01"
+export S2_TAG="tags/sakai-2.8.0-a01"
+export UX_TAG="HEAD"
 
 # Treat unset variables as an error when performing parameter expansion
 set -o nounset
@@ -12,7 +13,7 @@ set -o nounset
 # environment
 export PATH=/usr/local/bin:$PATH
 export BUILD_DIR="/home/hybrid"
-export JAVA_HOME=/opt/jdk1.6.0_17
+export JAVA_HOME=/opt/jdk1.6.0_21
 export PATH=$JAVA_HOME/bin:${PATH}
 export MAVEN_HOME=/usr/local/apache-maven-2.2.1
 export M2_HOME=/usr/local/apache-maven-2.2.1
@@ -59,10 +60,30 @@ then
     echo "Starting clean build..."
     rm -rf sakai
     rm -rf sakai2-demo
+    rm -rf 3akai-ux
     rm -rf sakai3
     rm -rf ~/.m2/repository/org/sakaiproject
 else
     echo "Starting incremental build..."
+fi
+
+# build 3akai-ux
+cd $BUILD_DIR
+mkdir -p 3akai-ux
+cd 3akai-ux
+if [ -f .lastbuild ]
+then
+    echo "Skipping build 3akai-ux@$UX_TAG..."
+else
+    echo "Building 3akai-ux@$UX_TAG..."
+    git clone -q git://github.com/sakaiproject/3akai-ux.git
+    cd 3akai-ux
+    git checkout -b "build-$UX_TAG" $UX_TAG
+    # enable My Sakai 2 Sites widget
+    # // "personalportal":true --> "personalportal":true,
+    perl -pwi -e 's/\/\/\s+"personalportal"\:true/"personalportal"\:true\,/gi' devwidgets/s23courses/config.json
+    mvn -B -e clean install
+    date > ../.lastbuild
 fi
 
 # build sakai 3
@@ -77,7 +98,7 @@ else
     git clone -q git://github.com/sakaiproject/nakamura.git
     cd nakamura
     git checkout -b "build-$K2_TAG" $K2_TAG
-    mvn -B -e clean install -Dmaven.test.skip=true
+    mvn -B -e clean install
     date > .lastbuild
 fi
 
@@ -106,22 +127,24 @@ else
     svn checkout -q "https://source.sakaiproject.org/svn/sakai/$S2_TAG" sakai
     cd sakai/
     REPO_REV=`svn info|grep Revision`
-    # SAK-17223 K2AuthenticationFilter
-    rm -rf login/
-    svn checkout -q https://source.sakaiproject.org/svn/login/branches/SAK-17223-2.7 login
-    # SAK-17222 K2UserDirectoryProvider
-    rm -rf providers
-    svn checkout -q https://source.sakaiproject.org/svn/providers/branches/SAK-17222-2.7 providers
-    # KERN-360 Servlet and TrustedLoginFilter RESTful services
-    cp -R $BUILD_DIR/sakai3/nakamura/hybrid .
-    find hybrid -name pom.xml -exec perl -pwi -e 's/2\.8-SNAPSHOT/2\.7-SNAPSHOT/g' {} \;
-    perl -pwi -e 's/<\/modules>/<module>hybrid<\/module><\/modules>/gi' pom.xml
-    mvn -B -e clean install sakai:deploy -Dmaven.test.skip=true -Dmaven.tomcat.home=$BUILD_DIR/sakai2-demo
+    # # SAK-17223 K2AuthenticationFilter
+    # rm -rf login/
+    # svn checkout -q https://source.sakaiproject.org/svn/login/branches/SAK-17223-2.7 login
+    # SAK-17222 NakamuraUserDirectoryProvider
+    # rm -rf providers
+    # svn checkout -q https://source.sakaiproject.org/svn/providers/branches/SAK-17222-2.7 providers
+    # enable NakamuraUserDirectoryProvider
+    perl -pwi -e 's/<\/beans>/\t<bean id="org.sakaiproject.user.api.UserDirectoryProvider"\n\t\tclass="org.sakaiproject.provider.user.NakamuraUserDirectoryProvider"\n\t\tinit-method="init">\n\t\t<property name="threadLocalManager">\n\t\t\t<ref bean="org.sakaiproject.thread_local.api.ThreadLocalManager" \/>\n\t\t<\/property>\n\t<\/bean>\n<\/beans>/gi' providers/component/src/webapp/WEB-INF/components.xml
+    # # KERN-360 Servlet and TrustedLoginFilter RESTful services
+    # cp -R $BUILD_DIR/sakai3/nakamura/hybrid .
+    # find hybrid -name pom.xml -exec perl -pwi -e 's/2\.8-SNAPSHOT/2\.7\.1/g' {} \;
+    # perl -pwi -e 's/<\/modules>/<module>hybrid<\/module><\/modules>/gi' pom.xml
+    mvn -B -e clean install sakai:deploy -Dmaven.tomcat.home=$BUILD_DIR/sakai2-demo
     # configure sakai 2 instance
     cd $BUILD_DIR
     # change default tomcat listener port numbers
     cp -f server.xml sakai2-demo/conf/server.xml 
-    echo "ui.service = trunk+SAK-17223+KERN-360 on HSQLDB" >> sakai2-demo/sakai/sakai.properties
+    echo "ui.service = $S2_TAG on HSQLDB" >> sakai2-demo/sakai/sakai.properties
     echo "version.sakai = $REPO_REV" >> sakai2-demo/sakai/sakai.properties
     echo "version.service = Built: $BUILD_DATE" >> sakai2-demo/sakai/sakai.properties
     echo "serverName=sakai23-hybrid.sakaiproject.org" >> sakai2-demo/sakai/sakai.properties
@@ -138,12 +161,17 @@ else
     echo "x.sakai.token.localhost.sharedSecret=default-setting-change-before-use" >> sakai2-demo/sakai/sakai.properties
     # declare shared secret for trusted login from K2
     echo "org.sakaiproject.util.TrustedLoginFilter.sharedSecret=e2KS54H35j6vS5Z38nK40" >> sakai2-demo/sakai/sakai.properties
-    echo "org.sakaiproject.util.TrustedLoginFilter.safeHosts=localhost;127.0.0.1" >> sakai2-demo/sakai/sakai.properties
+    echo "org.sakaiproject.util.TrustedLoginFilter.safeHosts=localhost;127.0.0.1;129.79.26.127" >> sakai2-demo/sakai/sakai.properties
     # enabled Basic LTI provider
     echo "imsblti.provider.enabled=true" >> sakai2-demo/sakai/sakai.properties
     echo "imsblti.provider.allowedtools=sakai.forums:sakai.messages:sakai.synoptic.messagecenter:sakai.poll:sakai.profile:sakai.profile2:sakai.announcements:sakai.synoptic.announcement:sakai.assignment.grades:sakai.summary.calendar:sakai.schedule:sakai.chat:sakai.dropbox:sakai.resources:sakai.gradebook.tool:sakai.help:sakai.mailbox:sakai.news:sakai.podcasts:sakai.postem:sakai.site.roster:sakai.rwiki:sakai.syllabus:sakai.singleuser:sakai.samigo:sakai.sitestats" >> sakai2-demo/sakai/sakai.properties
     echo "imsblti.provider.12345.secret=secret" >> sakai2-demo/sakai/sakai.properties
     echo "webservices.allow=.+" >> sakai2-demo/sakai/sakai.properties
+    # enable debugging for UDP
+    echo "log.config.count=3" >> sakai2-demo/sakai/sakai.properties
+    echo "log.config.1 = ALL.org.sakaiproject.log.impl" >> sakai2-demo/sakai/sakai.properties
+    echo "log.config.2 = OFF.org.sakaiproject" >> sakai2-demo/sakai/sakai.properties
+    echo "log.config.3 = DEBUG.org.sakaiproject.provider.user" >> sakai2-demo/sakai/sakai.properties
     date > $BUILD_DIR/sakai/.lastbuild
 fi
 

@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+# Add all files in testscripts\SlingRuby\lib directory to ruby "require" search path
+require 'ruby-lib-dir.rb'
+
 require 'set'
 require 'sling/test'
 include SlingSearch
@@ -12,7 +15,7 @@ class TC_Kern637Test < Test::Unit::TestCase
     sitename = "Test Site #{m}"
     sitecreator = create_user("testuser#{m}")
     @s.switch_user(sitecreator)
-    sitetemplate = "/var/templates/site/systemtemplate"
+    sitetemplate = "/var/templates/sitetest/systemtemplate"
     # Make sure the template is there as expected.
     res = @s.execute_get(@s.url_for(sitetemplate + ".json"))
     props = JSON.parse(res.body)

@@ -10,7 +10,7 @@ set -o nounset
 # environment
 export PATH=/usr/local/bin:$PATH
 export BUILD_DIR="/home/hybrid"
-export JAVA_HOME=/opt/jdk1.6.0_17
+export JAVA_HOME=/opt/jdk1.6.0_21
 export PATH=$JAVA_HOME/bin:${PATH}
 export MAVEN_HOME=/usr/local/apache-maven-2.2.1
 export M2_HOME=/usr/local/apache-maven-2.2.1
@@ -44,7 +44,7 @@ mkdir sakai3
 cd sakai3
 git clone -q git://github.com/sakaiproject/nakamura.git
 cd nakamura
-mvn -B -e clean install -Dmaven.test.skip=true -Dux=$UX_TAG
+mvn -B -e clean install -Dux=$UX_TAG
 
 # start sakai 3 instance
 echo "Starting sakai3 instance..."

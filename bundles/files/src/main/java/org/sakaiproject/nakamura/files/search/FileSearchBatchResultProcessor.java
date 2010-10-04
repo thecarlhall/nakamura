@@ -57,7 +57,7 @@ import javax.jcr.query.RowIterator;
 
 /**
  * Formats the files search results.
- * 
+ *
  */
 
 @Component(immediate = true, label = "FileSearchBatchResultProcessor", description = "Formatter for file searches")
@@ -75,10 +75,14 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
   @Reference
   private SearchServiceFactory searchServiceFactory;
 
+  // how deep to traverse the file structure
+  private int depth = 0;
+
   /**
    * @param siteService
    */
-  public FileSearchBatchResultProcessor(SiteService siteService, SearchServiceFactory searchServiceFactory) {
+  public FileSearchBatchResultProcessor(SiteService siteService,
+      SearchServiceFactory searchServiceFactory) {
     this.siteService = siteService;
     this.searchServiceFactory = searchServiceFactory;
   }
@@ -86,9 +90,13 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
   public FileSearchBatchResultProcessor() {
   }
 
+  public void setDepth(int depth) {
+    this.depth = depth;
+  }
+
   /**
    * {@inheritDoc}
-   * 
+   *
    * @see org.sakaiproject.nakamura.api.search.SearchResultProcessor#getSearchResultSet(org.apache.sling.api.SlingHttpServletRequest,
    *      javax.jcr.query.Query)
    */
@@ -100,13 +108,12 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
       QueryResult rs = query.execute();
 
       // Extract the total hits from lucene
-      long hits = SearchUtil.getHits(rs);
       long nitems = SearchUtil.longRequestParameter(request, PARAMS_ITEMS_PER_PAGE,
           SearchConstants.DEFAULT_PAGED_ITEMS);
 
       // Do the paging on the iterator.
       RowIterator iterator = searchServiceFactory.getPathFilteredRowIterator(rs.getRows());
-      long start = SearchUtil.getPaging(request, hits);
+      long start = SearchUtil.getPaging(request);
       iterator.skip(start);
 
       Session session = request.getResourceResolver().adaptTo(Session.class);
@@ -147,7 +154,7 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
       RowIterator newIterator = searchServiceFactory.getRowIteratorFromList(savedRows);
 
       // Return the result set.
-      SearchResultSet srs = searchServiceFactory.getSearchResultSet(newIterator, hits);
+      SearchResultSet srs = searchServiceFactory.getSearchResultSet(newIterator);
       return srs;
     } catch (RepositoryException e) {
       throw new SearchException(500, "Unable to perform query.");
@@ -156,7 +163,7 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
 
   /**
    * {@inheritDoc}
-   * 
+   *
    * @see org.sakaiproject.nakamura.api.search.SearchBatchResultProcessor#writeNodes(org.apache.sling.api.SlingHttpServletRequest,
    *      org.apache.sling.commons.json.io.JSONWriter,
    *      org.sakaiproject.nakamura.api.search.Aggregator, javax.jcr.query.RowIterator)
@@ -179,7 +186,7 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
 
   /**
    * Write the nodes in the node iterator confirming this batchprocessor default output.
-   * 
+   *
    * @param request
    *          The request.
    * @param write
@@ -207,7 +214,7 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
 
   /**
    * Give a JSON representation of the file node.
-   * 
+   *
    * @param node
    *          The node
    * @param session
@@ -227,7 +234,7 @@ public class FileSearchBatchResultProcessor implements SearchBatchResultProcesso
     if (FilesConstants.RT_SAKAI_LINK.equals(type)) {
       FileUtils.writeLinkNode(node, session, write, siteService);
     } else {
-      FileUtils.writeFileNode(node, session, write, siteService);
+      FileUtils.writeFileNode(node, session, write, siteService, depth);
     }
   }
 }

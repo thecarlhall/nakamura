@@ -39,6 +39,7 @@ import org.apache.sling.commons.testing.jcr.MockNode;
 import org.apache.sling.jcr.api.SlingRepository;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -71,7 +72,7 @@ public class ManageMembersContentPoolServletTest {
 
   @Mock
   private SlingRepository slingRepository;
-  @Mock
+  @Mock(answer = Answers.RETURNS_DEEP_STUBS)
   private SlingHttpServletRequest request;
   @Mock
   private SlingHttpServletResponse response;
@@ -106,6 +107,10 @@ public class ManageMembersContentPoolServletTest {
     MockitoAnnotations.initMocks(this);
     servlet = new ManageMembersContentPoolServlet();
     servlet.slingRepository = slingRepository;
+
+    // TODO With this, we are testing the internals of the ProfileServiceImpl
+    // class as well as the internals of the MeServlet class. Mocking it would
+    // reduce the cost of test maintenance.
     servlet.profileService = new ProfileServiceImpl();
 
     // Mock the request and the filenode.
@@ -116,7 +121,11 @@ public class ManageMembersContentPoolServletTest {
     when(session.getPrincipalManager()).thenReturn(principalManager);
     when(session.getAccessControlManager()).thenReturn(acm);
     when(session.getUserManager()).thenReturn(userManager);
+    Node rootNode = mock(Node.class);
+    when(session.getRootNode()).thenReturn(rootNode);
+    when(rootNode.hasNode("_user/a/al/alice/public/authprofile")).thenReturn(true);
     when(session.getNode("/_user/a/al/alice/public/authprofile")).thenReturn(new MockNode("/_user/a/al/alice/public/authprofile"));
+    when(rootNode.hasNode("_user/b/bo/bob/public/authprofile")).thenReturn(true);
     when(session.getNode("/_user/b/bo/bob/public/authprofile")).thenReturn(new MockNode("/_user/b/bo/bob/public/authprofile"));
 
     // Handle setting ACLs.
@@ -151,14 +160,15 @@ public class ManageMembersContentPoolServletTest {
     when(q.execute()).thenReturn(qr);
     when(qr.getNodes()).thenReturn(iterator);
 
-    MockNode aliceNode = new MockNode(fileNode.getPath() + "/a/al/alice");
+    MockNode aliceNode = new MockNode(fileNode.getPath() + "/members/a/al/alice");
     aliceNode.setProperty(POOLED_CONTENT_USER_MANAGER, "alice");
     when(adminSession.itemExists(aliceNode.getPath())).thenReturn(true);
     when(adminSession.getItem(aliceNode.getPath())).thenReturn(aliceNode);
+    when(adminSession.getNode(aliceNode.getPath())).thenReturn(aliceNode);
     Authorizable alice = MockitoTestUtils.createAuthorizable("alice", false);
     when(userManager.getAuthorizable("alice")).thenReturn(alice);
 
-    MockNode bobNode = new MockNode(fileNode.getPath() + "/b/bo/bob");
+    MockNode bobNode = new MockNode(fileNode.getPath() + "/members/b/bo/bob");
     bobNode.setProperty(POOLED_CONTENT_USER_VIEWER, "bob");
     when(adminSession.itemExists(bobNode.getPath())).thenReturn(true);
     when(adminSession.getItem(bobNode.getPath())).thenReturn(bobNode);
@@ -171,6 +181,7 @@ public class ManageMembersContentPoolServletTest {
 
   @Test
   public void testGetMembers() throws Exception {
+    when(request.getRequestPathInfo().getSelectors()).thenReturn(new String[0]);
     servlet.doGet(request, response);
     printWriter.flush();
 

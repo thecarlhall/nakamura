@@ -19,11 +19,11 @@
   <parent>
     <groupId>org.sakaiproject.nakamura</groupId>
     <artifactId>base</artifactId>
-    <version>0.8-SNAPSHOT</version>
+    <version>0.9-SNAPSHOT</version>
   </parent>
   <artifactId>org.sakaiproject.nakamura.doc</artifactId>
   <packaging>bundle</packaging>
-  <version>0.8-SNAPSHOT</version>
+  <version>0.9-SNAPSHOT</version>
   <name>Sakai Nakamura :: Documentation Support bundle</name>
   <description>Sakai Documentation Support bundle</description>
   <build>
@@ -52,7 +52,7 @@
             <Bundle-Category> sakai-nakamura </Bundle-Category>
             <Export-Package> org.sakaiproject.nakamura.api.doc </Export-Package>
             <Private-Package> org.sakaiproject.nakamura.doc.* </Private-Package>
-            <Sling-Initial-Content>SLING-INF/content</Sling-Initial-Content>
+            <Sling-Initial-Content>SLING-INF/content;uninstall:=false;path:=/var</Sling-Initial-Content>
             <_include>${basedir}/target/scm-version.properties</_include>
           </instructions>
         </configuration>
@@ -65,12 +65,16 @@
             <phase>generate-resources</phase>
             <configuration>
               <tasks>
-                <exec outputproperty="git.version" executable="git">
+                <exec outputproperty="git.version" executable="git" failifexecutionfails="false" searchpath="true" >
                   <arg line="describe" />
                 </exec>
-                <echo file="${basedir}/target/scm-version.properties">
-                  scm.version=${git.version}
-                </echo>
+                <condition property="git.version.value" value="${git.version}" else="UnknownVersion" >
+                  <isset property="git.version" />
+                </condition>
+                  <echo file="${basedir}/target/scm-version.properties" >
+                    scm.version=${git.version.value}
+                  </echo>
+                
               </tasks>
             </configuration>
             <goals>
@@ -86,7 +90,7 @@
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
       <artifactId>org.sakaiproject.nakamura.utils</artifactId>
-      <version>0.8-SNAPSHOT</version>
+      <version>0.9-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.apache.sling</groupId>
