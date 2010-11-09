@@ -18,6 +18,12 @@
 
 package org.sakaiproject.nakamura.message.internal;
 
+import static javax.jcr.security.Privilege.JCR_READ;
+import static javax.jcr.security.Privilege.JCR_REMOVE_NODE;
+import static javax.jcr.security.Privilege.JCR_WRITE;
+import static org.apache.sling.jcr.base.util.AccessControlUtil.replaceAccessControlEntry;
+import static org.sakaiproject.nakamura.api.message.MessageConstants.PROP_SAKAI_FROM;
+
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -34,11 +40,14 @@ import org.apache.sling.commons.json.io.JSONWriter;
 import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.osgi.service.event.Event;
+import org.sakaiproject.nakamura.api.locking.LockManager;
+import org.sakaiproject.nakamura.api.locking.LockTimeoutException;
 import org.sakaiproject.nakamura.api.message.MessageConstants;
 import org.sakaiproject.nakamura.api.message.MessageProfileWriter;
 import org.sakaiproject.nakamura.api.message.MessageRoute;
 import org.sakaiproject.nakamura.api.message.MessageRoutes;
 import org.sakaiproject.nakamura.api.message.MessageTransport;
+import org.sakaiproject.nakamura.api.message.MessagingException;
 import org.sakaiproject.nakamura.api.message.MessagingService;
 import org.sakaiproject.nakamura.api.presence.PresenceService;
 import org.sakaiproject.nakamura.api.presence.PresenceUtils;
@@ -74,6 +83,8 @@ public class InternalMessageHandler implements MessageTransport, MessageProfileW
   private static final Logger LOG = LoggerFactory.getLogger(InternalMessageHandler.class);
   private static final String TYPE = MessageConstants.TYPE_INTERNAL;
 
+  private boolean testing = false;
+
   @Reference
   protected transient SlingRepository slingRepository;
 
@@ -88,6 +99,9 @@ public class InternalMessageHandler implements MessageTransport, MessageProfileW
 
   @Reference
   protected transient ProfileService profileService;
+  
+  @Reference
+  protected transient LockManager lockManager;
 
   /**
    * Default constructor
@@ -102,9 +116,10 @@ public class InternalMessageHandler implements MessageTransport, MessageProfileW
    *      org.osgi.service.event.Event, javax.jcr.Node)
    */
   public void send(MessageRoutes routes, Event event, Node originalMessage) {
+    Session session = null;
     try {
 
-      Session session = slingRepository.loginAdministrative(null);
+      session = slingRepository.loginAdministrative(null);
 
       //recipients keeps track of who have already received the message, to avoid duplicate messages
       List<String> recipients = new ArrayList<String>();
@@ -116,34 +131,43 @@ public class InternalMessageHandler implements MessageTransport, MessageProfileW
           // the path were we want to save messages in.
           String messageId = originalMessage.getProperty(MessageConstants.PROP_SAKAI_ID)
           .getString();
-          
           sendHelper(recipients, rcpt, originalMessage, session, messageId, um);
         }
       }
     } catch (RepositoryException e) {
       LOG.error(e.getMessage(), e);
+    } finally {
+      if (session != null) {
+        session.logout();
+      }
     }
   }
 
-  private void sendHelper(List<String> recipients, String rcpt, Node originalMessage, Session session, String messageId, UserManager um){   
+  private void sendHelper(List<String> recipients, String rcpt, Node originalMessage, Session session, String messageId, UserManager um){
     try {
       Authorizable au = um.getAuthorizable(rcpt);
       if(au != null && au.isGroup() && au instanceof Group){
         Group group = (Group) au;
         //user must be in the group directly to send a message:
         for (Iterator<Authorizable> iterator = group.getDeclaredMembers(); iterator.hasNext();) {
-          Authorizable auth = (Authorizable) iterator.next();
+          Authorizable auth = iterator.next();
           if(!recipients.contains(auth.getID())){
             //call back to itself: this allows for groups to be in groups and future extensions
             sendHelper(recipients, auth.getID(), originalMessage, session, messageId, um);
             recipients.add(auth.getID());
           }
-        }        
+        }
       }else{
         //only send a message to a user who hasn't already received one:
         if(!recipients.contains(rcpt)){
 
           String toPath = messagingService.getFullPathToMessage(rcpt, messageId, session);
+          
+          try {
+            lockManager.waitForLock(toPath);
+          } catch (LockTimeoutException e1) {
+            throw new MessagingException("Unable to lock destination message store");
+          }
 
           // Copy the node into the user his folder.
           JcrUtils.deepGetOrCreateNode(session, toPath.substring(0, toPath.lastIndexOf("/")));
@@ -156,6 +180,7 @@ public class InternalMessageHandler implements MessageTransport, MessageProfileW
           n.setProperty(MessageConstants.PROP_SAKAI_MESSAGEBOX, MessageConstants.BOX_INBOX);
           n.setProperty(MessageConstants.PROP_SAKAI_SENDSTATE,
               MessageConstants.STATE_NOTIFIED);
+          
 
           if (session.hasPendingChanges()) {
             session.save();
@@ -169,6 +194,8 @@ public class InternalMessageHandler implements MessageTransport, MessageProfileW
       LOG.error(e.getMessage(), e);
     } catch (RepositoryException e) {
       LOG.error(e.getMessage(), e);
+    } finally {
+      lockManager.clearLocks();
     }
   }
 
@@ -221,6 +248,14 @@ public class InternalMessageHandler implements MessageTransport, MessageProfileW
     } catch (RepositoryException e) {
       LOG.error(e.getMessage(), e);
     }
+  }
+
+  /**
+   * This method should only be called for unit testing purposes. It will disable the ACL
+   * settings.
+   */
+  protected void activateTesting() {
+    testing = true;
   }
 
 }

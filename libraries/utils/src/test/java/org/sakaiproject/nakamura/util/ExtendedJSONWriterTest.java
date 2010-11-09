@@ -93,6 +93,7 @@ public class ExtendedJSONWriterTest {
       // Properties
       // Double
       Property doubleProp = createMock(Property.class);
+      expect(doubleProp.getType()).andReturn(PropertyType.DOUBLE);
       Value doubleValue = createMock(Value.class);
 
       expect(doubleValue.getType()).andReturn(PropertyType.DOUBLE);
@@ -103,6 +104,7 @@ public class ExtendedJSONWriterTest {
 
       // Multi string prop
       Property multiStringProp = createMock(Property.class);
+      expect(multiStringProp.getType()).andReturn(PropertyType.STRING).once();
       expect(multiStringProp.getDefinition()).andReturn(propDefMultiple).once();
       expect(multiStringProp.getName()).andReturn("multiString").once();
       Value[] multiStringValues = new Value[2];
@@ -145,26 +147,6 @@ public class ExtendedJSONWriterTest {
     }
   }
 
-  @Test
-  public void testTranslate() {
-    assertEquals("/~ieb/testing", ExtendedJSONWriter.translateAuthorizablePath("/_user/i/ie/ieb/testing"));
-    assertEquals("/~ieb/", ExtendedJSONWriter.translateAuthorizablePath("/_user/i/ie/ieb/"));
-    assertEquals("/~ieb", ExtendedJSONWriter.translateAuthorizablePath("/_user/i/ie/ieb"));
-    assertEquals("/~ieb/ieb", ExtendedJSONWriter.translateAuthorizablePath("/_user/i/ie/ieb/ieb"));
-    assertEquals("/~ieb/ieb/ieb", ExtendedJSONWriter.translateAuthorizablePath("/_user/i/ie/ieb/ieb/ieb"));
-    assertEquals("/~ieb236/testing/a/b/c", ExtendedJSONWriter.translateAuthorizablePath("/_user/i/ie/ieb/ieb236/testing/a/b/c"));
-    assertEquals("/~ieb/testing", ExtendedJSONWriter.translateAuthorizablePath("/_group/i/ie/ieb/testing"));
-    assertEquals("/~ieb/", ExtendedJSONWriter.translateAuthorizablePath("/_group/i/ie/ieb/"));
-    assertEquals("/~ieb", ExtendedJSONWriter.translateAuthorizablePath("/_group/i/ie/ieb"));
-    assertEquals("/~ieb/ieb", ExtendedJSONWriter.translateAuthorizablePath("/_group/i/ie/ieb/ieb"));
-    assertEquals("/~ieb/ieb/ieb", ExtendedJSONWriter.translateAuthorizablePath("/_group/i/ie/ieb/ieb/ieb"));
-    assertEquals("/~ieb236/testing/a/b/c", ExtendedJSONWriter.translateAuthorizablePath("/_group/i/ie/ieb/ieb236/testing/a/b/c"));
-    assertEquals("/_group", ExtendedJSONWriter.translateAuthorizablePath("/_group"));
-    assertEquals("/_group/", ExtendedJSONWriter.translateAuthorizablePath("/_group/"));
-    assertEquals("/_user", ExtendedJSONWriter.translateAuthorizablePath("/_user"));
-    assertEquals("/_user/", ExtendedJSONWriter.translateAuthorizablePath("/_user/"));
-    assertEquals("/anything/", ExtendedJSONWriter.translateAuthorizablePath("/anything/"));
-  }
 
   @Test
   public void writeNodeTreeToWriterNoSubNodes() throws Exception {
@@ -181,6 +163,7 @@ public class ExtendedJSONWriterTest {
     expect(propDefSingle.isMultiple()).andReturn(false).anyTimes();
 
     Property doubleProp = createMock(Property.class);
+    expect(doubleProp.getType()).andReturn(PropertyType.DOUBLE);
     Value doubleValue = createMock(Value.class);
 
     expect(doubleValue.getType()).andReturn(PropertyType.DOUBLE);
@@ -243,6 +226,7 @@ public class ExtendedJSONWriterTest {
     expect(propDefSingle.isMultiple()).andReturn(false).anyTimes();
 
     Property doubleProp = createMock(Property.class);
+    expect(doubleProp.getType()).andReturn(PropertyType.DOUBLE).anyTimes();
     Value doubleValue = createMock(Value.class);
 
     expect(doubleValue.getType()).andReturn(PropertyType.DOUBLE).anyTimes();
@@ -328,6 +312,7 @@ public class ExtendedJSONWriterTest {
     expect(propDefSingle.isMultiple()).andReturn(false).anyTimes();
 
     Property doubleProp = createMock(Property.class);
+    expect(doubleProp.getType()).andReturn(PropertyType.DOUBLE).anyTimes();
     Value doubleValue = createMock(Value.class);
 
     expect(doubleValue.getType()).andReturn(PropertyType.DOUBLE).anyTimes();
@@ -407,6 +392,7 @@ public class ExtendedJSONWriterTest {
     expect(propDefSingle.isMultiple()).andReturn(false).anyTimes();
 
     Property doubleProp = createMock(Property.class);
+    expect(doubleProp.getType()).andReturn(PropertyType.DOUBLE).anyTimes();
     Value doubleValue = createMock(Value.class);
 
     expect(doubleValue.getType()).andReturn(PropertyType.DOUBLE).anyTimes();
@@ -490,6 +476,7 @@ public class ExtendedJSONWriterTest {
     expect(propDefSingle.isMultiple()).andReturn(false).anyTimes();
 
     Property doubleProp = createMock(Property.class);
+    expect(doubleProp.getType()).andReturn(PropertyType.DOUBLE).anyTimes();
     Value doubleValue = createMock(Value.class);
 
     expect(doubleValue.getType()).andReturn(PropertyType.DOUBLE).anyTimes();

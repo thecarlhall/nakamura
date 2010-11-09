@@ -4,7 +4,7 @@
 # don't forget to trust the svn certificate permanently: svn info https://source.sakaiproject.org/svn
 
 export K2_TAG="HEAD"
-export S2_TAG="tags/sakai-2.8.0-a01"
+export S2_TAG="tags/sakai-2.8.0-a02"
 export UX_TAG="HEAD"
 
 # Treat unset variables as an error when performing parameter expansion
@@ -13,14 +13,14 @@ set -o nounset
 # environment
 export PATH=/usr/local/bin:$PATH
 export BUILD_DIR="/home/hybrid"
-export JAVA_HOME=/opt/jdk1.6.0_21
+export JAVA_HOME=/opt/jdk1.6.0_22
 export PATH=$JAVA_HOME/bin:${PATH}
 export MAVEN_HOME=/usr/local/apache-maven-2.2.1
 export M2_HOME=/usr/local/apache-maven-2.2.1
 export PATH=$MAVEN_HOME/bin:${PATH}
 export MAVEN_OPTS="-Xmx512m -XX:MaxPermSize=256m"
 export JAVA_OPTS="-server -Xmx1024m -XX:MaxPermSize=512m -Djava.awt.headless=true -Dsun.lang.ClassLoader.allowArraySyntax=true -Dorg.apache.jasper.compiler.Parser.STRICT_QUOTE_ESCAPING=false -Dsakai.demo=true -Dsakai.cookieName=SAKAI2SESSIONID"
-export K2_OPTS="-server -Xmx512m -XX:MaxPermSize=128m -Djava.awt.headless=true"
+export K2_OPTS="-server -Xmx1024m -XX:MaxPermSize=256m -Djava.awt.headless=true"
 BUILD_DATE=`date "+%D %R"`
 
 # get some shell scripting setup out of the way...
@@ -55,14 +55,19 @@ set -o errexit
 
 # clean previous builds
 cd $BUILD_DIR
-if [ $1 == "clean" ]
+if [ $# -gt 0 ]
 then
-    echo "Starting clean build..."
-    rm -rf sakai
-    rm -rf sakai2-demo
-    rm -rf 3akai-ux
-    rm -rf sakai3
-    rm -rf ~/.m2/repository/org/sakaiproject
+    if [ $1 == "clean" ]
+    then
+        echo "Starting clean build..."
+        rm -rf sakai
+        rm -rf sakai2-demo
+        rm -rf 3akai-ux
+        rm -rf sakai3
+        rm -rf ~/.m2/repository/org/sakaiproject
+    else
+        echo "Starting incremental build..."
+    fi
 else
     echo "Starting incremental build..."
 fi
@@ -82,6 +87,10 @@ else
     # enable My Sakai 2 Sites widget
     # // "personalportal":true --> "personalportal":true,
     perl -pwi -e 's/\/\/\s+"personalportal"\:true/"personalportal"\:true\,/gi' devwidgets/s23courses/config.json
+    # //"grouppages":true, --> "grouppages":true,
+    perl -pwi -e 's/\/\/"grouppages"\:true\,/"grouppages"\:true\,/gi' devwidgets/sakai2tools/config.json
+    # //"grouppages":true, --> "grouppages":true,
+    perl -pwi -e 's/\/\/"grouppages"\:true\,/"grouppages"\:true\,/gi' devwidgets/basiclti/config.json
     mvn -B -e clean install
     date > ../.lastbuild
 fi
@@ -143,7 +152,9 @@ else
     # configure sakai 2 instance
     cd $BUILD_DIR
     # change default tomcat listener port numbers
-    cp -f server.xml sakai2-demo/conf/server.xml 
+    perl -pwi -e 's/\<Connector\s+port\="8080"/\<Connector port\="8880"/gi' sakai2-demo/conf/server.xml
+    perl -pwi -e 's/\<Connector\s+port\="8009"/\<Connector port\="8809"/gi' sakai2-demo/conf/server.xml
+    # sakai.properties
     echo "ui.service = $S2_TAG on HSQLDB" >> sakai2-demo/sakai/sakai.properties
     echo "version.sakai = $REPO_REV" >> sakai2-demo/sakai/sakai.properties
     echo "version.service = Built: $BUILD_DATE" >> sakai2-demo/sakai/sakai.properties
@@ -151,7 +162,7 @@ else
     echo "webservices.allowlogin=true" >> sakai2-demo/sakai/sakai.properties
     echo "webservice.portalsecret=nightly" >> sakai2-demo/sakai/sakai.properties
     echo "samigo.answerUploadRepositoryPath=/tmp/sakai2-hybrid/" >> sakai2-demo/sakai/sakai.properties
-    # enable SAK-17223 K2AuthenticationFilter
+    # enable SAK-17223 NakamuraAuthenticationFilter
     echo "top.login=false" >> sakai2-demo/sakai/sakai.properties
     echo "container.login=true" >> sakai2-demo/sakai/sakai.properties
     echo "org.sakaiproject.login.filter.NakamuraAuthenticationFilter.enabled=true" >> sakai2-demo/sakai/sakai.properties
@@ -159,7 +170,7 @@ else
     # configure SAK-17222 NakamuraUserDirectoryProvider
     echo "org.sakaiproject.provider.user.NakamuraUserDirectoryProvider.validateUrl=http://localhost:8008/var/cluster/user.cookie.json?c=" >> sakai2-demo/sakai/sakai.properties
     echo "x.sakai.token.localhost.sharedSecret=default-setting-change-before-use" >> sakai2-demo/sakai/sakai.properties
-    # declare shared secret for trusted login from K2
+    # declare shared secret for trusted login from nakamura
     echo "org.sakaiproject.util.TrustedLoginFilter.sharedSecret=e2KS54H35j6vS5Z38nK40" >> sakai2-demo/sakai/sakai.properties
     echo "org.sakaiproject.util.TrustedLoginFilter.safeHosts=localhost;127.0.0.1;129.79.26.127" >> sakai2-demo/sakai/sakai.properties
     # enabled Basic LTI provider
@@ -179,3 +190,9 @@ fi
 echo "Starting sakai2 instance..."
 cd $BUILD_DIR/sakai2-demo
 ./bin/startup.sh 
+
+# run nakamura integration tests
+echo "Running integration tests..."
+cd $BUILD_DIR/sakai3/nakamura
+date > $BUILD_DIR/logs/sakai3-integration-tests.log.txt
+./tools/runalltests.rb >> $BUILD_DIR/logs/sakai3-integration-tests.log.txt 2>&1

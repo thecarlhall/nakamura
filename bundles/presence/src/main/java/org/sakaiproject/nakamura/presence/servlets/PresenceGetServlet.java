@@ -34,12 +34,14 @@ import org.sakaiproject.nakamura.api.doc.ServiceMethod;
 import org.sakaiproject.nakamura.api.doc.ServiceResponse;
 import org.sakaiproject.nakamura.api.presence.PresenceService;
 import org.sakaiproject.nakamura.api.presence.PresenceUtils;
+import org.sakaiproject.nakamura.api.user.UserConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Writer;
 
+import javax.jcr.Session;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
@@ -47,17 +49,17 @@ import javax.servlet.http.HttpServletResponse;
 @Properties(value = {
     @Property(name = "service.description", value = { "Gets the presence for the current user only." }),
     @Property(name = "service.vendor", value = { "The Sakai Foundation" }) })
-@ServiceDocumentation(name = "Presence Servlet", 
+@ServiceDocumentation(name = "Presence Servlet",
     description = "Gets presence for the current user only.",
     shortDescription="Gets the presence for the current user only.",
-    bindings = @ServiceBinding(type = BindingType.TYPE, 
+    bindings = @ServiceBinding(type = BindingType.TYPE,
         bindings = "sakai/presence",
         extensions = @ServiceExtension(name="json", description={
             "the presence information is returned as a json tree."
         })
-    ), 
-    methods = { 
-         @ServiceMethod(name = "GET", 
+    ),
+    methods = {
+         @ServiceMethod(name = "GET",
              description = {
                  "Gets the presence for the current user. The servlet is bound " +
                  "to a node of type sakai/presence although at the moment, there does not appear to be any information used from that " +
@@ -97,12 +99,16 @@ public class PresenceGetServlet extends SlingSafeMethodsServlet {
       throws ServletException, IOException {
     // get current user
     String user = request.getRemoteUser();
-    if (user == null) {
+    Session session = request.getResourceResolver().adaptTo(Session.class);
+    if ( session != null ) {
+      user = session.getUserID();
+    }
+    if (user == null || UserConstants.ANON_USERID.equals(user) ) {
       response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
           "User must be logged in to check their status");
       return;
     }
-    LOGGER.info("GET to PresenceServlet (" + user + ")");
+    LOGGER.debug("GET to PresenceServlet (" + user + ")");
 
     try {
 

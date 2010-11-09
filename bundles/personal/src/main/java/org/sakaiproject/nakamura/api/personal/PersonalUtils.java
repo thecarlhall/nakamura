@@ -56,7 +56,7 @@ public class PersonalUtils {
       hash = au.getProperty("path")[0].getString();
     } else {
       LOGGER
-          .warn(
+          .debug(
               "Authorizable {} has no path property set on it, grabbing hash from ItemBasedPrincipal!",
               au);
       ItemBasedPrincipal principal = (ItemBasedPrincipal) au.getPrincipal();
@@ -141,7 +141,7 @@ public class PersonalUtils {
    */
   public static String getHomeFolder(Authorizable au) {
     String folder = PathUtils.getSubPath(au);
-    if (au.isGroup()) {
+    if (au != null && au.isGroup()) {
       folder = _GROUP + folder;
     } else {
       // Assume this is a user.

@@ -27,16 +27,19 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.request.RequestParameter;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.easymock.EasyMock;
+import org.easymock.internal.matchers.Any;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.sakaiproject.nakamura.testutils.easymock.AbstractEasyMockTest;
 
+import javax.jcr.Node;
+import javax.jcr.PropertyIterator;
 import javax.jcr.Session;
 import javax.jcr.query.Query;
 
 /**
- * 
+ *
  */
 public class SearchServletParsingTest extends AbstractEasyMockTest {
 
@@ -57,15 +60,15 @@ public class SearchServletParsingTest extends AbstractEasyMockTest {
 
     expect(request.getRequestParameter("a")).andReturn(rp_a).anyTimes();
     expect(rp_a.getString()).andReturn("again").anyTimes();
-    
+
     Authorizable au = createAuthorizable("admin", false, true);
-    
+
     UserManager um = EasyMock.createMock(UserManager.class);
     expect(um.getAuthorizable("admin")).andReturn(au).anyTimes();
-    
+
     JackrabbitSession session = EasyMock.createMock(JackrabbitSession.class);
     expect(session.getUserManager()).andReturn(um).anyTimes();
-    
+
     ResourceResolver resourceResolver = EasyMock.createMock(ResourceResolver.class);
     expect(resourceResolver.adaptTo(Session.class)).andReturn(session).anyTimes();
     expect(request.getResourceResolver()).andReturn(resourceResolver).anyTimes();
@@ -80,34 +83,59 @@ public class SearchServletParsingTest extends AbstractEasyMockTest {
   }
 
   @Test
-  public void testQueryParsing() {
-    String result = searchServlet.processQueryTemplate(request, " {q}", Query.SQL, null);
+  public void testQueryParsing() throws Exception {
+    Node node = createNiceMock(Node.class);
+    PropertyIterator propertyIterator = createNiceMock(PropertyIterator.class);
+    expect(node.getProperties()).andReturn(propertyIterator);
+    replay();
+    String result = searchServlet.processQueryTemplate(request, node, " {q}", Query.SQL, null);
     assertEquals(" testing", result);
+    verify();
   }
 
   @Test
-  public void testQueryParsing1() {
-    String result = searchServlet.processQueryTemplate(request, "{q} ", Query.SQL, null);
+  public void testQueryParsing1() throws Exception {
+    Node node = createNiceMock(Node.class);
+    PropertyIterator propertyIterator = createNiceMock(PropertyIterator.class);
+    expect(node.getProperties()).andReturn(propertyIterator);
+    replay();
+    String result = searchServlet.processQueryTemplate(request, node, "{q} ", Query.SQL, null);
     assertEquals("testing ", result);
+    verify();
   }
 
   @Test
-  public void testQueryParsing2() {
-    String result = searchServlet.processQueryTemplate(request, "{q} {a}", Query.SQL,
+  public void testQueryParsing2() throws Exception {
+    Node node = createNiceMock(Node.class);
+    PropertyIterator propertyIterator = createNiceMock(PropertyIterator.class);
+    expect(node.getProperties()).andReturn(propertyIterator);
+    replay();
+    String result = searchServlet.processQueryTemplate(request, node, "{q} {a}", Query.SQL,
         null);
     assertEquals("testing again", result);
+    verify();
   }
 
   @Test
-  public void testQueryParsingDefaultVals() {
-    String result = searchServlet.processQueryTemplate(request, "{q|foo}", Query.SQL,
+  public void testQueryParsingDefaultVals() throws Exception {
+    Node node = createNiceMock(Node.class);
+    PropertyIterator propertyIterator = createNiceMock(PropertyIterator.class);
+    expect(node.getProperties()).andReturn(propertyIterator);
+    replay();
+    String result = searchServlet.processQueryTemplate(request, node, "{q|foo}", Query.SQL,
         null);
     assertEquals("testing", result);
+    verify();
   }
-  
+
   @Test
-  public void testQueryParsingDefaultNullVals() {
-    String result = searchServlet.processQueryTemplate(request, "{null|foo}", Query.SQL, null);
+  public void testQueryParsingDefaultNullVals() throws Exception {
+    Node node = createNiceMock(Node.class);
+    PropertyIterator propertyIterator = createNiceMock(PropertyIterator.class);
+    expect(node.getProperties()).andReturn(propertyIterator);
+    replay();
+    String result = searchServlet.processQueryTemplate(request, node, "{null|foo}", Query.SQL, null);
     assertEquals("foo", result);
+    verify();
   }
 }

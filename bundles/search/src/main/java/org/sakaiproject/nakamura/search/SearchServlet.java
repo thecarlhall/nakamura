@@ -41,6 +41,7 @@ import static org.sakaiproject.nakamura.api.search.SearchConstants.SEARCH_RESULT
 import static org.sakaiproject.nakamura.api.search.SearchConstants.TOTAL;
 import static org.sakaiproject.nakamura.api.search.SearchUtil.escapeString;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
@@ -51,6 +52,7 @@ import org.apache.felix.scr.annotations.sling.SlingServlet;
 import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.jackrabbit.util.ISO9075;
+import org.apache.jackrabbit.util.Text;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.RequestParameter;
@@ -69,6 +71,7 @@ import org.sakaiproject.nakamura.api.doc.ServiceResponse;
 import org.sakaiproject.nakamura.api.personal.PersonalUtils;
 import org.sakaiproject.nakamura.api.profile.ProfileService;
 import org.sakaiproject.nakamura.api.search.Aggregator;
+import org.sakaiproject.nakamura.api.search.MissingParameterException;
 import org.sakaiproject.nakamura.api.search.SearchBatchResultProcessor;
 import org.sakaiproject.nakamura.api.search.SearchConstants;
 import org.sakaiproject.nakamura.api.search.SearchException;
@@ -84,6 +87,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,10 +98,12 @@ import java.util.regex.Pattern;
 
 import javax.jcr.AccessDeniedException;
 import javax.jcr.Node;
+import javax.jcr.PropertyIterator;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.UnsupportedRepositoryOperationException;
 import javax.jcr.Value;
+import javax.jcr.ValueFormatException;
 import javax.jcr.query.Query;
 import javax.jcr.query.QueryManager;
 import javax.jcr.query.Row;
@@ -167,7 +173,7 @@ import javax.servlet.http.HttpServletResponse;
     @ServiceParameter(name = "*", description = { "Any other parameters may be used by the template." }) }, response = {
     @ServiceResponse(code = 200, description = "A search response simular to the above will be emitted "),
     @ServiceResponse(code = 403, description = "The search template is not located under /var "),
-    @ServiceResponse(code = 406, description = "There are too many results that need to be paged. "),
+    @ServiceResponse(code = 400, description = "There are too many results that need to be paged. "),
     @ServiceResponse(code = 500, description = "Any error with the html containing the error")
 
 }) })
@@ -200,6 +206,10 @@ public class SearchServlet extends SlingSafeMethodsServlet {
   public static final String TIDY = "tidy";
   public static final String INFINITY = "infinity";
 
+  private static Pattern ALL_WILDCARDS = Pattern.compile("[?*~]+");
+  private static Pattern FUZZY_SEARCH = Pattern.compile(".*~$");
+  private static Pattern MINIMAL_LEADING_WILDCARD = Pattern.compile("^\\*\\w\\w.*");
+
   private Map<String, SearchBatchResultProcessor> batchProcessors = new ConcurrentHashMap<String, SearchBatchResultProcessor>();
   private Map<Long, SearchBatchResultProcessor> batchProcessorsById = new ConcurrentHashMap<Long, SearchBatchResultProcessor>();
 
@@ -214,7 +224,7 @@ public class SearchServlet extends SlingSafeMethodsServlet {
   private List<ServiceReference> delayedPropertyReferences = new ArrayList<ServiceReference>();
   private List<ServiceReference> delayedBatchReferences = new ArrayList<ServiceReference>();
 
-  protected long maximumResults;
+  protected long maximumResults = 100;
 
   // Default processors
   /**
@@ -239,7 +249,7 @@ public class SearchServlet extends SlingSafeMethodsServlet {
   @Reference
   protected transient ProfileService profileService;
 
-  private Pattern homePathPattern = Pattern.compile("(~(.*?))/");
+  private Pattern homePathPattern = Pattern.compile("^(.*)(~([\\w-]*?))/");
 
   @Override
   public void init() throws ServletException {
@@ -297,14 +307,22 @@ public class SearchServlet extends SlingSafeMethodsServlet {
             DEFAULT_PAGED_ITEMS);
         long page = SearchUtil.longRequestParameter(request, PARAMS_PAGE, 0);
         long offset = page * nitems;
-        if (limitResults && offset > maximumResults) {
-          response.sendError(HttpServletResponse.SC_NOT_ACCEPTABLE,
+        long resultSize = Math.max(nitems, offset);
+        if (limitResults && resultSize > maximumResults) {
+          response.sendError(HttpServletResponse.SC_BAD_REQUEST,
               "There are too many results.");
           return;
         }
 
-        String queryString = processQueryTemplate(request, queryTemplate, queryLanguage,
-            propertyProviderName);
+        // KERN-1147 Response better when all parameters haven't been provided for a query
+        String queryString = null;
+        try {
+          queryString = processQueryTemplate(request, node, queryTemplate,  queryLanguage,
+              propertyProviderName);
+        } catch (MissingParameterException e) {
+          response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+          return;
+        }
 
         queryString = expandHomeDirectoryInQuery(node, queryString);
 
@@ -392,7 +410,7 @@ public class SearchServlet extends SlingSafeMethodsServlet {
         // write the total out after processing the list to give the underlying iterator
         // a chance to walk the results then report how many there were.
         write.key(TOTAL);
-        write.value(rs.getSize());
+        write.value(rs.getSize() + offset);
 
         if (aggregator != null) {
           Map<String, Map<String, Integer>> aggregate = aggregator.getAggregate();
@@ -430,10 +448,11 @@ public class SearchServlet extends SlingSafeMethodsServlet {
       RepositoryException {
     Matcher homePathMatcher = homePathPattern.matcher(queryString);
     if (homePathMatcher.find()) {
-      String username = homePathMatcher.group(2);
+      String username = homePathMatcher.group(3);
+      String homePrefix = homePathMatcher.group(1);
       UserManager um = AccessControlUtil.getUserManager(node.getSession());
       Authorizable au = um.getAuthorizable(username);
-      String homePath = profileService.getHomePath(au).substring(1) + "/";
+      String homePath = homePrefix + profileService.getHomePath(au).substring(1) + "/";
       queryString = homePathMatcher.replaceAll(homePath);
     }
     return queryString;
@@ -448,12 +467,88 @@ public class SearchServlet extends SlingSafeMethodsServlet {
    * @param queryTemplate
    *          the query template.
    * @param propertyProviderName
-   * @return A processed query template.
+   * @return A processed query template
+   * @throws ValueFormatException
    * @throws RepositoryException
    */
   protected String processQueryTemplate(SlingHttpServletRequest request,
-      String queryTemplate, String queryLanguage, String propertyProviderName) {
+      Node queryTemplateNode, String queryTemplate, String queryLanguage, String propertyProviderName)
+      throws MissingParameterException, ValueFormatException, RepositoryException {
     Map<String, String> propertiesMap = loadUserProperties(request, propertyProviderName);
+    Map<String, String> filteredRequestParametersMap = new HashMap<String, String>();
+
+
+    // check all the possible templates attached to this node and if there is a more suitable one, use it
+    // the property name is of the form sakai:query-template-q=*;user=ieb after the name has been unescaped
+    // any chars that match this code are escaped in the form %uu
+    //
+    //if (ch == '%' || ch == '/' || ch == ':' || ch == '[' || ch == ']'
+    //  || ch == '*' || ch == '|'
+    //  || (ch == '.' && name.length() < 3)
+    //  || (ch == ' ' && (i == 0 || i == name.length() - 1))
+    //  || ch == '\t' || ch == '\r' || ch == '\n') {
+    //  buffer.append('%');
+    //  buffer.append(Character.toUpperCase(Character.forDigit(ch / 16, 16)));
+    //  buffer.append(Character.toUpperCase(Character.forDigit(ch % 16, 16)));
+    // see http://en.wikibooks.org/wiki/Unicode/Character_reference/0000-0FFF for encoding
+    // ie * is %2A
+    //
+    // Alternative templates of the form "PARAM_NAME=*" are treated specially. The
+    // specified parameter's value is checked for destructive combinations and modified
+    // as needed.
+
+    for ( PropertyIterator pi = queryTemplateNode.getProperties(); pi.hasNext(); ) {
+      javax.jcr.Property p = pi.nextProperty();
+      String propertyName = Text.unescapeIllegalJcrChars(p.getName());
+      LOGGER.debug("Checking Template named {} ",propertyName);
+      if (propertyName.startsWith(SAKAI_QUERY_TEMPLATE)
+          && !SAKAI_QUERY_TEMPLATE.equals(propertyName)) {
+        String[] keyValues = StringUtils.split(
+            propertyName.substring(SAKAI_QUERY_TEMPLATE.length() + 1), ';');
+        LOGGER.debug("Found Alternative Template with parameters {} ",Arrays.toString(keyValues));
+        boolean matches = true;
+        for (String kv : keyValues) {
+          String[] kva = StringUtils.split(kv, "=", 2);
+          boolean isWildcardTemplate = "*".equals(kva[1]);
+          if (kva[0].startsWith("_")) {
+            if (isWildcardTemplate) {
+              propertiesMap.put(kva[0], filterWildcardParameter(propertiesMap.get(kva[0])));
+            }
+            if (!kva[1].equals(propertiesMap.get(kva[0]))) {
+              LOGGER.debug("Not Present in request, ignoring template {} {} ",
+                  Arrays.toString(kva), propertiesMap.get(kva[0]));
+              matches = false;
+              break;
+            } else {
+              LOGGER.debug("Present in Request {} ", Arrays.toString(kva));
+            }
+          } else {
+            RequestParameter rp = request.getRequestParameter(kva[0]);
+            String rpVal = null;
+            if (rp != null) {
+              rpVal = rp.getString();
+            }
+            if (isWildcardTemplate) {
+              rpVal = filterWildcardParameter(rpVal);
+              filteredRequestParametersMap.put(kva[0], rpVal);
+            }
+            if (!kva[1].equals(rpVal)) {
+              LOGGER.debug("Not Present in request, ignoring template {} {} ",
+                  Arrays.toString(kva), propertiesMap.get(rpVal));
+              matches = false;
+              break;
+            } else {
+              LOGGER.debug("Present in Request {} ", Arrays.toString(kva));
+            }
+          }
+        }
+        if (matches) {
+          queryTemplate = p.getString();
+          LOGGER.info("Using Optimised Query {} ", queryTemplate);
+          break;
+        }
+      }
+    }
 
     StringBuilder sb = new StringBuilder();
     boolean escape = false;
@@ -475,20 +570,50 @@ public class SearchServlet extends SlingSafeMethodsServlet {
             v = val[0];
             defaultValue = val[1];
           }
+          boolean optional = false;
+          if (v.endsWith("?")) {
+            optional = true;
+            v = v.substring(0, v.length() - 1);
+          }
           if (v.startsWith("_")) {
             String value = propertiesMap.get(v);
-            if (value != null) {
+            if (!StringUtils.isEmpty(value)) {
               sb.append(value);
-            } else if (value == null && defaultValue != null) {
+            } else if (StringUtils.isEmpty(value) && !StringUtils.isEmpty(defaultValue)) {
               sb.append(defaultValue);
+            } else if (!optional) {
+              throw new MissingParameterException("Unable to substitute {" + v
+                  + "} in query template");
             }
           } else {
+            String rpVal = filteredRequestParametersMap.get(v);
+            if (rpVal == null) {
+              RequestParameter rp = request.getRequestParameter(v);
+              if (rp != null) {
+                rpVal = rp.getString();
+              }
+            }
 
-            RequestParameter rp = request.getRequestParameter(v);
-            if (rp != null) {
-              sb.append(escapeString(rp.getString(), queryLanguage));
-            } else if (rp == null && defaultValue != null) {
+            if ( "sortOn".equals(v) && !StringUtils.isEmpty(rpVal)) {
+              if ( defaultValue.startsWith("@") ) {
+                LOGGER.warn("Invalid Search template, you cant use sortOn parameters that " +
+                		"could produce sorts on child nodes as this is likely to stop the server dead, ignoring sort order and using default ");
+                rpVal = null;
+              }
+              if ( rpVal.indexOf('/') >= 0 || rpVal.indexOf('@') >= 0 ) {
+                LOGGER.warn("Attempt to sort on child node, {}, ignoring ",rpVal);
+                rpVal = null;
+              }
+            }
+
+
+            if (!StringUtils.isEmpty(rpVal)) {
+              sb.append(escapeString(rpVal, queryLanguage));
+            } else if (StringUtils.isEmpty(rpVal) && !StringUtils.isEmpty(defaultValue)) {
               sb.append(escapeString(defaultValue, queryLanguage));
+            } else if (!optional) {
+              throw new MissingParameterException("Unable to substitute {" + v
+                  + "} in query template");
             }
           }
           vstart = -1;
@@ -506,7 +631,55 @@ public class SearchServlet extends SlingSafeMethodsServlet {
         }
       }
     }
+
     return sb.toString();
+  }
+
+  /**
+   * Filter potentially destructive wildcard searches. The rules are as follows:
+   * <ul>
+   * <li>Search terms are split by whitespace, ignoring niceties like Phrase terms, OR vs. AND, etc.
+   * <li>Fuzzy searches cannot be combined with multiple character wildcard searches. If both "~" terms
+   *     and "*" terms are found, the "~" terms are discarded.
+   * <li>Only one fuzzy search term is allowed. Any "~" terms after the first one is discarded.
+   * <li>Search terms which consist entirely of wildcards will result in the entire
+   *     parameter being replaced by the single term "*".
+   * <li>Search terms starting with "*" must contain more than one letter. Single letters
+   *     prefixed by "*" will result in the entire parameter being replaced by the single
+   *     term "*".
+   * </ul>
+   */
+  private String filterWildcardParameter(String originalParameterValue) {
+    String filtered = originalParameterValue;
+    if (originalParameterValue != null && !"*".equals(originalParameterValue)) {
+      boolean hasWildcards = originalParameterValue.contains("*");
+      if (hasWildcards || originalParameterValue.contains("~")) {
+        String searchTerms[] = originalParameterValue.split("\\s+");
+        List<String> filteredTerms = new ArrayList<String>();
+        boolean discardFuzzyTerms = hasWildcards;
+        for (String searchTerm : searchTerms) {
+          if (ALL_WILDCARDS.matcher(searchTerm).matches()) {
+            LOGGER.info("Replacing search parameter '{}' by '*'", originalParameterValue);
+            return "*";
+          } else if (FUZZY_SEARCH.matcher(searchTerm).matches()) {
+            if (!discardFuzzyTerms) {
+              filteredTerms.add(searchTerm);
+              discardFuzzyTerms = true; // Only one to a customer
+            } else {
+              LOGGER.info("Discarding '{}' from search parameter '{}'", searchTerm, originalParameterValue);
+            }
+          } else if (searchTerm.startsWith("*") &&
+              !MINIMAL_LEADING_WILDCARD.matcher(searchTerm).matches()) {
+            LOGGER.info("Replacing search parameter '{}' by '*'", originalParameterValue);
+            return "*";
+          } else {
+            filteredTerms.add(searchTerm);
+          }
+        }
+        filtered = StringUtils.join(filteredTerms, " ");
+      }
+    }
+    return filtered;
   }
 
   /**

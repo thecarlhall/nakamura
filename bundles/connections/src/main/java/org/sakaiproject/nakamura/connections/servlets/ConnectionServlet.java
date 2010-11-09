@@ -138,7 +138,7 @@ public class ConnectionServlet extends SlingAllMethodsServlet {
       throws IOException {
     
     RequestParameter userParam = request.getRequestParameter(TARGET_USERID);
-    if (userParam == null || userParam.getString().equals("")) {
+    if (userParam == null || userParam.getString("UTF-8").equals("")) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,
           "targetUserId not found in the request, cannot continue without it being set.");
       return;
@@ -147,7 +147,7 @@ public class ConnectionServlet extends SlingAllMethodsServlet {
     // current user
     String user = request.getRemoteUser();
     // User to connect to
-    String targetUserId = userParam.getString();
+    String targetUserId = userParam.getString("UTF-8");
     // Get the connection operation from the selector.
     String selector = request.getRequestPathInfo().getSelectorString();
     ConnectionOperation operation = ConnectionOperation.noop;
@@ -165,7 +165,7 @@ public class ConnectionServlet extends SlingAllMethodsServlet {
     }
     try {
       // Do the connection.
-      LOGGER.info("Connection {} {} ",new Object[]{user,targetUserId});
+      LOGGER.debug("Connection {} {} ",new Object[]{user,targetUserId});
       connectionManager.connect(request.getParameterMap(), request.getResource(), user, targetUserId, operation);
     } catch (ConnectionException e) {
       if ( e.getCode() == 200 ) {
@@ -174,7 +174,8 @@ public class ConnectionServlet extends SlingAllMethodsServlet {
         writer.write(e.getMessage());
         writer.write("</p></body></html>");
       } else {
-        LOGGER.error("Connection exception: {}", e);
+        LOGGER.info("Connection exception: {}", e.getMessage());
+        LOGGER.debug("Connection exception: {}", e);
         response.sendError(e.getCode(), e.getMessage());
       }
     }
@@ -182,7 +183,7 @@ public class ConnectionServlet extends SlingAllMethodsServlet {
     // Send an OSGi event. The value of the selector is the last part of the event topic.
     final Dictionary<String, String> properties = new Hashtable<String, String>();
     properties.put(UserConstants.EVENT_PROP_USERID, request.getRemoteUser());
-    properties.put("target", userParam.getString());
+    properties.put("target", userParam.getString("UTF-8"));
     String topic = ConnectionConstants.EVENT_TOPIC_BASE + operation.toString();
     EventUtils.sendOsgiEvent(properties, topic, eventAdmin);
   }

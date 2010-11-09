@@ -67,7 +67,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
 
   private static final Logger LOG = LoggerFactory.getLogger(TrustedTokenServiceImpl.class);
 
-  /** Property to indivate if the session should be used. */
+  /** Property to invalidate if the session should be used. */
   @Property(boolValue = false)
   public static final String USE_SESSION = "sakai.auth.trusted.token.usesession";
 
@@ -112,6 +112,9 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
   /** A list of all the known safe hosts to trust for authentication purposes, ie front end proxies */
   @Property(value ="")
   public static final String TRUSTED_PROXY_SERVER_ADDR = "sakai.auth.trusted.server.safe-authentication-addresses";
+
+  @Property(boolValue=false )
+  public static final String DEBUG_COOKIES = "sakai.auth.trusted.token.debugcookies";
 
   /**
    * the name of the header to be trusted, if null or "" then don't trust headers.
@@ -188,6 +191,8 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
 
   private String[] safeWrappers;
 
+  private boolean debugCookies;
+
   /**
    * @throws NoSuchAlgorithmException
    * @throws InvalidKeyException
@@ -198,6 +203,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
   public TrustedTokenServiceImpl() throws NoSuchAlgorithmException, InvalidKeyException,
       IllegalStateException, UnsupportedEncodingException {
       tokenStore = new TokenStore();
+    
   }
 
 
@@ -210,7 +216,8 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
     trustedAuthCookieName = (String) props.get(COOKIE_NAME);
     sharedSecret = (String) props.get(SERVER_TOKEN_SHARED_SECRET);
     trustedTokenEnabled = (Boolean) props.get(SERVER_TOKEN_ENABLED);
-
+    debugCookies = (Boolean) props.get(DEBUG_COOKIES);
+    tokenStore.setDebugCookies(debugCookies);
     String safeHostsAddr = OsgiUtil.toString(props.get(SERVER_TOKEN_SAFE_HOSTS_ADDR), "");
     safeHostAddrSet.clear();
     if ( safeHostsAddr != null) {
@@ -391,7 +398,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
       if (trustedHeaderName.length() > 0) {
         userId = request.getHeader(trustedHeaderName);
         if (userId != null) {
-          LOG.info(
+          LOG.debug(
               "Injecting Trusted Token from request: Header [{}] indicated user was [{}] ",
               trustedHeaderName, userId);
         }
@@ -399,7 +406,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
       if (userId == null && trustedParameterName.length() > 0) {
         userId = request.getParameter(trustedParameterName);
         if (userId != null) {
-          LOG.info(
+          LOG.debug(
               "Injecting Trusted Token from request: Parameter [{}] indicated user was [{}] ",
               trustedParameterName, userId);
         }
@@ -410,7 +417,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
       if (p != null) {
         userId = p.getName();
         if (userId != null) {
-          LOG.info(
+          LOG.debug(
               "Injecting Trusted Token from request: User Principal indicated user was [{}] ",
               userId);
         }
@@ -419,7 +426,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
     if (userId == null) {
       userId = request.getRemoteUser();
       if ( userId != null ) {
-        LOG.info("Injecting Trusted Token from request: Remote User indicated user was [{}] ", userId);
+        LOG.debug("Injecting Trusted Token from request: Remote User indicated user was [{}] ", userId);
       }
     }
 
@@ -428,7 +435,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
       if (usingSession) {
         HttpSession session = request.getSession(true);
         if (session != null) {
-          LOG.info("Injecting Credentials into Session for " + userId);
+          LOG.debug("Injecting Credentials into Session for " + userId);
           session.setAttribute(SA_AUTHENTICATION_CREDENTIALS, createCredentials(userId));
         }
       } else {
@@ -454,6 +461,10 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
     c.setPath("/");
     c.setSecure(secureCookie);
     response.addCookie(c);
+    // rfc 2109 section 4.5. stop http 1.1 caches caching the response
+    response.addHeader("Cache-Control", "no-cache=\"set-cookie\" ");
+    // and stop http 1.0 caches caching the response
+    response.addDateHeader("Expires", 0);
   }
 
   /**
@@ -479,6 +490,9 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
     if (parts != null && parts.length == 4) {
       long cookieTime = Long.parseLong(parts[1].substring(1));
       if (System.currentTimeMillis() + (ttl / 2) > cookieTime) {
+        if ( debugCookies) {
+          LOG.info("Refreshing Token for {} cookieTime {} ttl {} CurrentTime {} ",new Object[]{userId, cookieTime, ttl, System.currentTimeMillis()});
+        }
         addCookie(response, userId);
       }
     }
