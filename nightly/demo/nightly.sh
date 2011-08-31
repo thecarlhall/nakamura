@@ -91,7 +91,7 @@ mvn -B -e clean install
 cd contrib/mysql-jdbc
 mvn -B -e clean install
 cd ../../app/
-perl -pwi -e 's/<startLevel level="1">/<startLevel level="1"><bundle><groupId>org\.sakaiproject\.nakamura<\/groupId><artifactId>org\.sakaiproject\.nakamura\.mysqljdbc<\/artifactId><version>0.11-SNAPSHOT<\/version><\/bundle>/gi' src/main/bundles/list.xml
+perl -pwi -e 's/<startLevel level="1">/<startLevel level="1"><bundle><groupId>org\.sakaiproject\.nakamura<\/groupId><artifactId>org\.sakaiproject\.nakamura\.mysqljdbc<\/artifactId><version>1.0<\/version><\/bundle>/gi' src/main/bundles/list.xml
 mvn -B -e clean install
 cd ..
 

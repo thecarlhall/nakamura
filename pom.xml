@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.sakaiproject.nakamura</groupId>
   <artifactId>base</artifactId>
-  <version>0.11-SNAPSHOT</version>
+  <version>1.0.0</version>
   <packaging>pom</packaging>
   <name>Sakai Nakamura Project</name>
   <description> Sakai Nakamura is an OSGi server built ontop of Apache Sling, supporting Sakai 3. </description>
@@ -85,7 +85,7 @@
        <modules>
         <module>contrib/import</module>
         <module>contrib/filters</module>
-        <module>contrib/mailman</module>
+        <!-- <module>contrib/mailman</module> -->
         <module>contrib/persondirectory</module>
         <module>contrib/casauth</module>
         <module>contrib/ldapauth</module>
@@ -136,7 +136,7 @@
          <plugin>
           <groupId>org.apache.sling</groupId>
           <artifactId>maven-sling-plugin</artifactId>
-          <version>2.0.5-SNAPSHOT</version>
+          <version>2.0.5-20110810.130509-298</version>
           <executions>
             <execution>
               <id>install-bundle</id>
