@@ -14,7 +14,7 @@
   </prerequisites>
   <scm>
     <connection>scm:git:git://github.com/sakaiproject/nakamura.git</connection>
-    <developerConnection>scm:git:git://git@github.com/sakaiproject/nakamura.git</developerConnection>
+    <developerConnection>scm:git:git@github.com:sakaiproject/nakamura.git</developerConnection>
     <url>http://github.com/sakaiproject/nakamura/</url>
   </scm>
   <issueManagement>
