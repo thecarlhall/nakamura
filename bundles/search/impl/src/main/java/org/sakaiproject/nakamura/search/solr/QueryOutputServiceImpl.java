@@ -37,6 +37,7 @@ import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.osgi.framework.Constants;
+import org.osgi.service.event.EventAdmin;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
@@ -86,7 +87,7 @@ public class QueryOutputServiceImpl implements QueryOutputService {
 
   @Reference
   private Repository repo;
-
+  
   @Reference
   private SlingRepository slingRepo;
 

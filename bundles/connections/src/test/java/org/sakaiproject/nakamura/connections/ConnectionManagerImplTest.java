@@ -79,8 +79,8 @@ public class ConnectionManagerImplTest {
     properties.put("charlie", "c");
     Authorizable alice = session.getAuthorizableManager().findAuthorizable("alice");
     Authorizable bob = session.getAuthorizableManager().findAuthorizable("bob");
-    ContactConnection contactConnectionA = new ContactConnection(null, null, "alice", "bob", "Bob", "Barker", properties);
-    ContactConnection contactConnectionB = new ContactConnection(null, null, "bob", "alice", "Alice", "Annie", null);
+    ContactConnection contactConnectionA = new ContactConnection(null, null, null, "alice", "bob", "Bob", "Barker", properties);
+    ContactConnection contactConnectionB = new ContactConnection(null, null, null, "bob", "alice", "Alice", "Annie", null);
     connectionStorage.saveContactConnectionPair(contactConnectionA, contactConnectionB);
     ContactConnection connectionForAliceAndBob = connectionStorage.getContactConnection(alice, bob);
     Assert.assertArrayEquals((String[])connectionForAliceAndBob.getProperty("alfa"), new String[]{"a"});
@@ -199,7 +199,7 @@ public class ConnectionManagerImplTest {
   public void testGetConnectionState() throws ConnectionException, StorageClientException, AccessDeniedException {
     // Passing in null
     try {
-      ContactConnection nullContactConnection = new ContactConnection(null, null, null, null, null, null, null);
+      ContactConnection nullContactConnection = new ContactConnection(null, null, null, null, null, null, null, null);
       final ConnectionState state = nullContactConnection.getConnectionState();
       assertEquals("Passing in null should return ConnectionState.NONE",
           ConnectionState.NONE, state);

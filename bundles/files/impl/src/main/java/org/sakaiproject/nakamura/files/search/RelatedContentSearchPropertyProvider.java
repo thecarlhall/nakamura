@@ -202,8 +202,9 @@ public class RelatedContentSearchPropertyProvider extends
 
         /* phase two - provide properties for final search */
 
-        final List<String> connections = connectionManager.getConnectedUsers(request,
-            user, ConnectionState.ACCEPTED);
+        final List<String> connections = connectionManager.getConnectedUsers(
+            StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(
+                javax.jcr.Session.class)), user, ConnectionState.ACCEPTED);
         if (connections != null) {
           for (final String connection : connections) {
             managers.add(ClientUtils.escapeQueryChars(connection));

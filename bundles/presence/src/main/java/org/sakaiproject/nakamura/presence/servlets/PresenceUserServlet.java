@@ -39,6 +39,7 @@ import org.sakaiproject.nakamura.api.doc.ServiceMethod;
 import org.sakaiproject.nakamura.api.doc.ServiceParameter;
 import org.sakaiproject.nakamura.api.doc.ServiceResponse;
 import org.sakaiproject.nakamura.api.doc.ServiceSelector;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.presence.PresenceService;
 import org.sakaiproject.nakamura.api.presence.PresenceUtils;
@@ -149,7 +150,9 @@ public class PresenceUserServlet extends SlingSafeMethodsServlet {
 		return;
 	}
 
-	List<String> contacts = connectionManager.getConnectedUsers(request, user, ConnectionState.ACCEPTED);
+	List<String> contacts = connectionManager.getConnectedUsers(StorageClientUtils
+	    .adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class)),
+	    user, ConnectionState.ACCEPTED);
 	if (!contacts.contains(requestedUser)) {
 	  response.sendError(HttpServletResponse.SC_FORBIDDEN,
         "Userid must be a contact.");

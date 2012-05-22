@@ -34,15 +34,19 @@ import static org.sakaiproject.nakamura.api.connections.ConnectionState.NONE;
 import static org.sakaiproject.nakamura.api.connections.ConnectionState.PENDING;
 import static org.sakaiproject.nakamura.api.connections.ConnectionState.REJECTED;
 
-import com.google.common.collect.Lists;
-
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.json.JSONException;
-import org.sakaiproject.nakamura.api.connections.*;
+import org.sakaiproject.nakamura.api.connections.ConnectionConstants;
+import org.sakaiproject.nakamura.api.connections.ConnectionException;
+import org.sakaiproject.nakamura.api.connections.ConnectionManager;
+import org.sakaiproject.nakamura.api.connections.ConnectionOperation;
+import org.sakaiproject.nakamura.api.connections.ConnectionState;
+import org.sakaiproject.nakamura.api.connections.ConnectionStorage;
+import org.sakaiproject.nakamura.api.connections.ContactConnection;
 import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.Session;

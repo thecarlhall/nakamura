@@ -20,7 +20,6 @@ package org.sakaiproject.nakamura.api.connections;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
-import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 import org.sakaiproject.nakamura.util.ExtendedJSONWriter;
 
 import java.util.List;

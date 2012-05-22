@@ -17,11 +17,8 @@
  */
 package org.sakaiproject.nakamura.connections;
 
-import static org.sakaiproject.nakamura.api.connections.ConnectionConstants.SAKAI_CONNECTION_STATE;
-
 import org.sakaiproject.nakamura.api.connections.ConnectionState;
 import org.sakaiproject.nakamura.api.connections.ContactConnection;
-import org.sakaiproject.nakamura.api.lite.content.Content;
 
 import java.text.MessageFormat;
 

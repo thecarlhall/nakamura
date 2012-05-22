@@ -22,10 +22,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.resource.ResourceResolver;
 import org.junit.Before;
 import org.junit.Test;
 import org.sakaiproject.nakamura.api.connections.ConnectionManager;
 import org.sakaiproject.nakamura.api.connections.ConnectionState;
+import org.sakaiproject.nakamura.api.lite.Session;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,8 +61,8 @@ public class FileSearchPropertyProviderTest {
   @Test
   public void testContacts() {
     List<String> connections = Arrays.asList(new String[] { "bob", "jack" });
-    SlingHttpServletRequest request = mock(SlingHttpServletRequest.class);
-    when(connectionManager.getConnectedUsers(request, "alice", ConnectionState.ACCEPTED))
+    SlingHttpServletRequest request = createMockRequest();
+    when(connectionManager.getConnectedUsers(null, "alice", ConnectionState.ACCEPTED))
         .thenReturn(connections);
 
     String query = provider.getMyContacts(request, "alice");
@@ -70,11 +72,18 @@ public class FileSearchPropertyProviderTest {
   @Test
   public void testNoContacts() {
     List<String> connections = Arrays.asList(new String[] {});
-    SlingHttpServletRequest request = mock(SlingHttpServletRequest.class);
-    when(connectionManager.getConnectedUsers(request, "alice", ConnectionState.ACCEPTED))
+    SlingHttpServletRequest request = createMockRequest();
+    when(connectionManager.getConnectedUsers(null, "alice", ConnectionState.ACCEPTED))
         .thenReturn(connections);
 
     String query = provider.getMyContacts(request, "alice");
     assertEquals("", query);
+  }
+  
+  private SlingHttpServletRequest createMockRequest() {
+    SlingHttpServletRequest request = mock(SlingHttpServletRequest.class);
+    ResourceResolver resolver = mock(ResourceResolver.class);
+    when(request.getResourceResolver()).thenReturn(resolver);
+    return request;
   }
 }

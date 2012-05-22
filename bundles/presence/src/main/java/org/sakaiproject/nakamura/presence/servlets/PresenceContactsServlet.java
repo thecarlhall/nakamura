@@ -38,6 +38,7 @@ import org.sakaiproject.nakamura.api.doc.ServiceExtension;
 import org.sakaiproject.nakamura.api.doc.ServiceMethod;
 import org.sakaiproject.nakamura.api.doc.ServiceResponse;
 import org.sakaiproject.nakamura.api.doc.ServiceSelector;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.presence.PresenceService;
 import org.sakaiproject.nakamura.api.presence.PresenceUtils;
@@ -162,8 +163,9 @@ public class PresenceContactsServlet extends SlingSafeMethodsServlet {
       output.object();
       PresenceUtils.makePresenceJSON(output, user, presenceService, true);
       // add in the list of contacts info
-      List<String> userIds = connectionManager.getConnectedUsers(request, user,
-          ConnectionState.ACCEPTED);
+      List<String> userIds = connectionManager.getConnectedUsers(StorageClientUtils
+          .adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class)),
+          user, ConnectionState.ACCEPTED);
       output.key("contacts");
       UserManager um = AccessControlUtil.getUserManager(session);
       output.array();

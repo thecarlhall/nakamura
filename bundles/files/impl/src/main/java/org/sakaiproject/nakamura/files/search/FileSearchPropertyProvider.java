@@ -29,6 +29,7 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.sakaiproject.nakamura.api.connections.ConnectionManager;
 import org.sakaiproject.nakamura.api.connections.ConnectionState;
 import org.sakaiproject.nakamura.api.files.FilesConstants;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchPropertyProvider;
 import org.sakaiproject.nakamura.util.LitePersonalUtils;
 
@@ -152,8 +153,9 @@ public class FileSearchPropertyProvider implements SolrSearchPropertyProvider {
   @SuppressWarnings(justification = "connectionManager is OSGi managed", value = {
       "NP_UNWRITTEN_FIELD", "UWF_UNWRITTEN_FIELD" })
   protected String getMyContacts(SlingHttpServletRequest request, String user) {
-    List<String> connectedUsers = connectionManager.getConnectedUsers(request, user,
-        ConnectionState.ACCEPTED);
+    List<String> connectedUsers = connectionManager.getConnectedUsers(StorageClientUtils
+        .adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class)),
+        user, ConnectionState.ACCEPTED);
     StringBuilder sb = new StringBuilder();
 
     if (connectedUsers.size() > 0) {

@@ -141,8 +141,8 @@ public class PresenceUserServletTest extends AbstractEasyMockTest {
     expect(profileNode.getProperties()).andReturn(propertyIterator);
     expect(profileNode.getPath()).andReturn("/profile/node/path").anyTimes();
     expect(profileNode.getName()).andReturn("profile_node_name").anyTimes();
-    expect(resourceResolver.adaptTo(Session.class)).andReturn(session).times(2);
-    expect(request.getResourceResolver()).andReturn(resourceResolver).times(2);
+    expect(resourceResolver.adaptTo(Session.class)).andReturn(session).anyTimes();
+    expect(request.getResourceResolver()).andReturn(resourceResolver).anyTimes();
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PrintWriter printWriter = new PrintWriter(baos);
@@ -175,11 +175,11 @@ public class PresenceUserServletTest extends AbstractEasyMockTest {
     // Pick a uuid we do NOT have as a friend.
     String contact = "user-51";
     presenceService.setStatus(contact, status);
-    expect(request.getRemoteUser()).andReturn(CURRENT_USER);
-    expect(request.getResourceResolver()).andReturn(resourceResolver);
-    expect(resourceResolver.adaptTo(Session.class)).andReturn(session);
-    expect(session.getUserID()).andReturn(CURRENT_USER);
-    expect(request.getParameter("userid")).andReturn(contact);
+    expect(request.getRemoteUser()).andReturn(CURRENT_USER).anyTimes();
+    expect(request.getResourceResolver()).andReturn(resourceResolver).anyTimes();
+    expect(resourceResolver.adaptTo(Session.class)).andReturn(session).anyTimes();
+    expect(session.getUserID()).andReturn(CURRENT_USER).anyTimes();
+    expect(request.getParameter("userid")).andReturn(contact).anyTimes();
     bindConnectionManager(request);
     response.sendError(HttpServletResponse.SC_FORBIDDEN,
         "Userid must be a contact.");
@@ -195,7 +195,7 @@ public class PresenceUserServletTest extends AbstractEasyMockTest {
     for (int i = 0; i < 50; i++) {
       friends.add("user-" + i);
     }
-    expect(connectionManager.getConnectedUsers(request, CURRENT_USER, ConnectionState.ACCEPTED)).andReturn(
+    expect(connectionManager.getConnectedUsers(null, CURRENT_USER, ConnectionState.ACCEPTED)).andReturn(
         friends);
     servlet.connectionManager = connectionManager;
   }

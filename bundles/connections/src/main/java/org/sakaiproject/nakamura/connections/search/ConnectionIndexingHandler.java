@@ -18,7 +18,6 @@
 package org.sakaiproject.nakamura.connections.search;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -32,17 +31,19 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrInputDocument;
 import org.osgi.service.event.Event;
 import org.sakaiproject.nakamura.api.connections.ConnectionConstants;
+import org.sakaiproject.nakamura.api.connections.ConnectionStorage;
+import org.sakaiproject.nakamura.api.connections.ContactConnection;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
-import org.sakaiproject.nakamura.api.lite.content.Content;
-import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.solr.IndexingHandler;
 import org.sakaiproject.nakamura.api.solr.QoSIndexHandler;
 import org.sakaiproject.nakamura.api.solr.RepositorySession;
 import org.sakaiproject.nakamura.api.solr.ResourceIndexingService;
+import org.sakaiproject.nakamura.util.PathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -69,9 +69,6 @@ public class ConnectionIndexingHandler implements IndexingHandler, QoSIndexHandl
 
   private static final Logger logger = LoggerFactory
       .getLogger(ConnectionIndexingHandler.class);
-
-  private static final Map<String, String> WHITELISTED_PROPS = ImmutableMap.of(
-      "sakai:contactstorepath", "contactstorepath", "sakai:state", "state");
   private static final Set<String> FLATTENED_PROPS = ImmutableSet.of("name", "firstName",
       "lastName", "email");
   private static final Set<String> CONTENT_TYPES = Sets
@@ -80,6 +77,9 @@ public class ConnectionIndexingHandler implements IndexingHandler, QoSIndexHandl
   @Reference(target = "(type=sparse)")
   private ResourceIndexingService resourceIndexingService;
 
+  @Reference
+  private ConnectionStorage connectionStorage;
+  
   @Activate
   public void activate(Map<String, Object> properties) throws Exception {
     for (String type : CONTENT_TYPES) {
@@ -118,27 +118,20 @@ public class ConnectionIndexingHandler implements IndexingHandler, QoSIndexHandl
     if (!StringUtils.isBlank(path)) {
       try {
         Session session = repoSession.adaptTo(Session.class);
-        ContentManager cm = session.getContentManager();
-        Content content = cm.get(path);
-
         int lastSlash = path.lastIndexOf('/');
+        String sourceName = PathUtils.getAuthorizableId(StorageClientUtils.getParentObjectPath(path));
         String contactName = path.substring(lastSlash + 1);
         AuthorizableManager am = session.getAuthorizableManager();
+        Authorizable sourceAuth = am.findAuthorizable(sourceName);
         Authorizable contactAuth = am.findAuthorizable(contactName);
 
-        if (content != null && contactAuth != null) {
-          if (!CONTENT_TYPES.contains(content.getProperty("sling:resourceType"))) {
-            return documents;
-          }
+        ContactConnection connection = connectionStorage.getContactConnection(sourceAuth, contactAuth);
+        
+        if (connection != null) {
           SolrInputDocument doc = new SolrInputDocument();
-          for (Entry<String, String> prop: WHITELISTED_PROPS.entrySet()) {
-            String key = prop.getKey();
-            Object value = content.getProperty(key);
-            if ( value != null ) {
-              doc.addField(WHITELISTED_PROPS.get(key), value);
-            }
-          }
-
+          doc.addField("contactstorepath", StorageClientUtils.getParentObjectPath(path));
+          doc.addField("state", connection.getConnectionState().toString());
+          
           // flatten out the contact so we can search it
           Map<String, Object> contactProps = contactAuth.getSafeProperties();
           for (String prop : FLATTENED_PROPS) {
@@ -148,11 +141,11 @@ public class ConnectionIndexingHandler implements IndexingHandler, QoSIndexHandl
             }
           }
 
-          doc.addField(IndexingHandler._DOC_SOURCE_OBJECT, content);
+          // doc.addField(IndexingHandler._DOC_SOURCE_OBJECT, connection);
           documents.add(doc);
         } else {
-          logger.debug("Did not index {}: Content == {}; Contact Auth == {}",
-              new Object[] { path, content, contactAuth });
+          logger.debug("Did not index {}: Contact Auth == {}",
+              new Object[] { path, contactAuth });
         }
       } catch (StorageClientException e) {
         logger.error(e.getMessage(), e);

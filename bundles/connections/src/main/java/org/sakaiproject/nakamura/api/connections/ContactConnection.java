@@ -20,10 +20,20 @@ package org.sakaiproject.nakamura.api.connections;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import org.apache.lucene.analysis.KeywordAnalyzer;
+import org.hibernate.search.annotations.Analyzer;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
+import org.hibernate.search.annotations.ProvidedId;
+import org.sakaiproject.nakamura.api.storage.Entity;
+
 import java.util.Map;
 import java.util.Set;
 
-public class ContactConnection {
+@Indexed @ProvidedId
+@Analyzer(impl=KeywordAnalyzer.class)
+public class ContactConnection implements Entity {
+  private String key = null;
   private ConnectionState connectionState = ConnectionState.NONE;
   private Set<String> connectionTypes = Sets.newHashSet();
   private Map<String,Object> properties = Maps.newHashMap();
@@ -32,12 +42,13 @@ public class ContactConnection {
   private String firstName = "";
   private String lastName = "";
 
-  public ContactConnection(ConnectionState connectionState, Set<String> connectionTypes,
+  public ContactConnection(String key, ConnectionState connectionState, Set<String> connectionTypes,
                            String fromUserId,
                            String toUserId,
                            String firstName,
                            String lastName,
                            Map<String, Object> additionalProperties) {
+    this.key = key;
     if (connectionState != null) this.connectionState = connectionState;
     if (connectionTypes != null) this.connectionTypes = connectionTypes;
     if (fromUserId != null) this.fromUserId = fromUserId;
@@ -47,6 +58,16 @@ public class ContactConnection {
     if (additionalProperties != null) this.properties = additionalProperties;
   }
 
+  /**
+   * {@inheritDoc}
+   * @see org.sakaiproject.nakamura.api.storage.Entity#getKey()
+   */
+  @Override
+  public String getKey() {
+    return this.key;
+  }
+  
+  @Field
   public ConnectionState getConnectionState() {
     return connectionState;
   }
@@ -71,6 +92,7 @@ public class ContactConnection {
     return properties;
   }
 
+  @Field
   public String getFromUserId() {
     return fromUserId;
   }
@@ -90,4 +112,5 @@ public class ContactConnection {
   public Object getProperty(String propertyName) {
     return properties.get(propertyName);
   }
+
 }

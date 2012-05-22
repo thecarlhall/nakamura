@@ -101,23 +101,19 @@ public class PresenceContactsServletTest extends AbstractEasyMockTest {
     SlingHttpServletResponse response = createMock(SlingHttpServletResponse.class);
     ResourceResolver resourceResolver = createMock(ResourceResolver.class);
     JackrabbitSession session = createMock(JackrabbitSession.class);
-
     
     expect(request.getRemoteUser()).andReturn(CURRENT_USER);
     expect(request.getResourceResolver()).andReturn(resourceResolver);
     expect(resourceResolver.adaptTo(Session.class)).andReturn(session);
     expect(session.getUserID()).andReturn(CURRENT_USER);
     
-    
-    
-    
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PrintWriter printWriter = new PrintWriter(baos);
 
-    expect(resourceResolver.adaptTo(Session.class)).andReturn(session);
-    expect(request.getResourceResolver()).andReturn(resourceResolver);
+    expect(resourceResolver.adaptTo(Session.class)).andReturn(session).anyTimes();
+    expect(request.getResourceResolver()).andReturn(resourceResolver).anyTimes();
 
-    expect(response.getWriter()).andReturn(printWriter);
+    expect(response.getWriter()).andReturn(printWriter).anyTimes();
     List<String> contacts = new ArrayList<String>();
     connectionManager = createMock(ConnectionManager.class);
 
@@ -139,9 +135,8 @@ public class PresenceContactsServletTest extends AbstractEasyMockTest {
     Authorizable[] auths = new Authorizable[authorizables.size()];
     UserManager um = createUserManager(null, true, authorizables.toArray(auths));
     expect(session.getUserManager()).andReturn(um).anyTimes();
-    expect(
-        connectionManager.getConnectedUsers(request, CURRENT_USER,
-            ConnectionState.ACCEPTED)).andReturn(contacts);
+    expect(connectionManager.getConnectedUsers(null, CURRENT_USER,
+        ConnectionState.ACCEPTED)).andReturn(contacts);
 
     servlet.presenceService = presenceService;
     servlet.connectionManager = connectionManager;
