@@ -82,7 +82,7 @@ public class DocMigrator implements FileMigrationService {
     try {
       return !(content == null || isNotSakaiDoc(content) || schemaVersionIsCurrent(content) || contentHasUpToDateStructure(content));
     } catch (SakaiDocMigrationException e) {
-      LOGGER.error("Could not determine requiresMigration with content {}", content.getPath());
+      LOGGER.error("Could not determine requiresMigration with content "+content.getPath(), e);
       throw new RuntimeException("Could not determine requiresMigration with content " + content.getPath());
     }
   }
@@ -124,10 +124,10 @@ public class DocMigrator implements FileMigrationService {
     Session adminSession = null;
     try {
       adminSession = repository.loginAdministrative();
-      JSONObject structure0 = new JSONObject((String) content.getProperty(STRUCTURE_ZERO));
+      JSONObject structure0 = new JSONObject(getStructure0(content));
       return !requiresMigration(structure0, content, adminSession.getContentManager());
     } catch (Exception e) {
-      throw new SakaiDocMigrationException();
+      throw new SakaiDocMigrationException("Error determining if content has an up to date structure.", e);
     } finally {
       if (adminSession != null) {
         try {
@@ -156,7 +156,8 @@ public class DocMigrator implements FileMigrationService {
     try {
       ExtendedJSONWriter.writeContentTreeToWriter(stringJsonWriter, content, false, -1);
       adminSession = repository.loginAdministrative();
-      JSONObject newPageStructure = createNewPageStructure(new JSONObject((String) content.getProperty(STRUCTURE_ZERO)), new JSONObject(stringWriter.toString()));
+      JSONObject newPageStructure = createNewPageStructure(new JSONObject(
+          getStructure0(content)), new JSONObject(stringWriter.toString()));
 
       JSONObject convertedStructure = (JSONObject) convertArraysToObjects(newPageStructure);
       validateStructure(convertedStructure);
@@ -269,10 +270,14 @@ public class DocMigrator implements FileMigrationService {
       (((JSONArray) json).get(0) instanceof JSONObject || ((JSONArray) json).get(0) instanceof JSONArray);
   }
 
+  private String getStructure0(Content content) {
+    Object structure0 = content.getProperty(STRUCTURE_ZERO);
+    return (structure0 != null) ? structure0.toString() : null;
+  }
+  
   protected JSONObject convertArrayToObject(JSONArray jsonArray) throws JSONException {
     JSONObject arrayObject = new JSONObject();
     for (int i = 0; i < jsonArray.length(); i++) {
-      Object value = convertArraysToObjects(jsonArray.get(i));
       arrayObject.put("__array__" + i + "__", convertArraysToObjects(jsonArray.get(i)));
     }
     return arrayObject;
