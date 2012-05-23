@@ -26,6 +26,8 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.wrappers.ValueMapDecorator;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
+import org.sakaiproject.nakamura.api.connections.ConnectionConstants;
+import org.sakaiproject.nakamura.api.connections.ContactConnection;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
@@ -33,16 +35,17 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
-import org.sakaiproject.nakamura.api.lite.content.Content;
-import org.sakaiproject.nakamura.api.search.SearchUtil;
 import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.search.solr.Result;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchException;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultProcessor;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultSet;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
+import org.sakaiproject.nakamura.api.storage.StorageService;
 import org.sakaiproject.nakamura.api.user.BasicUserInfoService;
+import org.sakaiproject.nakamura.connections.ConnectionUtils;
 import org.sakaiproject.nakamura.util.ExtendedJSONWriter;
+import org.sakaiproject.nakamura.util.LitePersonalUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +68,9 @@ public class ConnectionFinderSearchResultProcessor implements SolrSearchResultPr
   @Reference
   BasicUserInfoService basicUserInfoService;
 
+  @Reference
+  StorageService storageService;
+  
   public void writeResult(SlingHttpServletRequest request, JSONWriter writer, Result result)
       throws JSONException {
     String contactUser = result.getPath().substring(result.getPath().lastIndexOf("/") + 1);
@@ -77,20 +83,28 @@ public class ConnectionFinderSearchResultProcessor implements SolrSearchResultPr
     try {
       AuthorizableManager authMgr = session.getAuthorizableManager();
       Authorizable auth = authMgr.findAuthorizable(contactUser);
-
       String contactContentPath = result.getPath();
       logger.debug("getting " + contactContentPath);
-      Content contactContent = session.getContentManager().get(contactContentPath);
-      if (contactContent != null) {
-        int maxTraversalDepth = SearchUtil.getTraversalDepth(request);
+      ContactConnection connection = storageService.getDao(ContactConnection.class).get(contactContentPath);
+      if (connection != null) {
         writer.object();
         writer.key("target");
         writer.value(contactUser);
         writer.key("profile");
         ExtendedJSONWriter.writeValueMap(writer, new ValueMapDecorator(basicUserInfoService.getProperties(auth)));
         writer.key("details");
-        ExtendedJSONWriter.writeContentTreeToWriter(writer, contactContent,
-            maxTraversalDepth);
+        
+        writer.object();
+        writer.key("sling:resourceType");
+        writer.value(ConnectionConstants.SAKAI_CONTACT_RT);
+        writer.key("reference");
+        writer.value(LitePersonalUtils.getProfilePath(connection.getToUserId()));
+        writer.key("sakai:contactstorepath");
+        writer.value(ConnectionUtils.getConnectionPathBase(connection.getFromUserId()));
+        writer.key("lastName");
+        writer.value(connection.getLastName());
+        writer.endObject();
+        
         writer.endObject();
       }
     } catch (StorageClientException e) {

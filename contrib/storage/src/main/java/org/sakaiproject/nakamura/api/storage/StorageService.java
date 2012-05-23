@@ -39,5 +39,5 @@ public interface StorageService {
    * @return
    */
   CloseableIterator<Entity> findAll();
-  
+
 }

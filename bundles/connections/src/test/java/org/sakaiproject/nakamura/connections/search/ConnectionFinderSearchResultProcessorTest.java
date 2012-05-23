@@ -34,6 +34,7 @@ import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.sakaiproject.nakamura.api.connections.ConnectionConstants;
 import org.sakaiproject.nakamura.api.connections.ConnectionState;
+import org.sakaiproject.nakamura.api.connections.ContactConnection;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.SessionAdaptable;
@@ -44,6 +45,8 @@ import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.search.solr.Result;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
+import org.sakaiproject.nakamura.api.storage.EntityDao;
+import org.sakaiproject.nakamura.api.storage.StorageService;
 import org.sakaiproject.nakamura.api.user.UserConstants;
 import org.sakaiproject.nakamura.api.user.counts.CountProvider;
 import org.sakaiproject.nakamura.user.BasicUserInfoServiceImpl;
@@ -51,13 +54,14 @@ import org.sakaiproject.nakamura.user.BasicUserInfoServiceImpl;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.HashSet;
 
 /**
  *
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ConnectionFinderSearchResultProcessorTest {
-
+  
   @Mock
   SolrSearchServiceFactory searchServiceFactory;
 
@@ -67,7 +71,12 @@ public class ConnectionFinderSearchResultProcessorTest {
   @Mock
   ContentManager cm;
 
+  @Mock
+  StorageService storageService;
 
+  @Mock
+  EntityDao<ContactConnection> dao;
+  
   @Test
   public void test() throws Exception {
     ConnectionFinderSearchResultProcessor processor = new ConnectionFinderSearchResultProcessor();
@@ -79,7 +88,10 @@ public class ConnectionFinderSearchResultProcessorTest {
           return this;
         }
     }.setup();
-
+    processor.storageService = storageService;
+    
+    when(storageService.getDao(ContactConnection.class)).thenReturn(dao);
+    
     Object hybridSession = mock(javax.jcr.Session.class, withSettings()
         .extraInterfaces(SessionAdaptable.class));
 
@@ -120,7 +132,10 @@ public class ConnectionFinderSearchResultProcessorTest {
     contactNode.setProperty("sling:resourceType", "sakai/contact");
     contactNode.setProperty(ConnectionConstants.SAKAI_CONNECTION_STATE,
         ConnectionState.ACCEPTED.toString());
-    when(cm.get("a:alice/contacts/bob")).thenReturn(contactNode);
+    
+    ContactConnection connection = new ContactConnection("a:alice/contacts/bob", ConnectionState.ACCEPTED,
+        new HashSet<String>(), "alice", "bob", "Alice", "Cooper", new HashMap<String, Object>()); 
+    when(dao.get("a:alice/contacts/bob")).thenReturn(connection);
 
     RequestPathInfo pathInfo = mock(RequestPathInfo.class);
     when(request.getRequestPathInfo()).thenReturn(pathInfo);

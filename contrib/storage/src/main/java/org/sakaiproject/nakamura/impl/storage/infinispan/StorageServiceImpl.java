@@ -26,16 +26,12 @@ import org.infinispan.configuration.cache.ConfigurationBuilder;
 import org.infinispan.configuration.global.GlobalConfigurationBuilder;
 import org.infinispan.manager.DefaultCacheManager;
 import org.infinispan.query.CacheQuery;
-import org.infinispan.query.QueryIterator;
 import org.infinispan.query.Search;
 import org.sakaiproject.nakamura.api.storage.CloseableIterator;
 import org.sakaiproject.nakamura.api.storage.Entity;
 import org.sakaiproject.nakamura.api.storage.EntityDao;
 import org.sakaiproject.nakamura.api.storage.StorageService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -44,8 +40,6 @@ import java.util.Map;
 @Service
 @Component
 public class StorageServiceImpl implements StorageService {
-
-  private static Logger LOGGER = LoggerFactory.getLogger(StorageServiceImpl.class);
   
   private Cache<String, Entity> entityCache;
   
@@ -55,11 +49,11 @@ public class StorageServiceImpl implements StorageService {
   
   @Activate
   public void activate(Map<String, Object> properties) {
+    // TODO: allow for a real configuration approach
     GlobalConfigurationBuilder globalCfg = new GlobalConfigurationBuilder();
     globalCfg.classLoader(getClass().getClassLoader());
     
     DefaultCacheManager container = new DefaultCacheManager(globalCfg.build(), true);
-    
     ConfigurationBuilder cfg = new ConfigurationBuilder();
     cfg.classLoader(getClass().getClassLoader());
     cfg.indexing().enable().indexLocalOnly(true);
@@ -81,35 +75,6 @@ public class StorageServiceImpl implements StorageService {
   @Override
   public CloseableIterator<Entity> findAll() {
     CacheQuery query = Search.getSearchManager(entityCache).getQuery(new MatchAllDocsQuery());
-    final QueryIterator i = query.lazyIterator();
-    return new CloseableIterator<Entity>() {
-
-      @Override
-      public boolean hasNext() {
-        return i.hasNext();
-      }
-
-      @Override
-      public Entity next() {
-        Entity entity = (Entity) i.next();
-        
-        if (entity != null)
-          LOGGER.info("Found entity: {}", entity.getKey());
-        
-        return entity;
-      }
-
-      @Override
-      public void remove() {
-        throw new UnsupportedOperationException("Cannot remove document from query iterator.");
-      }
-
-      @Override
-      public void close() throws IOException {
-        i.close();
-      }
-      
-    };
+    return new PreemptiveCloseableIterator(query.lazyIterator());
   }
-
 }

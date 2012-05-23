@@ -94,7 +94,15 @@ public class ConnectionManagerImpl implements ConnectionManager {
   @Reference
   protected transient ConnectionStorage connectionStorage;
 
-
+  public ConnectionManagerImpl() {
+    
+  }
+  
+  public ConnectionManagerImpl(Repository repository, ConnectionStorage connectionStorage) {
+    this.repository = repository;
+    this.connectionStorage = connectionStorage;
+  }
+  
   private static Map<TransitionKey, StatePair> stateMap = new HashMap<TransitionKey, StatePair>();
 
   static {

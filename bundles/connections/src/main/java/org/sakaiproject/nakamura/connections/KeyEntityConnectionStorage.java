@@ -31,7 +31,10 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
+import org.osgi.service.event.Event;
+import org.osgi.service.event.EventAdmin;
 import org.sakaiproject.nakamura.api.connections.ConnectionConstants;
+import org.sakaiproject.nakamura.api.connections.ConnectionEventUtil;
 import org.sakaiproject.nakamura.api.connections.ConnectionException;
 import org.sakaiproject.nakamura.api.connections.ConnectionState;
 import org.sakaiproject.nakamura.api.connections.ConnectionStorage;
@@ -68,6 +71,9 @@ public class KeyEntityConnectionStorage implements ConnectionStorage {
   @Reference
   protected StorageService storage;
   
+  @Reference
+  protected EventAdmin eventAdmin;
+  
   @Override
   public ContactConnection getOrCreateContactConnection(Authorizable fromUser, Authorizable toUser)
       throws ConnectionException {
@@ -96,7 +102,11 @@ public class KeyEntityConnectionStorage implements ConnectionStorage {
             "lastName", lastName);
         
         connection = makeContactConnection(fromUser, toUser, new Content(nodePath, props));
+        
         dao.update(connection);
+        
+        Event event = ConnectionEventUtil.createCreateConnectionEvent(connection);
+        eventAdmin.sendEvent(event);
       }
       return connection;
     } catch (Exception e) {
@@ -135,8 +145,19 @@ public class KeyEntityConnectionStorage implements ConnectionStorage {
       throws ConnectionException {
     try {
       EntityDao<ContactConnection> dao = storage.getDao(ContactConnection.class);
+      
+      ContactConnection oldThisNode = dao.get(thisNode.getKey());
+      ContactConnection oldOtherNode = dao.get(otherNode.getKey());
+      
       dao.update(thisNode);
       dao.update(otherNode);
+      
+      Event event = ConnectionEventUtil.createUpdateConnectionEvent(oldThisNode, thisNode);
+      eventAdmin.postEvent(event);
+      
+      event = ConnectionEventUtil.createUpdateConnectionEvent(oldOtherNode, otherNode);
+      eventAdmin.postEvent(event);
+      
     } catch (Exception e) {
       throw new ConnectionException(500, e);
     }

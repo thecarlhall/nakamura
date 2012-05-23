@@ -70,7 +70,9 @@ public class GenericEntityDao<T extends Entity> implements EntityDao<T> {
     List<T> results = new LinkedList<T>();
     CacheQuery query = Search.getSearchManager(cache).getQuery(luceneQuery, type);
     for (Object result : query.list()) {
-      results.add((T) result);
+      if (result != null) {
+        results.add((T) result);
+      }
     }
     return results;
   }

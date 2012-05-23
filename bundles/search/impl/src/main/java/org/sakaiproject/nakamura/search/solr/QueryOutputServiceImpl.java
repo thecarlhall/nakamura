@@ -37,6 +37,7 @@ import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.osgi.framework.Constants;
+import org.osgi.service.event.Event;
 import org.osgi.service.event.EventAdmin;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.Session;
@@ -49,6 +50,10 @@ import org.sakaiproject.nakamura.api.search.solr.QueryOutputService;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchException;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
 import org.sakaiproject.nakamura.api.solr.SolrServerService;
+import org.sakaiproject.nakamura.api.storage.CloseableIterator;
+import org.sakaiproject.nakamura.api.storage.Entity;
+import org.sakaiproject.nakamura.api.storage.StorageEventUtil;
+import org.sakaiproject.nakamura.api.storage.StorageService;
 import org.sakaiproject.nakamura.util.JcrUtils;
 import org.sakaiproject.nakamura.util.NodeInputStream;
 import org.slf4j.Logger;
@@ -91,6 +96,12 @@ public class QueryOutputServiceImpl implements QueryOutputService {
   @Reference
   private SlingRepository slingRepo;
 
+  @Reference
+  private EventAdmin eventAdmin;
+  
+  @Reference
+  private StorageService storageService;
+  
   private Set<String> IGNORE_PARAMS = ImmutableSet.of("q", "addReaders", "asAnon", "indent");
 
   private class SolrOutputIndenter {
@@ -416,6 +427,7 @@ public class QueryOutputServiceImpl implements QueryOutputService {
       session = repo.loginAdministrative();
       ContentManager contentMgr = session.getContentManager();
       contentMgr.triggerRefreshAll();
+      StorageEventUtil.refreshAllEntities(storageService, eventAdmin, "admin", true);
       writeStatus(w, "Reindexing of all content triggered. Please watch the logs for progress.");
     } finally {
       if (session != null) {
