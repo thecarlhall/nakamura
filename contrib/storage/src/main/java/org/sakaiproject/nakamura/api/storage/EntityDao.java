@@ -43,7 +43,7 @@ public interface EntityDao<T extends Entity> {
   T update(T entity);
 
   /**
-   * Find all entities that match the given query.
+   * Find all entities that match the given lucene query.
    * 
    * @param query
    * @return

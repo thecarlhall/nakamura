@@ -53,6 +53,7 @@
             	!com.thoughtworks.paranamer,
             	!org.xerial.snappy,
             	!org.joda.time.*,
+            	org.apache.lucene.*;version="3.5",
             	*
             </Import-Package>
             <Embed-Dependency>
@@ -65,14 +66,12 @@
 				jboss-marshalling-river,
 				jgroups,
 				avro,
-				lucene-core,
 				jackson-core-asl,
 				jackson-mapper-asl
             </Embed-Dependency>
             <Embed-Transitive>true</Embed-Transitive>
             <Export-Package>
             	org.hibernate.search.annotations;version="4.0.1.Final",
-            	org.apache.lucene.*;version="3.5.0",
             	org.sakaiproject.nakamura.api.storage</Export-Package>
           </instructions>
         </configuration>
