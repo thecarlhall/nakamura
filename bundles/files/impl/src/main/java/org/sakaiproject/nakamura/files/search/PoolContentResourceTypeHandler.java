@@ -82,7 +82,7 @@ public class PoolContentResourceTypeHandler implements IndexingHandler, QoSIndex
   protected ResourceIndexingService resourceIndexingService;
 
   @Reference
-  private TikaService tika;
+  protected TikaService tika;
 
   private static Map<String, Object> getFieldMap() {
     Builder<String, Object> builder = ImmutableMap.builder();

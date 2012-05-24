@@ -57,7 +57,7 @@ public class LiteDefaultContextIdResolver implements LiteBasicLTIContextIdResolv
   @Property(value = "lti_context_id", name = "LTI_CONTEXT_ID", label = "key", description = "The Content property key used to store an LTI context_id.")
   public static final String LTI_CONTEXT_ID = LiteDefaultContextIdResolver.class
       .getName() + ".key";
-  private String key = "lti_context_id";
+  protected String key = "lti_context_id";
 
   /**
    * {@inheritDoc}
@@ -73,7 +73,7 @@ public class LiteDefaultContextIdResolver implements LiteBasicLTIContextIdResolv
     if (session == null) {
       throw new IllegalArgumentException("Session cannot be null");
     }
-    
+
     final AuthorizableManager authManager = session.getAuthorizableManager();
 
     // default return value
@@ -85,9 +85,6 @@ public class LiteDefaultContextIdResolver implements LiteBasicLTIContextIdResolv
       contextId = (String) node.getProperty(key);
     } else {
       if (groupId != null) {
-        // by default, just use the groupID that was submitted
-        contextId = groupId;
-
         // obtaining the group causes a security check; also the group is used later to
         // check the sakai:cle-site prop.
         final Group group = (Group) authManager.findAuthorizable(groupId);
@@ -101,6 +98,9 @@ public class LiteDefaultContextIdResolver implements LiteBasicLTIContextIdResolv
          * contexts and are passed straight through verbatim.
          */
         if (group != null) {
+          // by default, just use the groupID that was submitted
+          contextId = groupId;
+
           // LTI_CONTEXT_ID takes precedence over "sakai:cle-site" property
           if (group.hasProperty(key)) {
             // we have a special context_id we can use
@@ -125,6 +125,9 @@ public class LiteDefaultContextIdResolver implements LiteBasicLTIContextIdResolv
   protected void activate(ComponentContext context) {
     @SuppressWarnings("rawtypes")
     final Dictionary props = context.getProperties();
-    key = PropertiesUtil.toString(props.get(LTI_CONTEXT_ID), "lti_context_id");
+    final String newKey = PropertiesUtil.toString(props.get(LTI_CONTEXT_ID), key);
+    if (!"".equals(newKey)) {
+      key = newKey;
+    }
   }
 }
