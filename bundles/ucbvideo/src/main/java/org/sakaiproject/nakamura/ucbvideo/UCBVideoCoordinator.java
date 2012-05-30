@@ -22,6 +22,40 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
+class Slowdown
+{
+    private long delay;
+    private long lastTime = -1;
+
+    private static final Logger LOGGER = LoggerFactory
+        .getLogger(Slowdown.class);
+
+
+    public Slowdown(long delay)
+    {
+        this.delay = delay;
+    }
+
+
+    public void sleep()
+    {
+        long now = System.currentTimeMillis();
+
+        if (lastTime > 0) {
+            long elapsed = (now - lastTime);
+            if (elapsed < delay) {
+                try {
+                    LOGGER.info("Waiting...");
+                    Thread.sleep(delay - elapsed);
+                } catch (InterruptedException e) {}
+            }
+        } else {
+            lastTime = now;
+        }
+    }
+}
+
+
 public class UCBVideoCoordinator implements Runnable
 {
     private static final Logger LOGGER = LoggerFactory
@@ -138,6 +172,7 @@ public class UCBVideoCoordinator implements Runnable
         ExecutorService[] workers = createWorkerPool();
         Map<String, Message> inProgress = new HashMap<String, Message>();
 
+        Slowdown slowdown = new Slowdown((long)(POLL_FREQUENCY));
         while (running.get()) {
             try {
                 Message msg = null;
@@ -199,6 +234,9 @@ public class UCBVideoCoordinator implements Runnable
                 LOGGER.error("Waiting {} ms before trying again",
                              POLL_FREQUENCY);
             }
+
+            // Paranoia...
+            slowdown.sleep();
         }
 
         LOGGER.info("Shutting down worker pool...");
