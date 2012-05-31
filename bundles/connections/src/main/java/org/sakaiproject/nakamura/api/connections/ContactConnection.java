@@ -17,14 +17,7 @@
  */
 package org.sakaiproject.nakamura.api.connections;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 import org.apache.lucene.analysis.KeywordAnalyzer;
-import org.hibernate.search.annotations.Analyzer;
-import org.hibernate.search.annotations.Field;
-import org.hibernate.search.annotations.Indexed;
-import org.hibernate.search.annotations.ProvidedId;
 import org.sakaiproject.nakamura.api.storage.Entity;
 
 import java.util.Map;

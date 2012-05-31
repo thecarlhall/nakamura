@@ -79,7 +79,17 @@
     </plugins>
   </build>
   <dependencies>
-  
+
+  <dependency>
+    <groupId>com.netflix.astyanax</groupId>
+    <artifactId>astyanax</artifactId>
+    <version>1.0.3</version>
+  </dependency>
+  <dependency>
+    <groupId>commons-beanutils</groupId>
+    <artifactId>commons-beanutils</artifactId>
+    <version>1.7.0</version>
+  </dependency>
   	<dependency>
   		<groupId>org.infinispan</groupId>
   		<artifactId>infinispan-core</artifactId>
