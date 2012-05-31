@@ -51,7 +51,7 @@ public class UCBVideoServiceImpl
     private UCBVideoCoordinator ucbVideoCoordinator;
 
 
-    public void activate(ComponentContext context)
+    protected void activate(ComponentContext context)
     {
         LOGGER.info("Activating UCBVideo bundle");
 
@@ -64,7 +64,7 @@ public class UCBVideoServiceImpl
     }
 
 
-    public void deactivate(ComponentContext context)
+    protected void deactivate(ComponentContext context)
     {
         LOGGER.info("Deactivating UCBVideo bundle");
 
