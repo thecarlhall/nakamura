@@ -232,6 +232,34 @@ public class UCBVideoCoordinator implements Runnable
     }
 
 
+    private void clearDuplicates(LinkedBlockingQueue<Message> incoming,
+                                 String pid)
+    {
+        try {
+            // A bit funny to wait like this, but if we give a new file upload a
+            // few seconds we can usually handle the initial upload and all its
+            // events in one shot.  Just a dumb optimisation.
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {}
+
+        for (Message msg : incoming) {
+            try {
+                if (pid.equals(msg.getStringProperty("pid")) &&
+                    incoming.remove(msg)) {
+
+                    // We're about to handle this message, so skip the others
+                    LOGGER.info("Discarded duplicate message: {}", msg);
+                    msg.acknowledge();
+                }
+            } catch (JMSException e) {
+                LOGGER.warn("Got a JMSException while clearing duplicates: {}",
+                            e);
+                e.printStackTrace();
+            }
+        }
+    }
+
+
     public void run()
     {
         LOGGER.info("Running UCBVideoCoordinator");
@@ -260,6 +288,8 @@ public class UCBVideoCoordinator implements Runnable
                     final String jobId = msg.getJMSMessageID();
                     final String pid = msg.getStringProperty("pid");
 
+                    clearDuplicates(incoming, pid);
+
                     inProgress.put(jobId, msg);
 
                     // The hashing here ensures that same PID must always runs
@@ -279,6 +309,10 @@ public class UCBVideoCoordinator implements Runnable
                                             pid);
                             }
                         });
+
+                    LOGGER.info("Videos waiting to process: {}; " +
+                                "Videos in progress: {}",
+                                incoming.size(), inProgress.size());
                 }
 
                 // Remove objects marked as completed from the "in progress"
