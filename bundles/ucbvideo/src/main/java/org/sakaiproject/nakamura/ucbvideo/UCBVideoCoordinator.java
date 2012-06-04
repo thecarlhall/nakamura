@@ -21,6 +21,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.sakaiproject.nakamura.api.lite.Repository;
+import org.sakaiproject.nakamura.api.lite.content.Content;
+import org.sakaiproject.nakamura.api.lite.content.ContentManager;
+import org.sakaiproject.nakamura.api.lite.ClientPoolException;
+import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+
+import org.sakaiproject.nakamura.api.files.FilesConstants;
 
 class Slowdown
 {
@@ -61,6 +69,8 @@ public class UCBVideoCoordinator implements Runnable
     private static final Logger LOGGER = LoggerFactory
         .getLogger(UCBVideoCoordinator.class);
 
+    protected Repository sparseRepository;
+
     private int WORKER_COUNT = 5;
     private int POLL_FREQUENCY = 5000;
 
@@ -76,10 +86,12 @@ public class UCBVideoCoordinator implements Runnable
 
 
     public UCBVideoCoordinator(ConnectionFactory connectionFactory,
-                               String queueName)
+                               String queueName,
+                               Repository sparseRepository)
     {
         this.connectionFactory = connectionFactory;
         this.queueName = queueName;
+        this.sparseRepository = sparseRepository;
 
         running = new AtomicBoolean(false);
     }
@@ -160,6 +172,66 @@ public class UCBVideoCoordinator implements Runnable
     }
 
 
+    private boolean isVideo(String mimeType)
+    {
+        return (mimeType != null && mimeType.startsWith("video/"));
+    }
+
+
+    private void syncVideo(Content obj, ContentManager cm)
+    {
+        LOGGER.info("Processing video now...");
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException ie) {}
+    }
+
+
+    private void processObject(String pid)
+    {
+        org.sakaiproject.nakamura.api.lite.Session sparseSession = null;
+        try {
+            sparseSession = sparseRepository.loginAdministrative();
+
+            ContentManager contentManager = sparseSession.getContentManager();
+            Content obj = contentManager.get(pid);
+
+            if (obj == null) {
+                LOGGER.warn("Object '{}' couldn't be fetched from sparse", pid);
+                return;
+            }
+
+            String mimeType = (String)obj.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE);
+            if (!isVideo(mimeType)) {
+                LOGGER.info("Path '{}' isn't a video (type is: {}).  Skipped.",
+                            pid, mimeType);
+                return;
+            }
+
+            syncVideo(obj, contentManager);
+
+        } catch (StorageClientException e) {
+            LOGGER.warn("StorageClientException while processing {}: {}",
+                        pid, e);
+            e.printStackTrace();
+        } catch (AccessDeniedException e) {
+            LOGGER.warn("AccessDeniedException while processing {}: {}",
+                        pid, e);
+            e.printStackTrace();
+        } finally {
+            try {
+                if (sparseSession != null) {
+                    sparseSession.logout();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to logout of administrative session {} ",
+                            e.getMessage());
+            }
+
+        }
+    }
+
+
     public void run()
     {
         LOGGER.info("Running UCBVideoCoordinator");
@@ -199,10 +271,8 @@ public class UCBVideoCoordinator implements Runnable
                     worker.execute(new Runnable() {
                             public void run() {
                                 LOGGER.info("Worker processing " + pid);
-                                try {
-                                    // Talk to BC/BH/LL here...
-                                    Thread.sleep(10000);
-                                } catch (InterruptedException ie) {}
+
+                                processObject(pid);
 
                                 completed.add(jobId);
                                 LOGGER.info("Worker completed processing {}",

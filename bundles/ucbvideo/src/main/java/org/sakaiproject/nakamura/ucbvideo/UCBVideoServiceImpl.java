@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import org.sakaiproject.nakamura.api.ucbvideo.UCBVideoService;
 
+import org.sakaiproject.nakamura.api.lite.Repository;
+
 import org.osgi.service.component.ComponentContext;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -48,6 +50,10 @@ public class UCBVideoServiceImpl
     private ConnectionFactoryService connectionFactoryService;
     private ConnectionFactory connectionFactory;
 
+    @Reference
+    protected Repository sparseRepository;
+
+
     private UCBVideoCoordinator ucbVideoCoordinator;
 
 
@@ -59,7 +65,8 @@ public class UCBVideoServiceImpl
             connectionFactoryService.getDefaultPooledConnectionFactory();
 
         ucbVideoCoordinator = new UCBVideoCoordinator(connectionFactory,
-                                                      QUEUE_NAME);
+                                                      QUEUE_NAME,
+                                                      sparseRepository);
         ucbVideoCoordinator.start();
     }
 
