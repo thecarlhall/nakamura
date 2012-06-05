@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import com.google.common.collect.Maps;
+
 import javax.jms.ConnectionFactory;
 import javax.jms.Connection;
 import javax.jms.MessageListener;
@@ -13,6 +15,12 @@ import javax.jms.Session;
 import javax.jms.Queue;
 import javax.jms.Message;
 import javax.jms.JMSException;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -29,6 +37,7 @@ import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 
 import org.sakaiproject.nakamura.api.files.FilesConstants;
+
 
 class Slowdown
 {
@@ -60,6 +69,203 @@ class Slowdown
         } else {
             lastTime = now;
         }
+    }
+}
+
+
+class MediaNode
+{
+    private static final Logger LOGGER = LoggerFactory
+        .getLogger(MediaNode.class);
+
+
+    private ContentManager contentManager;
+    private String path;
+
+    protected MediaNode(ContentManager cm, String path)
+    {
+        this.contentManager = cm;
+        this.path = path;
+    }
+
+
+    public static MediaNode get(String parent, ContentManager cm)
+        throws StorageClientException, AccessDeniedException
+    {
+        String mediaNodePath = parent + "/medianode";
+
+        Content obj = cm.get(mediaNodePath);
+
+        if (obj == null) {
+            obj = new Content(mediaNodePath, new HashMap<String, Object>());
+            cm.update(obj, true);
+
+            cm.update(new Content(mediaNodePath + "/replicationStatus",
+                                  new HashMap<String, Object>()),
+                      true);
+        }
+
+        return new MediaNode(cm, mediaNodePath);
+    }
+
+
+    public void recordVersion(Version version)
+        throws AccessDeniedException, StorageClientException
+    {
+        Content replicationStatus = getReplicationStatus(version);
+
+        replicationStatus.setProperty("bodyUploaded", "Y");
+        replicationStatus.setProperty("metadataVersion",
+                                      version.metadataVersion());
+
+        contentManager.update(replicationStatus);
+
+    }
+
+
+    private Content getReplicationStatus(Version version)
+        throws StorageClientException, AccessDeniedException
+    {
+        String mypath = path + "/replicationStatus/" + version.getVersionId();
+
+        Content replicationStatus = contentManager.get(mypath);
+
+        if (replicationStatus == null) {
+            replicationStatus = new Content(mypath, new HashMap<String, Object>());
+            contentManager.update(replicationStatus, true);
+        }
+
+        return replicationStatus;
+    }
+
+
+    public boolean isBodyUploaded(Version version)
+        throws StorageClientException, AccessDeniedException
+    {
+        Content replicationStatus = getReplicationStatus(version);
+
+        return ("Y".equals(replicationStatus.getProperty("bodyUploaded")));
+    }
+
+
+    public boolean isMetadataUpToDate(Version version)
+        throws StorageClientException, AccessDeniedException
+    {
+        Content replicationStatus = getReplicationStatus(version);
+
+        return (version.metadataVersion().equals(replicationStatus.getProperty("metadataVersion")));
+    }
+}
+
+
+class Version
+{
+    private String pid;
+    private String versionId;
+    private String title;
+    private String description;
+    private ContentManager contentManager;
+
+
+    public Version(String pid, String versionId, String title, String description,
+                   ContentManager cm)
+    {
+        contentManager = cm;
+        this.pid = pid;
+        this.versionId = versionId;
+        this.title = title;
+        this.description = description;
+    }
+
+
+    public String getVersionId()
+    {
+        return versionId;
+    }
+
+
+    public String getTitle()
+    {
+        return title;
+    }
+
+
+    public String getDescription()
+    {
+        return description;
+    }
+
+
+    public InputStream getStoredContent()
+        throws AccessDeniedException, StorageClientException, IOException
+    {
+        return contentManager.getVersionInputStream(pid, versionId);
+    }
+
+
+    public Long metadataVersion()
+    {
+        int hash = (title + description).hashCode();
+
+        return new Long((long)hash);
+    }
+
+
+    public String toString()
+    {
+        return versionId + "@" + pid;
+    }
+}
+
+
+class VersionManager
+{
+    private ContentManager contentManager;
+
+
+    public VersionManager(ContentManager cm)
+    {
+        this.contentManager = cm;
+    }
+
+
+    // Get the versions metadata for 'pid' from the most recent version to the
+    // oldest.
+    public List<Version> getVersionsMetadata(String pid)
+        throws StorageClientException, AccessDeniedException
+    {
+        List<Content> versions = new ArrayList<Content>();
+
+        Content latest = contentManager.get(pid);
+
+        if (latest == null) {
+            return null;
+        }
+
+        versions.add(latest);
+
+        for (String versionId : contentManager.getVersionHistory(pid)) {
+            versions.add(contentManager.getVersion(pid, versionId));
+        }
+
+        // So this is strange.  Each object in the version history list has the
+        // right binary blob for its version, but its metadata corresponds to
+        // the previous version.  For example, version 5 will have the bytes of
+        // the fifth uploaded file, but the title/description/etc. of the 4th
+        // version.
+        List<Version> result = new ArrayList<Version>();
+        for (int i = 1; i < versions.size(); i++) {
+            Content current = versions.get(i);
+            Content last = versions.get(i - 1);
+
+            result.add(new Version(pid,
+                                   (String)current.getProperty("_id"),
+                                   (String)last.getProperty("sakai:pooled-content-file-name"),
+                                   (String)last.getProperty("sakai:description"),
+                                   contentManager));
+        }
+
+        return result;
     }
 }
 
@@ -178,12 +384,50 @@ public class VideoCoordinator implements Runnable
     }
 
 
+
     private void syncVideo(Content obj, ContentManager cm)
     {
         LOGGER.info("Processing video now...");
+
+        String path = obj.getPath();
+
         try {
-            Thread.sleep(10000);
-        } catch (InterruptedException ie) {}
+            MediaNode mediaNode = MediaNode.get(path, cm);
+            VersionManager vm = new VersionManager(cm);
+
+            for (Version version : vm.getVersionsMetadata(path)) {
+                LOGGER.info("Processing version {} of object {}",
+                            version, path);
+
+                if (!mediaNode.isBodyUploaded(version)) {
+                    LOGGER.info("Uploading body for version {} of object {}",
+                                version, path);
+                }
+
+                if (!mediaNode.isMetadataUpToDate(version)) {
+                    LOGGER.info("Updating metadata for version {} of object {}",
+                                version, path);
+                }
+
+                mediaNode.recordVersion(version);
+            }
+
+
+            // Sync tags
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException ie) {
+            }
+
+        } catch (StorageClientException e) {
+            LOGGER.info("StorageClientException when syncing video: {}",
+                        path);
+            e.printStackTrace();
+        } catch (AccessDeniedException e) {
+            LOGGER.info("AccessDeniedException when syncing video: {}",
+                        path);
+            e.printStackTrace();
+        }
     }
 
 
