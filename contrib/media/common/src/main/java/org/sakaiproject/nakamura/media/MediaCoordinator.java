@@ -34,13 +34,13 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.files.FilesConstants;
 
 
-
 public class MediaCoordinator implements Runnable {
   private static final Logger LOGGER = LoggerFactory
     .getLogger(MediaCoordinator.class);
 
   protected Repository sparseRepository;
 
+  private int RETRY_MS = 5 * 60 * 1000;
   private int WORKER_COUNT = 5;
   private int POLL_FREQUENCY = 5000;
 
@@ -254,11 +254,24 @@ public class MediaCoordinator implements Runnable {
   }
 
 
+  private class FailedJob
+  {
+    public String jobId;
+    public long time;
+
+    public FailedJob(String jobId, long time) {
+      this.jobId = jobId;
+      this.time = time;
+    }
+  }
+
+
   public void run() {
     LOGGER.info("Running MediaCoordinator");
 
     final LinkedBlockingQueue<Message> incoming = new LinkedBlockingQueue<Message>();
     final LinkedBlockingQueue<String> completed = new LinkedBlockingQueue<String>();
+    final LinkedBlockingQueue<FailedJob> failed = new LinkedBlockingQueue<FailedJob>();
 
     connectToJMS(incoming);
 
@@ -295,11 +308,21 @@ public class MediaCoordinator implements Runnable {
               public void run() {
                 LOGGER.info("Worker processing " + pid);
 
-                processObject(pid);
+                try {
+                  processObject(pid);
 
-                completed.add(jobId);
-                LOGGER.info("Worker completed processing {}",
-                            pid);
+                  completed.add(jobId);
+                  LOGGER.info("Worker completed processing {}",
+                              pid);
+
+                } catch (Exception e) {
+                  LOGGER.warn("Failed while processing PID '{}'", pid);
+                  e.printStackTrace();
+                  LOGGER.warn("This job will be queued for retry in {} ms",
+                              RETRY_MS);
+
+                  failed.add(new FailedJob(jobId, System.currentTimeMillis()));
+                }
               }
             });
 
@@ -324,6 +347,34 @@ public class MediaCoordinator implements Runnable {
             inProgress.remove(jobId);
           }
         }
+
+
+        // Requeue jobs in the failed queue if their retry time has elapsed
+        if (!failed.isEmpty()) {
+          try {
+            while (true) {
+              FailedJob job = failed.peek();
+
+              if (job != null && (System.currentTimeMillis() - job.time) > RETRY_MS) {
+                job = failed.take();
+                Message failedMsg = inProgress.get(job.jobId);
+
+                if (failedMsg != null) {
+                  LOGGER.info("Requeueing job for pid '{}'",
+                              failedMsg.getStringProperty("pid"));
+
+                  inProgress.remove(job.jobId);
+                  
+                  incoming.add(failedMsg);
+                }
+              } else {
+                break;
+              }
+            }
+          } catch (InterruptedException ex) {
+          }
+        }
+
 
       } catch (JMSException e) {
         LOGGER.error("JMS exception while waiting for message: {}", e);
