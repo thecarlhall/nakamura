@@ -1,11 +1,11 @@
-package org.sakaiproject.nakamura.ucbvideo;
+package org.sakaiproject.nakamura.media;
 
 import javax.jms.Message;
 import javax.jms.MapMessage;
 import javax.jms.Session;
 import javax.jms.JMSException;
 
-class UCBVideoUtils
+class VideoUtils
 {
     public static Message message(Session jmsSession, String ... props) throws JMSException
     {

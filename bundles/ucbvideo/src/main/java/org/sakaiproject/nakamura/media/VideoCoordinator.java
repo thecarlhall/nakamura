@@ -1,4 +1,4 @@
-package org.sakaiproject.nakamura.ucbvideo;
+package org.sakaiproject.nakamura.media;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,10 +64,10 @@ class Slowdown
 }
 
 
-public class UCBVideoCoordinator implements Runnable
+public class VideoCoordinator implements Runnable
 {
     private static final Logger LOGGER = LoggerFactory
-        .getLogger(UCBVideoCoordinator.class);
+        .getLogger(VideoCoordinator.class);
 
     protected Repository sparseRepository;
 
@@ -85,7 +85,7 @@ public class UCBVideoCoordinator implements Runnable
     Thread activeThread;
 
 
-    public UCBVideoCoordinator(ConnectionFactory connectionFactory,
+    public VideoCoordinator(ConnectionFactory connectionFactory,
                                String queueName,
                                Repository sparseRepository)
     {
@@ -102,7 +102,7 @@ public class UCBVideoCoordinator implements Runnable
         running.set(true);
 
         activeThread = new Thread(this);
-        activeThread.setName("UCBVideoCoordinator thread");
+        activeThread.setName("VideoCoordinator thread");
         activeThread.start();
     }
 
@@ -262,7 +262,7 @@ public class UCBVideoCoordinator implements Runnable
 
     public void run()
     {
-        LOGGER.info("Running UCBVideoCoordinator");
+        LOGGER.info("Running VideoCoordinator");
 
         final LinkedBlockingQueue<Message> incoming = new LinkedBlockingQueue<Message>();
         final LinkedBlockingQueue<String> completed = new LinkedBlockingQueue<String>();

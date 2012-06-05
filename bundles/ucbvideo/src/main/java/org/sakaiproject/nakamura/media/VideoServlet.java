@@ -13,9 +13,10 @@
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
+ * specific language governing permissions and limitations
+ * under the License.
  */
-package org.sakaiproject.nakamura.ucbvideo;
+package org.sakaiproject.nakamura.media;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,7 +64,7 @@ import org.slf4j.LoggerFactory;
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
 @Property(name = "alias", value = "/var/brightcove")
-public class UCBVideoServlet extends HttpServlet {
+public class VideoServlet extends HttpServlet {
   @Property
   public static final String READ_TOKEN = "readToken";
 
@@ -73,7 +74,7 @@ public class UCBVideoServlet extends HttpServlet {
   @Property(value = "http://api.brightcove.com/services")
   public static final String BASE_URL = "baseUrl";
 
-  private static final Logger LOG = LoggerFactory.getLogger(UCBVideoServlet.class);
+  private static final Logger LOG = LoggerFactory.getLogger(VideoServlet.class);
 
   protected String readToken;
   protected String writeToken;
@@ -83,7 +84,7 @@ public class UCBVideoServlet extends HttpServlet {
 
   private HttpClient client;
 
-  public UCBVideoServlet() {
+  public VideoServlet() {
     client = new HttpClient();
   }
 
