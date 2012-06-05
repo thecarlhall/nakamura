@@ -17,12 +17,14 @@
  */
 package org.sakaiproject.nakamura.connections;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import me.prettyprint.cassandra.serializers.BytesArraySerializer;
 import me.prettyprint.cassandra.serializers.CompositeSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.ThriftKsDef;
@@ -109,16 +111,15 @@ public class HectorConnectionStorage implements ConnectionStorage {
   @Override
   public void saveContactConnectionPair(ContactConnection thisNode,
       ContactConnection otherNode) throws ConnectionException {
-    String key1 = thisNode.getFromUserId() + ":" + thisNode.getToUserId();
-    String key2 = otherNode.getFromUserId() + ":" + otherNode.getToUserId();
-
     Mutator<String> mutator = template.createMutator();
-    mutateContactConnection(thisNode, key1, mutator);
-    mutateContactConnection(otherNode, key2, mutator);
 
     try {
+      mutateContactConnection(thisNode, mutator);
+      mutateContactConnection(otherNode, mutator);
       mutator.execute();
     } catch (HectorException e) {
+      throw new ConnectionException(500, e);
+    } catch (UnsupportedEncodingException e) {
       throw new ConnectionException(500, e);
     }
   }
@@ -194,41 +195,49 @@ public class HectorConnectionStorage implements ConnectionStorage {
    * @param connection
    * @param key
    * @param mutator
+   * @throws UnsupportedEncodingException 
    */
-  private void mutateContactConnection(ContactConnection connection, Mutator<String> mutator) {
+  private void mutateContactConnection(ContactConnection connection, Mutator<String> mutator) throws UnsupportedEncodingException {
     String fromUser = connection.getFromUserId();
     String toUser = connection.getToUserId();
-    Composite firstName = new Composite();
-    firstName.addComponent(toUser, StringSerializer.get());
-    firstName.addComponent("firstName", StringSerializer.get());
-    Composite lastName = new Composite();
-    firstName.addComponent(toUser, StringSerializer.get());
-    firstName.addComponent("lastName", StringSerializer.get());
     
-    mutator.addInsertion(fromUser, CF_NAME, HFactory.createColumn(firstName, connection.getFirstName(), CompositeSerializer.get(), StringSerializer.get()))
-        .addInsertion(fromUser, CF_NAME, HFactory.createStringColumn("fromUserId", connection.getFromUserId()));
-    mutator.addInsertion(fromUser, CF_NAME, HFactory.createStringColumn("firstName", connection.getFirstName()))
-        .addInsertion(fromUser, CF_NAME, HFactory.createStringColumn("fromUserId", connection.getFromUserId()))
-        .addInsertion(fromUser, CF_NAME, HFactory.createStringColumn("lastName", connection.getLastName()))
-        .addInsertion(fromUser, CF_NAME, HFactory.createStringColumn("toUserId", connection.getToUserId()))
-        .addInsertion(fromUser, CF_NAME, HFactory.createStringColumn("connectionState", connection.getConnectionState().toString()));
+    addInsertion(mutator, fromUser, CF_NAME, toUser, "firstName", connection.getFirstName());
+    addInsertion(mutator, fromUser, CF_NAME, toUser, "lastName", connection.getFirstName());
+    addInsertion(mutator, fromUser, CF_NAME, toUser, "fromUserId", connection.getFromUserId());
+    addInsertion(mutator, fromUser, CF_NAME, toUser, "lastName", connection.getLastName());
+    addInsertion(mutator, fromUser, CF_NAME, toUser, "toUserId", connection.getToUserId());
+    addInsertion(mutator, fromUser, CF_NAME, toUser, "connectionState", connection.getConnectionState().toString());
 
     for (Entry<String, Object> prop : connection.getProperties().entrySet()) {
-      mutator.addInsertion(key, CF_NAME, HFactory.createColumn("properties:" + prop.getKey(), prop.getValue()));
+      mutator.addInsertion(fromUser, CF_NAME, HFactory.createColumn("properties:" + prop.getKey(), prop.getValue()));
     }
 
     byte[] emptyValue = new byte[0];
     for (String type : connection.getConnectionTypes()) {
-      mutator.addInsertion(key, CF_NAME, HFactory.createColumn("connectionTypes:" + type, emptyValue));
+      mutator.addInsertion(fromUser, CF_NAME, HFactory.createColumn("connectionTypes:" + type, emptyValue));
     }
   }
 
-  private HColumn createCompositeStringColumn(String key1, String key2, String value) {
+  private void addInsertion(Mutator<String> mutator, String key, String columnFamilyName,
+      String columnKey1, String columnKey2, String value)
+      throws UnsupportedEncodingException {
+    HColumn<Composite, byte[]> column = createCompositeColumn(columnKey1, columnKey2, value.getBytes("UTF-8"));
+    mutator.addInsertion(key, columnFamilyName, column);
+  }
+
+  /**
+   * Convenience method to create a composite column of <code>{key1, key2} = value</code>.
+   *
+   * @param key1
+   * @param key2
+   * @param value
+   * @return
+   */
+  private HColumn<Composite, byte[]> createCompositeColumn(String key1, String key2, byte[] value) {
     Composite composite = new Composite();
     composite.addComponent(key1, StringSerializer.get());
     composite.addComponent(key2, StringSerializer.get());
-    HColumn<String, Composite> column = HFactory.createColumn(key2, value, CompositeSerializer.get(), StringSerializer.get());
-//    composite.addComponent(key, CF_NAME)
-    return null;
+    HColumn<Composite, byte[]> column = HFactory.createColumn(composite, value, CompositeSerializer.get(), BytesArraySerializer.get());
+    return column;
   }
 }
