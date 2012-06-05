@@ -23,39 +23,39 @@ import java.io.File;
 /**
  *
  */
-public interface VideoService {
+public interface MediaService {
   /**
-   * Create video with supplied metadata.
+   * Create media with supplied metadata.
    *
-   * @param video
+   * @param media
    * @param title
    * @param description
    * @param tags
    * @return
-   * @throws VideoServiceException
+   * @throws MediaServiceException
    */
-  String createVideo(File video, String title, String description, String[] tags)
-      throws VideoServiceException;
+  String createMedia(File media, String title, String description, String[] tags)
+      throws MediaServiceException;
 
   /**
-   * Update the metadata for a video.
+   * Update the metadata for a media.
    *
    * @param id
    * @param title
    * @param description
    * @param tags
    * @return
-   * @throws VideoServiceException
+   * @throws MediaServiceException
    */
-  String updateVideo(String id, String title, String description, String[] tags)
-      throws VideoServiceException;
+  String updateMedia(String id, String title, String description, String[] tags)
+      throws MediaServiceException;
 
   /**
-   * Get the status of a video.
+   * Get the status of a media.
    *
    * @param id
    * @return
-   * @throws VideoServiceException
+   * @throws MediaServiceException
    */
-  String getStatus(String id) throws VideoServiceException;
+  String getStatus(String id) throws MediaServiceException;
 }

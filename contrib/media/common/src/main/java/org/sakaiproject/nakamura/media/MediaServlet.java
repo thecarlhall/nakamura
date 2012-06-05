@@ -36,8 +36,8 @@ import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.sakaiproject.nakamura.api.media.VideoService;
-import org.sakaiproject.nakamura.api.media.VideoServiceException;
+import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,19 +47,19 @@ import org.slf4j.LoggerFactory;
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
 @Property(name = "alias", value = "/var/brightcove")
-public class VideoServlet extends HttpServlet {
-  private static final Logger LOG = LoggerFactory.getLogger(VideoServlet.class);
+public class MediaServlet extends HttpServlet {
+  private static final Logger LOG = LoggerFactory.getLogger(MediaServlet.class);
 
   @Reference
-  VideoService videoService;
+  MediaService mediaService;
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
     try {
-      String status = videoService.getStatus(req.getParameter("video_id"));
+      String status = mediaService.getStatus(req.getParameter("media_id"));
       resp.getWriter().write(status);
-    } catch (VideoServiceException e) {
+    } catch (MediaServiceException e) {
       throw new ServletException(e.getMessage(), e);
     }
   }
@@ -87,22 +87,22 @@ public class VideoServlet extends HttpServlet {
       @SuppressWarnings("unchecked")
       List<DiskFileItem> items = upload.parseRequest(req);
 
-      File videoFile = items.get(0).getStoreLocation();
-      String videoName = req.getParameter("name");
-      String videoDescription = req.getParameter("desc");
+      File mediaFile = items.get(0).getStoreLocation();
+      String mediaName = req.getParameter("name");
+      String mediaDescription = req.getParameter("desc");
       String[] tags = req.getParameterValues("tags");
       /*
        * STEP 2. Assemble the JSON params
        */
-      String response = videoService.createVideo(videoFile, videoName, videoDescription,
+      String response = mediaService.createMedia(mediaFile, mediaName, mediaDescription,
           tags);
 
-      String msg = "Posted video information: " + response;
+      String msg = "Posted media information: " + response;
       LOG.info(msg);
       resp.getWriter().write(msg);
     } catch (FileUploadException e) {
       throw new ServletException(e.getMessage(), e);
-    } catch (VideoServiceException e) {
+    } catch (MediaServiceException e) {
       throw new ServletException(e.getMessage(), e);
     }
   }

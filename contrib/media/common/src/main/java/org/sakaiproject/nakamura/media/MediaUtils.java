@@ -5,7 +5,7 @@ import javax.jms.MapMessage;
 import javax.jms.Session;
 import javax.jms.JMSException;
 
-class VideoUtils
+class MediaUtils
 {
     public static Message message(Session jmsSession, String ... props) throws JMSException
     {

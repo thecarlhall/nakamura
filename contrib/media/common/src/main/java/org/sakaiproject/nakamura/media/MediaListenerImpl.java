@@ -43,7 +43,7 @@ import org.osgi.service.event.EventHandler;
 import org.sakaiproject.nakamura.api.activemq.ConnectionFactoryService;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
 import org.sakaiproject.nakamura.api.lite.Repository;
-import org.sakaiproject.nakamura.api.media.VideoListener;
+import org.sakaiproject.nakamura.api.media.MediaListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,14 +52,14 @@ import org.slf4j.LoggerFactory;
  * for the first caller to incur the cost of doing.
  */
 @Component(immediate = true, metatype = true)
-@Service({ VideoListener.class, EventHandler.class, FileUploadHandler.class })
+@Service({ MediaListener.class, EventHandler.class, FileUploadHandler.class })
 @Properties({
   @Property(name = "event.topics", value = "org/sakaiproject/nakamura/lite/content/UPDATED")
 })
-public class VideoListenerImpl implements VideoListener, EventHandler, FileUploadHandler {
-  private static final Logger LOGGER = LoggerFactory.getLogger(VideoListenerImpl.class);
+public class MediaListenerImpl implements MediaListener, EventHandler, FileUploadHandler {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MediaListenerImpl.class);
 
-  private String QUEUE_NAME = "VIDEO";
+  private String QUEUE_NAME = "MEDIA";
 
   @Reference
   private ConnectionFactoryService connectionFactoryService;
@@ -68,32 +68,32 @@ public class VideoListenerImpl implements VideoListener, EventHandler, FileUploa
   @Reference
   protected Repository sparseRepository;
 
-  private VideoCoordinator ucbVideoCoordinator;
+  private MediaCoordinator ucbMediaCoordinator;
 
   @Activate
   @Modified
   protected void activate(ComponentContext context) {
-    LOGGER.info("Activating UCBVideo bundle");
+    LOGGER.info("Activating Media bundle");
 
     connectionFactory = connectionFactoryService.getDefaultPooledConnectionFactory();
 
-    ucbVideoCoordinator = new VideoCoordinator(connectionFactory, QUEUE_NAME,
+    ucbMediaCoordinator = new MediaCoordinator(connectionFactory, QUEUE_NAME,
         sparseRepository);
-    ucbVideoCoordinator.start();
+    ucbMediaCoordinator.start();
   }
 
   @Deactivate
   protected void deactivate(ComponentContext context) {
-    LOGGER.info("Deactivating UCBVideo bundle");
+    LOGGER.info("Deactivating Media bundle");
 
-    if (ucbVideoCoordinator != null) {
-      LOGGER.info("Shutting down UCBVideo coordinator thread...");
-      ucbVideoCoordinator.shutdown();
+    if (ucbMediaCoordinator != null) {
+      LOGGER.info("Shutting down Media coordinator thread...");
+      ucbMediaCoordinator.shutdown();
       LOGGER.info("Done");
     }
   }
 
-  // --------------- VideoListener interface -----------------------------------
+  // --------------- MediaListener interface -----------------------------------
   @Override
   public void contentUpdated(String pid) {
     LOGGER.info("Content updated: {}", pid);
@@ -101,11 +101,11 @@ public class VideoListenerImpl implements VideoListener, EventHandler, FileUploa
     try {
       Connection conn = connectionFactory.createConnection();
       Session jmsSession = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
-      Queue videoQueue = jmsSession.createQueue(QUEUE_NAME);
+      Queue mediaQueue = jmsSession.createQueue(QUEUE_NAME);
 
-      MessageProducer producer = jmsSession.createProducer(videoQueue);
+      MessageProducer producer = jmsSession.createProducer(mediaQueue);
 
-      producer.send(VideoUtils.message(jmsSession, "pid", pid));
+      producer.send(MediaUtils.message(jmsSession, "pid", pid));
 
       producer.close();
       jmsSession.close();

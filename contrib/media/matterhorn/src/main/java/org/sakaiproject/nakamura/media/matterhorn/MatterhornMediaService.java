@@ -22,29 +22,29 @@ import java.io.File;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Service;
-import org.sakaiproject.nakamura.api.media.VideoService;
-import org.sakaiproject.nakamura.api.media.VideoServiceException;
+import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.MediaServiceException;
 
 /**
  *
  */
 @Component(enabled = false, metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
-public class MatterhornVideoService implements VideoService {
+public class MatterhornMediaService implements MediaService {
   @Override
-  public String createVideo(File video, String title, String description, String[] tags)
-      throws VideoServiceException {
+  public String createMedia(File media, String title, String description, String[] tags)
+      throws MediaServiceException {
     return null;
   }
 
   @Override
-  public String updateVideo(String id, String title, String description, String[] tags)
-      throws VideoServiceException {
+  public String updateMedia(String id, String title, String description, String[] tags)
+      throws MediaServiceException {
     return null;
   }
 
   @Override
-  public String getStatus(String id) throws VideoServiceException {
+  public String getStatus(String id) throws MediaServiceException {
     return null;
   }
 }

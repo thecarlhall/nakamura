@@ -19,8 +19,8 @@
 package org.sakaiproject.nakamura.api.media;
 
 /**
- * Interface for video transcoding and streaming services.
+ * Interface for media transcoding and streaming services.
  */
-public interface VideoListener {
+public interface MediaListener {
   void contentUpdated(String pid);
 }

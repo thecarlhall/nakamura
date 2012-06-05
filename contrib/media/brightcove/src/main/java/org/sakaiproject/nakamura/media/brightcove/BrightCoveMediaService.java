@@ -42,16 +42,16 @@ import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentException;
-import org.sakaiproject.nakamura.api.media.VideoService;
-import org.sakaiproject.nakamura.api.media.VideoServiceException;
+import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
-public class BrightCoveVideoService implements VideoService {
+public class BrightCoveMediaService implements MediaService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BrightCoveVideoService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BrightCoveMediaService.class);
 
   @Property
   public static final String READ_TOKEN = "readToken";
@@ -70,7 +70,7 @@ public class BrightCoveVideoService implements VideoService {
 
   private HttpClient client;
 
-  public BrightCoveVideoService() {
+  public BrightCoveMediaService() {
     client = new HttpClient();
   }
 
@@ -98,16 +98,16 @@ public class BrightCoveVideoService implements VideoService {
     postUrl = String.format("%s/post", baseUrl);
   }
 
-  // --------------- VideoService interface -----------------------------------
+  // --------------- MediaService interface -----------------------------------
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.VideoService#createVideo(java.io.File, java.lang.String, java.lang.String, java.lang.String[])
+   * @see org.sakaiproject.nakamura.api.media.MediaService#createMedia(java.io.File, java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
-  public String createVideo(File videoFile, String title, String description,
-      String[] tags) throws VideoServiceException {
-    String response = sendVideo(title, description, tags, videoFile, null);
+  public String createMedia(File mediaFile, String title, String description,
+      String[] tags) throws MediaServiceException {
+    String response = sendMedia(title, description, tags, mediaFile, null);
     LOG.info(response);
     return response;
   }
@@ -115,12 +115,12 @@ public class BrightCoveVideoService implements VideoService {
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.VideoService#updateVideo(java.lang.String, java.lang.String, java.lang.String, java.lang.String[])
+   * @see org.sakaiproject.nakamura.api.media.MediaService#updateMedia(java.lang.String, java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
-  public String updateVideo(String id, String title, String description, String[] tags)
-      throws VideoServiceException {
-    String response = sendVideo(title, description, tags, null, id);
+  public String updateMedia(String id, String title, String description, String[] tags)
+      throws MediaServiceException {
+    String response = sendMedia(title, description, tags, null, id);
     LOG.info(response);
     return response;
   }
@@ -128,7 +128,7 @@ public class BrightCoveVideoService implements VideoService {
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.VideoService#getStatus(java.lang.String)
+   * @see org.sakaiproject.nakamura.api.media.MediaService#getStatus(java.lang.String)
    */
   @Override
   public String getStatus(String id) {
@@ -140,7 +140,7 @@ public class BrightCoveVideoService implements VideoService {
           .put("method", "get_upload_status")
           .put("params", new JSONObject()
               .put("token", writeToken)
-              .put("video_id", id));
+              .put("media_id", id));
       // Define the url to the api
       post = new PostMethod(postUrl);
       Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
@@ -148,7 +148,7 @@ public class BrightCoveVideoService implements VideoService {
       int returnCode = client.executeMethod(post);
 
       String response = post.getResponseBodyAsString();
-      status = String.format("Video upload information [%s]: %s", new Object[] {
+      status = String.format("Media upload information [%s]: %s", new Object[] {
           returnCode, response });
     } catch (JSONException e) {
       LOG.error(e.getMessage(), e);
@@ -165,10 +165,10 @@ public class BrightCoveVideoService implements VideoService {
     return status;
   }
 
-  private String sendVideo(String title, String description, String[] tags,
-      File videoFile, String id) throws VideoServiceException {
-    if (id == null && videoFile == null) {
-      throw new IllegalArgumentException("Must supply 'id' or 'videoFile'");
+  private String sendMedia(String title, String description, String[] tags,
+      File mediaFile, String id) throws MediaServiceException {
+    if (id == null && mediaFile == null) {
+      throw new IllegalArgumentException("Must supply 'id' or 'mediaFile'");
     }
 
     PostMethod post = null;
@@ -176,27 +176,27 @@ public class BrightCoveVideoService implements VideoService {
       /*
        * Assemble the JSON params
        */
-      JSONObject video = new JSONObject()
+      JSONObject media = new JSONObject()
           .put("name", title)
           .put("shortDescription", description)
           .put("tags", Arrays.toString(tags));
-      String method = "update_video";
-      if (videoFile != null) {
-        method = "create_video";
+      String method = "update_media";
+      if (mediaFile != null) {
+        method = "create_media";
       } else {
-        video.put("referenceId", id);
+        media.put("referenceId", id);
       }
 
       JSONObject json = new JSONObject()
           .put("method", method)
           .put("params", new JSONObject()
               .put("token", writeToken)
-              .put("video", video));
+              .put("media", media));
 
       Part[] parts;
-      if (videoFile != null) {
+      if (mediaFile != null) {
         parts = new Part[] { new StringPart("JSON-RPC", json.toString()),
-            new FilePart(videoFile.getName(), videoFile) };
+            new FilePart(mediaFile.getName(), mediaFile) };
       } else {
         parts = new Part[] { new StringPart("JSON-RPC", json.toString()) };
       }
@@ -206,19 +206,19 @@ public class BrightCoveVideoService implements VideoService {
       int returnCode = client.executeMethod(post);
 
       String response = post.getResponseBodyAsString();
-      String msg = String.format("Posted video information [%s]: %s", new Object[] {
+      String msg = String.format("Posted media information [%s]: %s", new Object[] {
           returnCode, response });
       LOG.info(msg);
       String output = "{'post':" + json.toString() + ",\n'response':" + response + "}\n";
       return output;
     } catch (JSONException e) {
-      throw new VideoServiceException(e.getMessage(), e);
+      throw new MediaServiceException(e.getMessage(), e);
     } catch (FileNotFoundException e) {
-      throw new VideoServiceException(e.getMessage(), e);
+      throw new MediaServiceException(e.getMessage(), e);
     } catch (HttpException e) {
-      throw new VideoServiceException(e.getMessage(), e);
+      throw new MediaServiceException(e.getMessage(), e);
     } catch (IOException e) {
-      throw new VideoServiceException(e.getMessage(), e);
+      throw new MediaServiceException(e.getMessage(), e);
     } finally {
       if (post != null) {
         post.releaseConnection();

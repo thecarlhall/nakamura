@@ -20,21 +20,21 @@ package org.sakaiproject.nakamura.api.media;
 /**
  *
  */
-public class VideoServiceException extends Exception {
+public class MediaServiceException extends Exception {
 
-  public VideoServiceException() {
+  public MediaServiceException() {
     super();
   }
 
-  public VideoServiceException(String message, Throwable cause) {
+  public MediaServiceException(String message, Throwable cause) {
     super(message, cause);
   }
 
-  public VideoServiceException(String message) {
+  public MediaServiceException(String message) {
     super(message);
   }
 
-  public VideoServiceException(Throwable cause) {
+  public MediaServiceException(Throwable cause) {
     super(cause);
   }
 
