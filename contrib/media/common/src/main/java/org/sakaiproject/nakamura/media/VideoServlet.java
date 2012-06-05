@@ -20,9 +20,7 @@ package org.sakaiproject.nakamura.media;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.List;
-import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -33,28 +31,13 @@ import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.NameValuePair;
-import org.apache.commons.httpclient.methods.FileRequestEntity;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.multipart.FilePart;
-import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
-import org.apache.commons.httpclient.methods.multipart.Part;
-import org.apache.commons.httpclient.methods.multipart.StringPart;
-import org.apache.commons.lang.StringUtils;
-import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
-import org.apache.felix.scr.annotations.Modified;
 import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.apache.felix.scr.annotations.sling.SlingServlet;
-import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.JSONObject;
-import org.apache.sling.commons.json.io.JSONWriter;
-import org.apache.sling.commons.osgi.PropertiesUtil;
-import org.osgi.service.component.ComponentException;
+import org.sakaiproject.nakamura.api.media.VideoService;
+import org.sakaiproject.nakamura.api.media.VideoServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,81 +48,19 @@ import org.slf4j.LoggerFactory;
 @Service
 @Property(name = "alias", value = "/var/brightcove")
 public class VideoServlet extends HttpServlet {
-  @Property
-  public static final String READ_TOKEN = "readToken";
-
-  @Property
-  public static final String WRITE_TOKEN = "writeToken";
-
-  @Property(value = "http://api.brightcove.com/services")
-  public static final String BASE_URL = "baseUrl";
-
   private static final Logger LOG = LoggerFactory.getLogger(VideoServlet.class);
 
-  protected String readToken;
-  protected String writeToken;
-  protected String baseUrl;
-  protected String libraryUrl;
-  protected String postUrl;
-
-  private HttpClient client;
-
-  public VideoServlet() {
-    client = new HttpClient();
-  }
-
-  @Activate
-  @Modified
-  protected void activate(Map<?, ?> props) {
-    readToken = PropertiesUtil.toString(props.get(READ_TOKEN), null);
-    // require readToken
-    if (StringUtils.isBlank(readToken)) {
-      throw new ComponentException("'readToken' required to communicate with BrightCove");
-    }
-
-    writeToken = PropertiesUtil.toString(props.get(WRITE_TOKEN), null);
-    // if writeToken is blank, use readToken
-    if (StringUtils.isBlank(writeToken)) {
-      throw new ComponentException("'writeToken' required to communicate with BrightCove");
-    }
-
-    baseUrl = PropertiesUtil.toString(props.get(BASE_URL), null);
-    // require baseUrl
-    if (StringUtils.isBlank(baseUrl)) {
-      throw new ComponentException("'baseUrl' required to communicate with BrightCove");
-    }
-    libraryUrl = String.format("%s/library", baseUrl);
-    postUrl = String.format("%s/post", baseUrl);
-  }
+  @Reference
+  VideoService videoService;
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-    PostMethod post = null;
-
     try {
-      JSONObject json = new JSONObject()
-          .put("method", "get_upload_status")
-          .put("params", new JSONObject()
-              .put("token", writeToken)
-              .put("video_id", req.getParameter("video_id")));
-      // Define the url to the api
-      post = new PostMethod(postUrl);
-      Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
-      post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
-      int returnCode = client.executeMethod(post);
-
-      String response = post.getResponseBodyAsString();
-      String msg = String.format("Video upload information [%s]: %s", new Object[] {
-          returnCode, response });
-      LOG.info(msg);
-      resp.getWriter().write(response);
-    } catch (JSONException e) {
-      LOG.error(e.getMessage(), e);
-    } finally {
-      if (post != null) {
-        post.releaseConnection();
-      }
+      String status = videoService.getStatus(req.getParameter("video_id"));
+      resp.getWriter().write(status);
+    } catch (VideoServiceException e) {
+      throw new ServletException(e.getMessage(), e);
     }
   }
 
@@ -158,9 +79,9 @@ public class VideoServlet extends HttpServlet {
 
     // Create a new file upload handler
     ServletFileUpload upload = new ServletFileUpload(factory);
-    upload.setSizeMax(1000000000);
+    int sizeMax = 1024 /*1 kB*/ * 1000 /*1 MB*/ * 100 /*100 MB*/; 
+    upload.setSizeMax(sizeMax);
 
-    PostMethod post = null;
     try {
       // Parse the request into a list of DiskFileItems
       @SuppressWarnings("unchecked")
@@ -169,45 +90,20 @@ public class VideoServlet extends HttpServlet {
       File videoFile = items.get(0).getStoreLocation();
       String videoName = req.getParameter("name");
       String videoDescription = req.getParameter("desc");
+      String[] tags = req.getParameterValues("tags");
       /*
        * STEP 2. Assemble the JSON params
        */
-      JSONObject json = new JSONObject()
-          .put("method", "create_video")
-          .put("params", new JSONObject()
-              .put("token", writeToken)
-              .put("video", new JSONObject()
-                  .put("name", videoName)
-                  .put("shortDescription", videoDescription)));
+      String response = videoService.createVideo(videoFile, videoName, videoDescription,
+          tags);
 
-
-      Part[] parts = {
-          new StringPart("JSON-RPC", json.toString()),
-          new FilePart(videoFile.getName(), videoFile)
-      };
-
-      post = new PostMethod(postUrl);
-      post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
-      int returnCode = client.executeMethod(post);
-
-      String response = post.getResponseBodyAsString();
-      String msg = String.format("Posted video information [%s]: %s", new Object[] {
-          returnCode, response });
+      String msg = "Posted video information: " + response;
       LOG.info(msg);
-      PrintWriter w = resp.getWriter();
-      w.write("{'post':");
-      w.write(json.toString());
-      w.write(",\n'response':");
-      w.write(response);
-      w.write("}\n");
+      resp.getWriter().write(msg);
     } catch (FileUploadException e) {
-      LOG.error(e.getMessage(), e);
-    } catch (JSONException e) {
-      LOG.error(e.getMessage(), e);
-    } finally {
-      if (post != null) {
-        post.releaseConnection();
-      }
+      throw new ServletException(e.getMessage(), e);
+    } catch (VideoServiceException e) {
+      throw new ServletException(e.getMessage(), e);
     }
   }
 

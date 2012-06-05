@@ -18,13 +18,44 @@
  */
 package org.sakaiproject.nakamura.api.media;
 
-import java.io.InputStream;
+import java.io.File;
 
 /**
  *
  */
 public interface VideoService {
-  String createVideo(InputStream video, String title, String description, String[] tags);
-  void updateVideo(String id, String title, String description, String[] tags);
-  String getStatus(String id);
+  /**
+   * Create video with supplied metadata.
+   *
+   * @param video
+   * @param title
+   * @param description
+   * @param tags
+   * @return
+   * @throws VideoServiceException
+   */
+  String createVideo(File video, String title, String description, String[] tags)
+      throws VideoServiceException;
+
+  /**
+   * Update the metadata for a video.
+   *
+   * @param id
+   * @param title
+   * @param description
+   * @param tags
+   * @return
+   * @throws VideoServiceException
+   */
+  String updateVideo(String id, String title, String description, String[] tags)
+      throws VideoServiceException;
+
+  /**
+   * Get the status of a video.
+   *
+   * @param id
+   * @return
+   * @throws VideoServiceException
+   */
+  String getStatus(String id) throws VideoServiceException;
 }
