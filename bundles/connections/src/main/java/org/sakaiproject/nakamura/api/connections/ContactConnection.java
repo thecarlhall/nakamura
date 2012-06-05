@@ -17,14 +17,16 @@
  */
 package org.sakaiproject.nakamura.api.connections;
 
-import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.sakaiproject.nakamura.api.storage.Entity;
+
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import java.util.Map;
 import java.util.Set;
 
-@Indexed @ProvidedId
-@Analyzer(impl=KeywordAnalyzer.class)
+//@Indexed @ProvidedId
+//@Analyzer(impl=KeywordAnalyzer.class)
 public class ContactConnection implements Entity {
   private String key = null;
   private ConnectionState connectionState = ConnectionState.NONE;
@@ -60,7 +62,7 @@ public class ContactConnection implements Entity {
     return this.key;
   }
   
-  @Field
+//  @Field
   public ConnectionState getConnectionState() {
     return connectionState;
   }
@@ -85,7 +87,7 @@ public class ContactConnection implements Entity {
     return properties;
   }
 
-  @Field
+//  @Field
   public String getFromUserId() {
     return fromUserId;
   }
