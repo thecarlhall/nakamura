@@ -8,7 +8,6 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import java.io.IOException;
 import java.io.InputStream;
 
-
 class Version {
 
   private String pid;
@@ -17,11 +16,13 @@ class Version {
   private String description;
   private String extension;
   private String mediaId;
+  private String[] tags;
   private ContentManager contentManager;
 
 
   public Version(String pid, String versionId,
                  String title, String description, String extension,
+                 String[] tags,
                  ContentManager cm) {
     contentManager = cm;
     this.pid = pid;
@@ -29,6 +30,7 @@ class Version {
     this.title = title;
     this.description = description;
     this.extension = extension;
+    this.tags = tags;
   }
 
 
@@ -52,15 +54,30 @@ class Version {
   }
 
 
+  public String[] getTags() {
+    return tags;
+  }
+
+
   public InputStream getStoredContent() throws AccessDeniedException, StorageClientException, IOException {
     return contentManager.getVersionInputStream(pid, versionId);
   }
 
 
   public Long metadataVersion() {
-    int hash = (title + description).hashCode();
+    StringBuilder sb = new StringBuilder();
 
-    return new Long((long)hash);
+    sb.append(title);
+    sb.append("\1");
+    sb.append(description);
+    sb.append("\1");
+
+    for (String tag : tags) {
+      sb.append(tag);
+      sb.append("\1");
+    }
+
+    return new Long((long)(sb.toString().hashCode()));
   }
 
 

@@ -173,7 +173,7 @@ public class MediaCoordinator implements Runnable {
                                                       version.getTitle(),
                                                       version.getDescription(),
                                                       version.getExtension(),
-                                                      new String[] {});
+                                                      version.getTags());
 
             mediaNode.storeMediaId(version, mediaId);
 
@@ -192,7 +192,7 @@ public class MediaCoordinator implements Runnable {
             mediaService.updateMedia(mediaNode.getMediaId(version),
                                      version.getTitle(),
                                      version.getDescription(),
-                                     new String[] {});
+                                     version.getTags());
 
             mediaNode.recordVersion(version);
 

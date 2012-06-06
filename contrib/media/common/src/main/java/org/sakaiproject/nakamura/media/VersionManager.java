@@ -47,11 +47,18 @@ class VersionManager {
       Content current = versions.get(i);
       Content last = versions.get(i - 1);
 
+      String[] tags = (String[])last.getProperty("sakai:tags");
+
+      if (tags == null) {
+        tags = new String[0];
+      }
+
       result.add(new Version(pid,
                              (String)current.getProperty("_id"),
                              (String)last.getProperty("sakai:pooled-content-file-name"),
                              (String)last.getProperty("sakai:description"),
                              (String)last.getProperty("sakai:fileextension"),
+                             tags,
                              contentManager));
     }
 
