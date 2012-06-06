@@ -15,6 +15,8 @@ import javax.jms.Queue;
 import javax.jms.Message;
 import javax.jms.JMSException;
 
+import org.apache.activemq.ActiveMQSession;
+
 import java.util.Map;
 import java.util.HashMap;
 
@@ -102,7 +104,7 @@ public class MediaCoordinator implements Runnable {
       conn = connectionFactory.createConnection();
       conn.start();
 
-      jmsSession = conn.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+      jmsSession = conn.createSession(false, ActiveMQSession.INDIVIDUAL_ACKNOWLEDGE);
 
       Queue mediaQueue = jmsSession.createQueue(queueName);
       mediaQueueConsumer = jmsSession.createConsumer(mediaQueue);
@@ -123,6 +125,7 @@ public class MediaCoordinator implements Runnable {
   private void disconnectFromJMS() {
     try {
       mediaQueueConsumer.close();
+      jmsSession.rollback();
       jmsSession.close();
       conn.close();
     } catch (JMSException e) {
