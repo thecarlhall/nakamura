@@ -18,7 +18,7 @@
  */
 package org.sakaiproject.nakamura.api.media;
 
-import java.io.File;
+import java.io.InputStream;
 
 /**
  *
@@ -34,7 +34,7 @@ public interface MediaService {
    * @return
    * @throws MediaServiceException
    */
-  String createMedia(File media, String title, String description, String[] tags)
+  String createMedia(InputStream media, String title, String description, String[] tags)
       throws MediaServiceException;
 
   /**

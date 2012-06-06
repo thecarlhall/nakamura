@@ -19,6 +19,7 @@
 package org.sakaiproject.nakamura.media;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -94,8 +95,14 @@ public class MediaServlet extends HttpServlet {
       /*
        * STEP 2. Assemble the JSON params
        */
-      String response = mediaService.createMedia(mediaFile, mediaName, mediaDescription,
-          tags);
+      FileInputStream fis = new FileInputStream(mediaFile);
+      String response = null;
+      try {
+        response = mediaService.createMedia(fis, mediaName, mediaDescription,
+                                            tags);
+      } finally {
+        fis.close();
+      }
 
       String msg = "Posted media information: " + response;
       LOG.info(msg);

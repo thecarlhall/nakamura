@@ -19,15 +19,20 @@
 package org.sakaiproject.nakamura.media.brightcove;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.FilePart;
+import org.apache.commons.httpclient.methods.multipart.PartSource;
 import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
 import org.apache.commons.httpclient.methods.multipart.Part;
 import org.apache.commons.httpclient.methods.multipart.StringPart;
@@ -102,10 +107,10 @@ public class BrightCoveMediaService implements MediaService {
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.MediaService#createMedia(java.io.File, java.lang.String, java.lang.String, java.lang.String[])
+   * @see org.sakaiproject.nakamura.api.media.MediaService#createMedia(java.io.InputStream, java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
-  public String createMedia(File mediaFile, String title, String description,
+  public String createMedia(InputStream mediaFile, String title, String description,
       String[] tags) throws MediaServiceException {
     String response = sendMedia(title, description, tags, mediaFile, null);
     LOG.info(response);
@@ -165,8 +170,38 @@ public class BrightCoveMediaService implements MediaService {
     return status;
   }
 
-  private String sendMedia(String title, String description, String[] tags,
-      File mediaFile, String id) throws MediaServiceException {
+  private FileInputStream asFileInputStream(InputStream is) throws MediaServiceException {
+    if (is instanceof FileInputStream) {
+      // Easy.
+      return (FileInputStream) is;
+    }
+
+    try {
+      final File tmpfile = File.createTempFile("oae_media", null);
+
+      FileOutputStream out = new FileOutputStream(tmpfile);
+      IOUtils.copy(is, out);
+      out.close();
+      is.close();
+
+      return new FileInputStream (tmpfile) {
+        public void close() throws IOException {
+          try {
+            super.close();
+          } finally {
+            tmpfile.delete();
+          }
+        }
+      };
+    } catch (FileNotFoundException e) {
+      throw new MediaServiceException("Failed to create temporary file", e); 
+    } catch (IOException e) {
+      throw new MediaServiceException("Failed to create temporary file", e); 
+    }
+  }
+
+  private String sendMedia(final String title, String description, String[] tags,
+      InputStream mediaFile, final String id) throws MediaServiceException {
     if (id == null && mediaFile == null) {
       throw new IllegalArgumentException("Must supply 'id' or 'mediaFile'");
     }
@@ -195,8 +230,29 @@ public class BrightCoveMediaService implements MediaService {
 
       Part[] parts;
       if (mediaFile != null) {
-        parts = new Part[] { new StringPart("JSON-RPC", json.toString()),
-            new FilePart(mediaFile.getName(), mediaFile) };
+        final FileInputStream fileInput = asFileInputStream(mediaFile);
+        parts = new Part[] {
+          new StringPart("JSON-RPC", json.toString()),
+          new FilePart("fileData",
+                       new PartSource () {
+                         public InputStream createInputStream() {
+                           return fileInput;
+                         }
+
+                         public String getFileName() {
+                           return title;
+                         }
+
+                         public long getLength() {
+                           try {
+                             return fileInput.getChannel().size();
+                           } catch (IOException e) {
+                             LOG.error("Failed to calculate size for file '{}'", id);
+                             throw new RuntimeException("getLength failed for file: " + id, e); 
+                           }
+                         }
+                       })
+        };
       } else {
         parts = new Part[] { new StringPart("JSON-RPC", json.toString()) };
       }
