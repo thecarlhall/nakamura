@@ -111,8 +111,8 @@ public class BrightCoveMediaService implements MediaService {
    */
   @Override
   public String createMedia(InputStream mediaFile, String title, String description,
-      String[] tags) throws MediaServiceException {
-    String response = sendMedia(title, description, tags, mediaFile, null);
+                            String extension, String[] tags) throws MediaServiceException {
+    String response = sendMedia(title, description, extension, tags, mediaFile, null);
     LOG.info(response);
     return response;
   }
@@ -125,7 +125,7 @@ public class BrightCoveMediaService implements MediaService {
   @Override
   public String updateMedia(String id, String title, String description, String[] tags)
       throws MediaServiceException {
-    String response = sendMedia(title, description, tags, null, id);
+    String response = sendMedia(title, description, null, tags, null, id);
     LOG.info(response);
     return response;
   }
@@ -200,8 +200,8 @@ public class BrightCoveMediaService implements MediaService {
     }
   }
 
-  private String sendMedia(final String title, String description, String[] tags,
-      InputStream mediaFile, final String id) throws MediaServiceException {
+  private String sendMedia(final String title, String description, final String extension, String[] tags,
+                           InputStream mediaFile, final String id) throws MediaServiceException {
     if (id == null && mediaFile == null) {
       throw new IllegalArgumentException("Must supply 'id' or 'mediaFile'");
     }
@@ -212,21 +212,23 @@ public class BrightCoveMediaService implements MediaService {
        * Assemble the JSON params
        */
       JSONObject media = new JSONObject()
-          .put("name", title)
-          .put("shortDescription", description)
-          .put("tags", Arrays.toString(tags));
-      String method = "update_media";
+        .put("name", title)
+        .put("shortDescription", description)
+        .put("tags", Arrays.asList(tags));
+
+      String method = "update_video";
+
       if (mediaFile != null) {
-        method = "create_media";
+        method = "create_video";
       } else {
-        media.put("referenceId", id);
+        media.put("id", id);
       }
 
       JSONObject json = new JSONObject()
           .put("method", method)
           .put("params", new JSONObject()
               .put("token", writeToken)
-              .put("media", media));
+              .put("video", media));
 
       Part[] parts;
       if (mediaFile != null) {
@@ -240,7 +242,11 @@ public class BrightCoveMediaService implements MediaService {
                          }
 
                          public String getFileName() {
-                           return title;
+                           if (extension != null) {
+                             return title + "." + extension;
+                           } else {
+                             return title;
+                           }
                          }
 
                          public long getLength() {
@@ -262,11 +268,27 @@ public class BrightCoveMediaService implements MediaService {
       int returnCode = client.executeMethod(post);
 
       String response = post.getResponseBodyAsString();
-      String msg = String.format("Posted media information [%s]: %s", new Object[] {
-          returnCode, response });
+
+      String msg = String.format("Sent: %s, Posted media information [%s]: %s", new Object[] {
+          json.toString(), returnCode, response });
       LOG.info(msg);
-      String output = "{'post':" + json.toString() + ",\n'response':" + response + "}\n";
-      return output;
+
+      JSONObject responseJSON = new JSONObject(response);
+
+      JSONObject error = responseJSON.has("error") ? responseJSON.optJSONObject("error") : null;
+
+      if (error != null) {
+          throw new MediaServiceException(error.getString("name") + ": " + error.getString("message"));
+      }
+
+      if (mediaFile != null) {
+        // This was an upload.  Return the new ID
+        return String.valueOf(responseJSON.getLong("result"));
+      } else {
+        // An update.  Return the old ID
+        return id;
+      }
+
     } catch (JSONException e) {
       throw new MediaServiceException(e.getMessage(), e);
     } catch (FileNotFoundException e) {

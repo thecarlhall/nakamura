@@ -1,15 +1,14 @@
 package org.sakaiproject.nakamura.media;
 
+import java.io.IOException;
+import java.io.InputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import com.google.common.collect.Maps;
-
 import javax.jms.ConnectionFactory;
 import javax.jms.Connection;
 import javax.jms.MessageListener;
-import javax.jms.MessageProducer;
 import javax.jms.MessageConsumer;
 import javax.jms.Session;
 import javax.jms.Queue;
@@ -27,11 +26,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
-import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 
 import org.sakaiproject.nakamura.api.files.FilesConstants;
+
+import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.MediaServiceException;
+
 
 
 public class MediaCoordinator implements Runnable {
@@ -54,11 +56,17 @@ public class MediaCoordinator implements Runnable {
 
   Thread activeThread;
 
+  private MediaService mediaService;
 
-  public MediaCoordinator(ConnectionFactory connectionFactory, String queueName, Repository sparseRepository) {
+
+  public MediaCoordinator(ConnectionFactory connectionFactory,
+                          String queueName,
+                          Repository sparseRepository,
+                          MediaService mediaService) {
     this.connectionFactory = connectionFactory;
     this.queueName = queueName;
     this.sparseRepository = sparseRepository;
+    this.mediaService = mediaService;
 
     running = new AtomicBoolean(false);
   }
@@ -139,7 +147,7 @@ public class MediaCoordinator implements Runnable {
 
 
 
-  private void syncMedia(Content obj, ContentManager cm) {
+  private void syncMedia(Content obj, ContentManager cm) throws IOException {
     LOGGER.info("Processing media now...");
 
     String path = obj.getPath();
@@ -155,14 +163,41 @@ public class MediaCoordinator implements Runnable {
         if (!mediaNode.isBodyUploaded(version)) {
           LOGGER.info("Uploading body for version {} of object {}",
                       version, path);
+
+          InputStream is = cm.getVersionInputStream(path, version.getVersionId());
+          try {
+            String mediaId = mediaService.createMedia(is,
+                                                      version.getTitle(),
+                                                      version.getDescription(),
+                                                      version.getExtension(),
+                                                      new String[] {});
+
+            mediaNode.storeMediaId(version, mediaId);
+
+          } catch (MediaServiceException e) {
+            throw new RuntimeException("Got MediaServiceException during body upload", e);
+          } finally {
+            is.close();
+          }
         }
 
         if (!mediaNode.isMetadataUpToDate(version)) {
           LOGGER.info("Updating metadata for version {} of object {}",
                       version, path);
-        }
 
-        mediaNode.recordVersion(version);
+          try {
+            mediaService.updateMedia(mediaNode.getMediaId(version),
+                                     version.getTitle(),
+                                     version.getDescription(),
+                                     new String[] {});
+
+            mediaNode.recordVersion(version);
+
+          } catch (MediaServiceException e) {
+            throw new RuntimeException("Got MediaServiceException during metadata update", e);
+
+          }
+        }
       }
 
 
@@ -184,7 +219,7 @@ public class MediaCoordinator implements Runnable {
   }
 
 
-  private void processObject(String pid) {
+  private void processObject(String pid) throws IOException {
     org.sakaiproject.nakamura.api.lite.Session sparseSession = null;
     try {
       sparseSession = sparseRepository.loginAdministrative();

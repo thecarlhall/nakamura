@@ -91,6 +91,10 @@ public class MediaServlet extends HttpServlet {
       File mediaFile = items.get(0).getStoreLocation();
       String mediaName = req.getParameter("name");
       String mediaDescription = req.getParameter("desc");
+
+      String fileName = mediaFile.getName();
+      String extension = fileName.substring(fileName.lastIndexOf("."));
+
       String[] tags = req.getParameterValues("tags");
       /*
        * STEP 2. Assemble the JSON params
@@ -99,6 +103,7 @@ public class MediaServlet extends HttpServlet {
       String response = null;
       try {
         response = mediaService.createMedia(fis, mediaName, mediaDescription,
+                                            extension,
                                             tags);
       } finally {
         fis.close();

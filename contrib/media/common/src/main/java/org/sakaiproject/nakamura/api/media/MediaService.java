@@ -30,11 +30,12 @@ public interface MediaService {
    * @param media
    * @param title
    * @param description
+   * @param extension
    * @param tags
    * @return
    * @throws MediaServiceException
    */
-  String createMedia(InputStream media, String title, String description, String[] tags)
+  String createMedia(InputStream media, String title, String description, String extension, String[] tags)
       throws MediaServiceException;
 
   /**

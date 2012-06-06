@@ -47,17 +47,31 @@ class MediaNode {
 
 
   public void recordVersion(Version version) throws AccessDeniedException, StorageClientException {
-
     Content replicationStatus = getReplicationStatus(version);
 
-    replicationStatus.setProperty("bodyUploaded", "Y");
     replicationStatus.setProperty("metadataVersion",
                                   version.metadataVersion());
 
     contentManager.update(replicationStatus);
-
   }
 
+
+  public String getMediaId(Version version) throws AccessDeniedException, StorageClientException {
+    Content replicationStatus = getReplicationStatus(version);
+    return (String)replicationStatus.getProperty("bodyMediaId");
+  }
+
+
+  public void storeMediaId(Version version, String mediaId) throws AccessDeniedException, StorageClientException {
+    Content replicationStatus = getReplicationStatus(version);
+
+    replicationStatus.setProperty("bodyMediaId", mediaId);
+    replicationStatus.setProperty("bodyUploaded", "Y");
+
+    replicationStatus.setProperty("metadataVersion", version.metadataVersion());
+
+    contentManager.update(replicationStatus);
+  }
 
   private Content getReplicationStatus(Version version) throws StorageClientException, AccessDeniedException {
     String mypath = path + "/replicationStatus/" + version.getVersionId();

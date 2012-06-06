@@ -40,6 +40,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventHandler;
+import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.activemq.ConnectionFactoryService;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
 import org.sakaiproject.nakamura.api.lite.Repository;
@@ -68,6 +69,10 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
   @Reference
   protected Repository sparseRepository;
 
+  @Reference
+  protected MediaService mediaService;
+
+
   private MediaCoordinator ucbMediaCoordinator;
 
   @Activate
@@ -77,8 +82,10 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
     connectionFactory = connectionFactoryService.getDefaultPooledConnectionFactory();
 
-    ucbMediaCoordinator = new MediaCoordinator(connectionFactory, QUEUE_NAME,
-        sparseRepository);
+    ucbMediaCoordinator = new MediaCoordinator(connectionFactory,
+                                               QUEUE_NAME,
+                                               sparseRepository,
+                                               mediaService);
     ucbMediaCoordinator.start();
   }
 

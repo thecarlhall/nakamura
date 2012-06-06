@@ -15,15 +15,20 @@ class Version {
   private String versionId;
   private String title;
   private String description;
+  private String extension;
+  private String mediaId;
   private ContentManager contentManager;
 
 
-  public Version(String pid, String versionId, String title, String description, ContentManager cm) {
+  public Version(String pid, String versionId,
+                 String title, String description, String extension,
+                 ContentManager cm) {
     contentManager = cm;
     this.pid = pid;
     this.versionId = versionId;
     this.title = title;
     this.description = description;
+    this.extension = extension;
   }
 
 
@@ -39,6 +44,11 @@ class Version {
 
   public String getDescription() {
     return description;
+  }
+
+
+  public String getExtension() {
+    return extension;
   }
 
 
