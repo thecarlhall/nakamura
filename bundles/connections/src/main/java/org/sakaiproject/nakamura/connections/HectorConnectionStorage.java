@@ -33,6 +33,7 @@ import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
 import me.prettyprint.cassandra.service.template.ThriftColumnFamilyTemplate;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
+import me.prettyprint.hector.api.beans.ColumnSlice;
 import me.prettyprint.hector.api.beans.Composite;
 import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.ddl.ColumnFamilyDefinition;
@@ -57,6 +58,8 @@ import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
+import edu.emory.mathcs.backport.java.util.Collections;
 
 /**
  *
@@ -99,7 +102,20 @@ public class HectorConnectionStorage implements ConnectionStorage {
   @Override
   public ContactConnection getOrCreateContactConnection(Authorizable thisAu,
       Authorizable otherAu) throws ConnectionException {
-    return null;
+    ContactConnection cc = getContactConnection(thisAu, otherAu);
+    if (cc == null) {
+      cc = new ContactConnection(null, ConnectionState.NONE, Collections.emptySet(),
+          thisAu.getId(), otherAu.getId(), (String) otherAu.getProperty("firstName"),
+          (String) otherAu.getProperty("lastName"), null);
+      Mutator<String> mutator = template.createMutator();
+      try {
+        mutateContactConnection(cc, mutator);
+        mutator.execute();
+      } catch (UnsupportedEncodingException e) {
+        throw new ConnectionException(500, e);
+      }
+    }
+    return cc;
   }
 
   /**
@@ -113,7 +129,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
       ContactConnection otherNode) throws ConnectionException {
     Mutator<String> mutator = template.createMutator();
 
-    try {
+     try {
       mutateContactConnection(thisNode, mutator);
       mutateContactConnection(otherNode, mutator);
       mutator.execute();
@@ -134,44 +150,51 @@ public class HectorConnectionStorage implements ConnectionStorage {
   public ContactConnection getContactConnection(Authorizable thisUser,
       Authorizable otherUser) throws ConnectionException {
     try {
-      SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace, StringSerializer.get(), CompositeSerializer.get(), StringSerializer.get());
-      query.setColumnFamily(CF_NAME);
-      query.setKey(thisUser.getId());
-
       Composite start = new Composite();
       start.addComponent(otherUser.getId(), StringSerializer.get())
           .addComponent(Character.toString(Character.MIN_VALUE), StringSerializer.get());
       Composite finish = new Composite();
       finish.addComponent(otherUser.getId(), StringSerializer.get())
           .addComponent(Character.toString(Character.MAX_VALUE), StringSerializer.get());
+
+      SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace, StringSerializer.get(), CompositeSerializer.get(), StringSerializer.get());
+      query.setColumnFamily(CF_NAME);
+      query.setKey(thisUser.getId());
       query.setRange(start, finish, false, 0);
-
-      ColumnFamilyResult<String, String> res = template.queryColumns(thisUser.getId());
-      String key = res.getKey();
-      ConnectionState state = null;
-      String fromUserId = null;
-      String toUserId = null;
-      String firstName = null;
-      String lastName = null;
-      Set<String> types = Sets.newHashSet();
-      Map<String, Object> props = Maps.newHashMap();
-      for (String columnName : res.getColumnNames()) {
-        if ("connectionState".equals(columnName)) {
-          state = ConnectionState.valueOf(res.getString("connectionState"));
-        } else if ("firstName".equals(columnName)) {
-          firstName = res.getString("firstName");
-        } else if ("lastName".equals(columnName)) {
-          lastName = res.getString("lastName");
-        } else if (columnName.startsWith("connectionTypes:")) {
-          types.add(StringUtils.split(columnName, ":", 2)[1]);
-        } else if (columnName.startsWith("properties:")) {
-          String propName = StringUtils.split(columnName, ":", 2)[1];
-          // TODO this has to be wrong. Need to figure out how to serialize back to properties
-          props.put(propName, res.getColumn(columnName).getValue());
+      ColumnSlice<Composite, String> queryResult = query.execute().get();
+      List<HColumn<Composite, String>> columns = queryResult.getColumns();
+      
+      // TODO use columns from above
+//      ColumnFamilyResult<String, String> res = template.queryColumns(thisUser.getId());
+      ContactConnection cc = null;
+      if (!columns.isEmpty()) {
+//        String key = res.getKey();
+        ConnectionState state = null;
+        String fromUserId = null;
+        String toUserId = null;
+        String firstName = null;
+        String lastName = null;
+        Set<String> types = Sets.newHashSet();
+        Map<String, Object> props = Maps.newHashMap();
+        for (HColumn<Composite,String> column : columns) {
+          String propertyName = (String) column.getName().getComponent(1).getValue();
+//        }
+          if ("connectionState".equals(propertyName)) {
+            state = ConnectionState.valueOf(column.getValue());
+          } else if ("firstName".equals(propertyName)) {
+            firstName = column.getValue();
+          } else if ("lastName".equals(propertyName)) {
+            lastName = column.getValue();
+          } else if (propertyName.startsWith("connectionTypes:")) {
+            types.add(StringUtils.split(propertyName, ":", 2)[1]);
+          } else if (propertyName.startsWith("properties:")) {
+            String propName = StringUtils.split(propertyName, ":", 2)[1];
+            props.put(propName, column.getValue());
+          }
         }
-      }
 
-      ContactConnection cc = new ContactConnection(key, state, types, fromUserId, toUserId, firstName, lastName, props);
+        cc = new ContactConnection(key, state, types, fromUserId, toUserId, firstName, lastName, props);
+      }
       return cc;
     } catch (HectorException e) {
       throw new ConnectionException(500, e);
@@ -187,6 +210,25 @@ public class HectorConnectionStorage implements ConnectionStorage {
   @Override
   public List<String> getConnectedUsers(Session session, String userId,
       ConnectionState state) throws ConnectionException {
+    SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace, StringSerializer.get(), CompositeSerializer.get(), StringSerializer.get());
+    query.setColumnFamily(CF_NAME);
+    query.setKey(userId);
+
+    Composite start = new Composite();
+    start.addComponent(Character.toString(Character.MIN_VALUE), StringSerializer.get())
+        .addComponent("connectionState", StringSerializer.get());
+    Composite finish = new Composite();
+    finish.addComponent(Character.toString(Character.MAX_VALUE), StringSerializer.get())
+        .addComponent("connectionState", StringSerializer.get());
+    query.setRange(start, finish, false, 0);
+
+    ColumnSlice<Composite, String> queryResult = query.execute().get();
+    List<HColumn<Composite, String>> columns = queryResult.getColumns();
+//    ColumnFamilyResult<String, String> res = template.queryColumns(userId);
+    ContactConnection cc = null;
+    if (!columns.isEmpty()) {
+      
+    }
     return null;
   }
 
