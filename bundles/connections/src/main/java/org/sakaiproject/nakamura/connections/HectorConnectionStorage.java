@@ -19,6 +19,7 @@ package org.sakaiproject.nakamura.connections;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -26,9 +27,9 @@ import java.util.Set;
 
 import me.prettyprint.cassandra.serializers.BytesArraySerializer;
 import me.prettyprint.cassandra.serializers.CompositeSerializer;
+import me.prettyprint.cassandra.serializers.ObjectSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.ThriftKsDef;
-import me.prettyprint.cassandra.service.template.ColumnFamilyResult;
 import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
 import me.prettyprint.cassandra.service.template.ThriftColumnFamilyTemplate;
 import me.prettyprint.hector.api.Cluster;
@@ -56,10 +57,9 @@ import org.sakaiproject.nakamura.api.connections.ContactConnection;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import edu.emory.mathcs.backport.java.util.Collections;
 
 /**
  *
@@ -104,7 +104,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
       Authorizable otherAu) throws ConnectionException {
     ContactConnection cc = getContactConnection(thisAu, otherAu);
     if (cc == null) {
-      cc = new ContactConnection(null, ConnectionState.NONE, Collections.emptySet(),
+      cc = new ContactConnection(null, ConnectionState.NONE, Collections.<String>emptySet(),
           thisAu.getId(), otherAu.getId(), (String) otherAu.getProperty("firstName"),
           (String) otherAu.getProperty("lastName"), null);
       Mutator<String> mutator = template.createMutator();
@@ -168,7 +168,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
 //      ColumnFamilyResult<String, String> res = template.queryColumns(thisUser.getId());
       ContactConnection cc = null;
       if (!columns.isEmpty()) {
-//        String key = res.getKey();
+        String key = null;
         ConnectionState state = null;
         String fromUserId = null;
         String toUserId = null;
@@ -177,8 +177,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
         Set<String> types = Sets.newHashSet();
         Map<String, Object> props = Maps.newHashMap();
         for (HColumn<Composite,String> column : columns) {
-          String propertyName = (String) column.getName().getComponent(1).getValue();
-//        }
+          String propertyName = column.getName().getComponent(1).toString();
           if ("connectionState".equals(propertyName)) {
             state = ConnectionState.valueOf(column.getValue());
           } else if ("firstName".equals(propertyName)) {
@@ -210,7 +209,8 @@ public class HectorConnectionStorage implements ConnectionStorage {
   @Override
   public List<String> getConnectedUsers(Session session, String userId,
       ConnectionState state) throws ConnectionException {
-    SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace, StringSerializer.get(), CompositeSerializer.get(), StringSerializer.get());
+    SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace,
+        StringSerializer.get(), CompositeSerializer.get(), StringSerializer.get());
     query.setColumnFamily(CF_NAME);
     query.setKey(userId);
 
@@ -222,14 +222,16 @@ public class HectorConnectionStorage implements ConnectionStorage {
         .addComponent("connectionState", StringSerializer.get());
     query.setRange(start, finish, false, 0);
 
+    List<String> connections = Lists.newArrayList();
     ColumnSlice<Composite, String> queryResult = query.execute().get();
     List<HColumn<Composite, String>> columns = queryResult.getColumns();
-//    ColumnFamilyResult<String, String> res = template.queryColumns(userId);
-    ContactConnection cc = null;
-    if (!columns.isEmpty()) {
-      
+    String connState = state.toString();
+    for (HColumn<Composite,String> column : columns) {
+      if (connState.equals(column.getValue())) {
+        connections.add(column.getName().getComponent(0).toString());
+      }
     }
-    return null;
+    return connections;
   }
 
   // --------------- Helper methods ---------------
@@ -242,7 +244,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
   private void mutateContactConnection(ContactConnection connection, Mutator<String> mutator) throws UnsupportedEncodingException {
     String fromUser = connection.getFromUserId();
     String toUser = connection.getToUserId();
-    
+
     addInsertion(mutator, fromUser, CF_NAME, toUser, "firstName", connection.getFirstName());
     addInsertion(mutator, fromUser, CF_NAME, toUser, "lastName", connection.getFirstName());
     addInsertion(mutator, fromUser, CF_NAME, toUser, "fromUserId", connection.getFromUserId());
@@ -251,19 +253,24 @@ public class HectorConnectionStorage implements ConnectionStorage {
     addInsertion(mutator, fromUser, CF_NAME, toUser, "connectionState", connection.getConnectionState().toString());
 
     for (Entry<String, Object> prop : connection.getProperties().entrySet()) {
-      mutator.addInsertion(fromUser, CF_NAME, HFactory.createColumn("properties:" + prop.getKey(), prop.getValue()));
+      Composite composite = new Composite();
+      composite.addComponent(toUser, StringSerializer.get());
+      composite.addComponent("property", StringSerializer.get());
+      composite.addComponent(prop.getKey(), StringSerializer.get());
+      HColumn<Composite, Object> column = HFactory.createColumn(composite, prop.getValue(), CompositeSerializer.get(), ObjectSerializer.get());
+      mutator.addInsertion(fromUser, CF_NAME, column);
     }
 
-    byte[] emptyValue = new byte[0];
     for (String type : connection.getConnectionTypes()) {
-      mutator.addInsertion(fromUser, CF_NAME, HFactory.createColumn("connectionTypes:" + type, emptyValue));
+      addInsertion(mutator, fromUser, CF_NAME, "connectionType", type, null);
     }
   }
 
   private void addInsertion(Mutator<String> mutator, String key, String columnFamilyName,
       String columnKey1, String columnKey2, String value)
       throws UnsupportedEncodingException {
-    HColumn<Composite, byte[]> column = createCompositeColumn(columnKey1, columnKey2, value.getBytes("UTF-8"));
+    byte[] bytes = (value != null) ? value.getBytes("UTF-8") : null;
+    HColumn<Composite, byte[]> column = createCompositeColumn(columnKey1, columnKey2, bytes);
     mutator.addInsertion(key, columnFamilyName, column);
   }
 
@@ -279,7 +286,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
     Composite composite = new Composite();
     composite.addComponent(key1, StringSerializer.get());
     composite.addComponent(key2, StringSerializer.get());
-    HColumn<Composite, byte[]> column = HFactory.createColumn(composite, value, CompositeSerializer.get(), BytesArraySerializer.get());
+    HColumn<Composite, byte[]> column = HFactory.createColumn(composite, (value != null) ? value : new byte[0], CompositeSerializer.get(), BytesArraySerializer.get());
     return column;
   }
 }
