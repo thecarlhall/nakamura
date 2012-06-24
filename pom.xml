@@ -105,7 +105,8 @@
         <module>bundles/tika</module>
         <module>bundles/captcha</module>
         <module>bundles/pages</module>
-        <module>bundles/http</module>
+        <module>bundles/http/api</module>
+        <module>bundles/http/impl</module>
         <module>bundles/directory</module>
         <module>bundles/templates</module>
         <module>bundles/world</module>
@@ -115,6 +116,7 @@
         <module>bundles/content-packaging</module>
         <module>bundles/postgresqlwrapper</module>
         <module>bundles/solr</module>
+        <module>bundles/robots.txt</module>
         <module>testscripts</module>
       </modules>
     </profile>

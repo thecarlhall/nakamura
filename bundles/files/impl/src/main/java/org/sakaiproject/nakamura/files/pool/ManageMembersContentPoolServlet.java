@@ -66,6 +66,7 @@ import org.sakaiproject.nakamura.api.user.AuthorizableCountChanger;
 import org.sakaiproject.nakamura.api.user.BasicUserInfoService;
 import org.sakaiproject.nakamura.api.user.UserConstants;
 import org.sakaiproject.nakamura.util.ExtendedJSONWriter;
+import org.sakaiproject.nakamura.util.ServletUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -263,18 +264,16 @@ import javax.servlet.http.HttpServletResponse;
 
 
       boolean detailed = false;
-      boolean tidy = false;
       for (String selector : request.getRequestPathInfo().getSelectors()) {
         if ("detailed".equals(selector)) {
           detailed = true;
-        } else if ("tidy".equals(selector)) {
-          tidy = true;
+          break;
         }
       }
 
       // Loop over the sets and output it.
       ExtendedJSONWriter writer = new ExtendedJSONWriter(response.getWriter());
-      writer.setTidy(tidy);
+      writer.setTidy(ServletUtils.isTidy(request));
       writer.object();
       writer.key("managers");
       writer.array();

@@ -31,6 +31,7 @@ import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.util.RequestInfo;
 import org.sakaiproject.nakamura.util.RequestWrapper;
 import org.sakaiproject.nakamura.util.ResponseWrapper;
+import org.sakaiproject.nakamura.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +67,12 @@ public class BatchHelper {
    */
   protected void batchRequest(SlingHttpServletRequest request,
       SlingHttpServletResponse response, String jsonRequest, boolean allowModify) throws IOException, ServletException {
+
+    if (StringUtils.isEmpty(jsonRequest)) {
+      response.sendError(HttpServletResponse.SC_BAD_REQUEST, "You must send the requests parameter");
+      return;
+    }
+
     // Grab the JSON block out of it and convert it to RequestData objects we can use.
 
     List<RequestInfo> batchedRequests = new ArrayList<RequestInfo>();

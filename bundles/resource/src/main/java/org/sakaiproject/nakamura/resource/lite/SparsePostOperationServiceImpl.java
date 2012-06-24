@@ -145,19 +145,19 @@ public class SparsePostOperationServiceImpl implements SparsePostOperationServic
     return changes;
   }
 
-  public void bindCopyCleaner(CopyCleaner cleaner) {
+  protected void bindCopyCleaner(CopyCleaner cleaner) {
     copyCleaners.add(cleaner);
   }
 
-  public void unbindCopyCleaner(CopyCleaner cleaner) {
+  protected void unbindCopyCleaner(CopyCleaner cleaner) {
     copyCleaners.remove(cleaner);
   }
   
-  public void bindMoveCleaner(MoveCleaner cleaner) {
+  protected void bindMoveCleaner(MoveCleaner cleaner) {
     moveCleaners.add(cleaner);
   }
 
-  public void unbindMoveCleaner(MoveCleaner cleaner) {
+  protected void unbindMoveCleaner(MoveCleaner cleaner) {
     moveCleaners.remove(cleaner);
   }
 }

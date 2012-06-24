@@ -314,7 +314,7 @@ public class SparseIndexingServiceImplTest {
     TestRepositorySession repoSession = new TestRepositorySession(session);
 
     // create an added content event to be handed by the TestIndexingHandler
-    Dictionary props = new Hashtable();
+    Dictionary<String, String> props = new Hashtable<String, String>();
     props.put("path", "testPath");
     props.put("resourceType", "testType");
     Event event = new Event(StoreListener.TOPIC_BASE + "authorizables/" + StoreListener.ADDED_TOPIC, props);
@@ -400,7 +400,7 @@ public class SparseIndexingServiceImplTest {
     TestRepositorySession repoSession = new TestRepositorySession(session);
 
     // create a content ADDED event with no resourceType
-    Dictionary props = new Hashtable();
+    Dictionary<String, String> props = new Hashtable<String, String>();
 
     props.put("path", "parent/testPath");
     Event event = new Event(StoreListener.TOPIC_BASE + "authorizables/" + StoreListener.ADDED_TOPIC, props);
@@ -449,7 +449,7 @@ public class SparseIndexingServiceImplTest {
   public void testTtlReturnsAppropriateValue() throws Exception {
     sisi.addHandler("testType", new TestQoSIndexingHandler(50));
 
-    Dictionary props = new Hashtable();
+    Dictionary<String, String> props = new Hashtable<String, String>();
 
     props.put("path", "testPath");
     props.put("resourceType", "testType");
@@ -476,7 +476,7 @@ public class SparseIndexingServiceImplTest {
       }
     });
 
-    Dictionary props = new Hashtable();
+    Dictionary<String, String> props = new Hashtable<String, String>();
 
     props.put("path", "testPath");
     props.put("resourceType", "testType");

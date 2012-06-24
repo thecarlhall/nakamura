@@ -128,7 +128,7 @@
           <dependency>
             <groupId>org.sakaiproject.basiclti</groupId>
             <artifactId>basiclti-util</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.5</version>
           </dependency>
           <!--  OSGI dependencies -->
           <dependency>

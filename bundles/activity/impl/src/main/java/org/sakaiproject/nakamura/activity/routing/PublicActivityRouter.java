@@ -62,7 +62,7 @@ public class PublicActivityRouter implements ActivityRouter {
     try {
       if ( ActivityConstants.PRIVACY_PUBLIC.equals(activity.getProperty(ActivityConstants.PARAM_ACTIVITY_PRIVACY)) ) {
         String path = "activities";
-        ActivityRoute route = new AbstractActivityRoute(path) {
+        ActivityRoute route = new AbstractActivityRoute(path, new String[0]) {
         };
         routes.add(route);
       }
@@ -77,7 +77,7 @@ public class PublicActivityRouter implements ActivityRouter {
   public void route(Content activity, List<ActivityRoute> routes, Session adminSession) {
     if ( ActivityConstants.PRIVACY_PUBLIC.equals(activity.getProperty(ActivityConstants.PARAM_ACTIVITY_PRIVACY)) ) {
       String path =  "activities";
-      ActivityRoute route = new AbstractActivityRoute(path) {
+      ActivityRoute route = new AbstractActivityRoute(path, new String[0]) {
       };
       routes.add(route);    
     }

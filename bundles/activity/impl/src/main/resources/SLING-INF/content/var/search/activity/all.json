@@ -1,5 +1,5 @@
 {
-  "sakai:query-template": "resourceType:sakai/activity AND -path:${_myFeed}",
+  "sakai:query-template": "resourceType:sakai/activity",
   "sakai:query-template-options": {
       "sort": "_created desc"
   },

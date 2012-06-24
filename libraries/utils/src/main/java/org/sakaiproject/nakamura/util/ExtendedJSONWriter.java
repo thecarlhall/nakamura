@@ -28,7 +28,6 @@ import java.io.Writer;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
-
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
 import javax.jcr.Property;
@@ -432,6 +431,5 @@ public class ExtendedJSONWriter extends JSONWriter {
       write.endObject();
     }
   }
-
 
 }

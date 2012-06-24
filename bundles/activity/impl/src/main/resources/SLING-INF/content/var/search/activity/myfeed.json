@@ -1,5 +1,5 @@
 {
-  "sakai:query-template": "path:${_myFeed} AND resourceType:sakai/activity",
+  "sakai:query-template": "routes:${_route} AND resourceType:sakai/activity",
   "sakai:query-template-options": {
       "sort": "${sortOn} ${sortOrder}"
   },

@@ -74,7 +74,7 @@
         <bundle>
             <groupId>org.apache.sling</groupId>
             <artifactId>org.apache.sling.auth.core</artifactId>
-            <version>1.0.6</version>
+            <version>1.0.7</version>
         </bundle>
         <bundle>
             <groupId>org.apache.sling</groupId>
@@ -713,7 +713,12 @@ KERN-1187
     </bundle>
     <bundle>
       <groupId>org.sakaiproject.nakamura</groupId>
-      <artifactId>org.sakaiproject.nakamura.http</artifactId>
+      <artifactId>org.sakaiproject.nakamura.http.api</artifactId>
+      <version>1.4.0-SNAPSHOT</version>
+    </bundle>
+    <bundle>
+      <groupId>org.sakaiproject.nakamura</groupId>
+      <artifactId>org.sakaiproject.nakamura.http.impl</artifactId>
       <version>1.4.0-SNAPSHOT</version>
     </bundle>
     <bundle>
@@ -739,6 +744,11 @@ KERN-1187
     <bundle>
       <groupId>org.sakaiproject.nakamura</groupId>
       <artifactId>org.sakaiproject.nakamura.content-packaging</artifactId>
+      <version>1.4.0-SNAPSHOT</version>
+    </bundle>
+    <bundle>
+      <groupId>org.sakaiproject.nakamura</groupId>
+      <artifactId>org.sakaiproject.nakamura.robots.txt</artifactId>
       <version>1.4.0-SNAPSHOT</version>
     </bundle>
    </startLevel>

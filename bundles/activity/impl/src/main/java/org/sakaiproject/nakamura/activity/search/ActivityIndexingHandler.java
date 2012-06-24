@@ -31,14 +31,17 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrInputDocument;
 import org.osgi.service.event.Event;
 import org.sakaiproject.nakamura.api.activity.ActivityConstants;
+import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.solr.IndexingHandler;
 import org.sakaiproject.nakamura.api.solr.RepositorySession;
 import org.sakaiproject.nakamura.api.solr.ResourceIndexingService;
+import org.sakaiproject.nakamura.util.SparseUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +67,9 @@ public class ActivityIndexingHandler implements IndexingHandler {
       ActivityConstants.ACTIVITY_ITEM_RESOURCE_TYPE,
       ActivityConstants.ACTIVITY_SOURCE_ITEM_RESOURCE_TYPE);
 
+  @Reference
+  Repository repository;
+  
   @Reference(target = "(type=sparse)")
   private ResourceIndexingService resourceIndexingService;
 
@@ -107,6 +113,12 @@ public class ActivityIndexingHandler implements IndexingHandler {
             doc.addField(prop, content.getProperty(prop));
           }
           doc.addField(_DOC_SOURCE_OBJECT, content);
+          
+          String[] routes = findRoutes(path);
+          if (routes != null) {
+            doc.addField("routes", routes);
+          }
+          
           documents.add(doc);
         }
       } catch (StorageClientException e) {
@@ -119,6 +131,21 @@ public class ActivityIndexingHandler implements IndexingHandler {
     return documents;
   }
 
+  private String[] findRoutes(String activityPath) throws StorageClientException, AccessDeniedException {
+    String[] routes = null;
+    Session adminSession = repository.loginAdministrative();
+    try {
+      ContentManager adminCm = adminSession.getContentManager();
+      Content routesNode = adminCm.get(StorageClientUtils.newPath(activityPath, ActivityConstants.PARAM_ROUTES));
+      if (routesNode != null) {
+        routes = (String[]) routesNode.getProperty(ActivityConstants.PARAM_ROUTES);
+      }
+    } finally {
+      SparseUtils.logoutQuietly(adminSession);
+    }
+    return routes;
+  }
+  
   /**
    * {@inheritDoc}
    *
@@ -136,4 +163,5 @@ public class ActivityIndexingHandler implements IndexingHandler {
     }
     return retval;
   }
+  
 }

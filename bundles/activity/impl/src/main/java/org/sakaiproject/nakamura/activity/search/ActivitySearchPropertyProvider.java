@@ -52,6 +52,6 @@ public class ActivitySearchPropertyProvider implements SolrSearchPropertyProvide
     String path = ActivityUtils.getUserFeed(user);
     // Encode the path
     path = ClientUtils.escapeQueryChars(path);
-    propertiesMap.put("_myFeed", path);
+    propertiesMap.put("_route", path);
   }
 }

@@ -21,7 +21,6 @@ import static org.sakaiproject.nakamura.api.basiclti.BasicLTIAppConstants.LTI_KE
 import static org.sakaiproject.nakamura.api.basiclti.BasicLTIAppConstants.LTI_SECRET;
 
 import org.sakaiproject.nakamura.api.lite.Session;
-import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessControlManager;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.Permission;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.Permissions;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
@@ -60,10 +59,9 @@ public class LiteBasicLTIServletUtils {
    * Helper method to return a Set of Privileges that a normal user <i>should not</i> have
    * on a sensitive Node.
    * 
-   * @param acm
    * @return
    */
-  protected static Set<Permission> getInvalidUserPrivileges(final AccessControlManager acm) {
+  protected static Set<Permission> getInvalidUserPrivileges() {
     Set<Permission> invalidUserPrivileges = new HashSet<Permission>(10);
     invalidUserPrivileges.add(Permissions.ALL);
     invalidUserPrivileges.add(Permissions.CAN_ANYTHING);

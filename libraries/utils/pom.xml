@@ -41,7 +41,7 @@
         <configuration>
           <instructions>
             <Bundle-Category> sakai-nakamura </Bundle-Category>
-            <Export-Package> org.sakaiproject.nakamura.util.*</Export-Package>
+            <Export-Package>org.sakaiproject.nakamura.api.util.*,org.sakaiproject.nakamura.util.*</Export-Package>
             <Embed-Transitive>true</Embed-Transitive>
             <Embed-Dependency>
             </Embed-Dependency>
@@ -136,6 +136,10 @@
     <dependency>
       <groupId>org.apache.felix</groupId>
       <artifactId>org.apache.felix.scr.annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sling</groupId>
+      <artifactId>org.apache.sling.commons.osgi</artifactId>
     </dependency>
   </dependencies>
 </project>

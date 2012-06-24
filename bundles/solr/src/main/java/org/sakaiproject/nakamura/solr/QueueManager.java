@@ -531,7 +531,9 @@ public class QueueManager implements Runnable {
 				}
 			} finally {
 				try {
-					position.close();
+					if (position != null) {
+					  position.close();
+					}
 				} catch (IOException e) {
 					LOGGER.debug("Failed to close {} ", positionFile);
 				}
