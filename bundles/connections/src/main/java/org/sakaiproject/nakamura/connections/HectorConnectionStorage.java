@@ -20,14 +20,16 @@ package org.sakaiproject.nakamura.connections;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import javax.servlet.http.HttpServletResponse;
+
 import me.prettyprint.cassandra.serializers.BytesArraySerializer;
 import me.prettyprint.cassandra.serializers.CompositeSerializer;
-import me.prettyprint.cassandra.serializers.ObjectSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.ThriftKsDef;
 import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
@@ -45,11 +47,13 @@ import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
 import me.prettyprint.hector.api.query.SliceQuery;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Modified;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.sling.commons.json.JSONArray;
+import org.apache.sling.commons.json.JSONException;
+import org.apache.sling.commons.json.JSONObject;
 import org.sakaiproject.nakamura.api.connections.ConnectionException;
 import org.sakaiproject.nakamura.api.connections.ConnectionState;
 import org.sakaiproject.nakamura.api.connections.ConnectionStorage;
@@ -71,9 +75,10 @@ public class HectorConnectionStorage implements ConnectionStorage {
   private static final String CLUSTER_NAME = "SakaiOAE";
   private static final String KEYSPACE_NAME = "SakaiOAE";
   private static final String CF_NAME = "contactConnections";
+  private static final String CF_BY_STATE_NAME = "contactConnections_ByState";
 
   private Keyspace keyspace = null;
-  private ColumnFamilyTemplate<String, String> template = null;
+  private Map<String, ColumnFamilyTemplate<String, String>> templates = null;
 
   @Activate
   @Modified
@@ -89,8 +94,12 @@ public class HectorConnectionStorage implements ConnectionStorage {
     cluster.addKeyspace(newKeyspace);
     keyspace = HFactory.createKeyspace(KEYSPACE_NAME, cluster);
 
-    template = new ThriftColumnFamilyTemplate<String, String>(keyspace, CF_NAME,
-        StringSerializer.get(), StringSerializer.get());
+    templates = Maps.newHashMap();
+    templates.put(CF_NAME, new ThriftColumnFamilyTemplate<String, String>(keyspace, CF_NAME,
+        StringSerializer.get(), StringSerializer.get()));
+
+    templates.put(CF_BY_STATE_NAME, new ThriftColumnFamilyTemplate<String, String>(
+        keyspace, CF_BY_STATE_NAME, StringSerializer.get(), StringSerializer.get()));
   }
 
   /**
@@ -107,12 +116,18 @@ public class HectorConnectionStorage implements ConnectionStorage {
       cc = new ContactConnection(null, ConnectionState.NONE, Collections.<String>emptySet(),
           thisAu.getId(), otherAu.getId(), (String) otherAu.getProperty("firstName"),
           (String) otherAu.getProperty("lastName"), null);
-      Mutator<String> mutator = template.createMutator();
-      try {
-        mutateContactConnection(cc, mutator);
-        mutator.execute();
-      } catch (UnsupportedEncodingException e) {
-        throw new ConnectionException(500, e);
+      ColumnFamilyTemplate<String, String> template = templates.get(CF_NAME);
+      if (template != null) {
+        try {
+          mutateContactConnection(cc, null);
+        } catch (UnsupportedEncodingException e) {
+          throw new ConnectionException(500, e);
+        } catch (JSONException e) {
+          throw new ConnectionException(500, e);
+        }
+      } else {
+        throw new ConnectionException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            "Unable to find connection template for " + CF_NAME);
       }
     }
     return cc;
@@ -127,16 +142,24 @@ public class HectorConnectionStorage implements ConnectionStorage {
   @Override
   public void saveContactConnectionPair(ContactConnection thisNode,
       ContactConnection otherNode) throws ConnectionException {
-    Mutator<String> mutator = template.createMutator();
+    ColumnFamilyTemplate<String, String> template = templates.get(CF_NAME);
+    if (template != null) {
+      Mutator<String> mutator = template.createMutator();
 
-     try {
-      mutateContactConnection(thisNode, mutator);
-      mutateContactConnection(otherNode, mutator);
-      mutator.execute();
-    } catch (HectorException e) {
-      throw new ConnectionException(500, e);
-    } catch (UnsupportedEncodingException e) {
-      throw new ConnectionException(500, e);
+       try {
+        mutateContactConnection(thisNode, mutator);
+        mutateContactConnection(otherNode, mutator);
+        mutator.execute();
+      } catch (HectorException e) {
+        throw new ConnectionException(500, e);
+      } catch (UnsupportedEncodingException e) {
+        throw new ConnectionException(500, e);
+      } catch (JSONException e) {
+        throw new ConnectionException(500, e);
+      }
+    } else {
+      throw new ConnectionException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Unable to find connection template for " + CF_NAME);
     }
   }
 
@@ -168,7 +191,6 @@ public class HectorConnectionStorage implements ConnectionStorage {
 //      ColumnFamilyResult<String, String> res = template.queryColumns(thisUser.getId());
       ContactConnection cc = null;
       if (!columns.isEmpty()) {
-        String key = null;
         ConnectionState state = null;
         String fromUserId = null;
         String toUserId = null;
@@ -184,18 +206,27 @@ public class HectorConnectionStorage implements ConnectionStorage {
             firstName = column.getValue();
           } else if ("lastName".equals(propertyName)) {
             lastName = column.getValue();
-          } else if (propertyName.startsWith("connectionTypes:")) {
-            types.add(StringUtils.split(propertyName, ":", 2)[1]);
-          } else if (propertyName.startsWith("properties:")) {
-            String propName = StringUtils.split(propertyName, ":", 2)[1];
-            props.put(propName, column.getValue());
+          } else if ("types".equals(propertyName)) {
+            JSONArray jsonTypes = new JSONArray(column.getValue());
+            for (int i = 0; i < jsonTypes.length(); i++) {
+              String type = jsonTypes.getString(i);
+              types.add(type);
+            }
+          } else if ("properties".equals(propertyName)) {
+            JSONObject jsonProps = new JSONObject(column.getValue());
+            for (Iterator<String> keys = jsonProps.keys(); keys.hasNext(); ) {
+              String key = keys.next();
+              props.put(key, jsonProps.get(key));
+            }
           }
         }
 
-        cc = new ContactConnection(key, state, types, fromUserId, toUserId, firstName, lastName, props);
+        cc = new ContactConnection(fromUserId, state, types, fromUserId, toUserId, firstName, lastName, props);
       }
       return cc;
     } catch (HectorException e) {
+      throw new ConnectionException(500, e);
+    } catch (JSONException e) {
       throw new ConnectionException(500, e);
     }
   }
@@ -211,15 +242,15 @@ public class HectorConnectionStorage implements ConnectionStorage {
       ConnectionState state) throws ConnectionException {
     SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace,
         StringSerializer.get(), CompositeSerializer.get(), StringSerializer.get());
-    query.setColumnFamily(CF_NAME);
+    query.setColumnFamily(CF_BY_STATE_NAME);
     query.setKey(userId);
 
     Composite start = new Composite();
-    start.addComponent(Character.toString(Character.MIN_VALUE), StringSerializer.get())
-        .addComponent("connectionState", StringSerializer.get());
+    start.addComponent(state.toString(), StringSerializer.get())
+        .addComponent(Character.toString(Character.MIN_VALUE), StringSerializer.get());
     Composite finish = new Composite();
-    finish.addComponent(Character.toString(Character.MAX_VALUE), StringSerializer.get())
-        .addComponent("connectionState", StringSerializer.get());
+    finish.addComponent(state.toString(), StringSerializer.get())
+        .addComponent(Character.toString(Character.MAX_VALUE), StringSerializer.get());
     query.setRange(start, finish, false, 0);
 
     List<String> connections = Lists.newArrayList();
@@ -228,7 +259,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
     String connState = state.toString();
     for (HColumn<Composite,String> column : columns) {
       if (connState.equals(column.getValue())) {
-        connections.add(column.getName().getComponent(0).toString());
+        connections.add(column.getName().getComponent(1).toString());
       }
     }
     return connections;
@@ -241,29 +272,58 @@ public class HectorConnectionStorage implements ConnectionStorage {
    * @param mutator
    * @throws UnsupportedEncodingException 
    */
-  private void mutateContactConnection(ContactConnection connection, Mutator<String> mutator) throws UnsupportedEncodingException {
+  private void mutateContactConnection(ContactConnection connection,
+      Mutator<String> mutator) throws UnsupportedEncodingException, JSONException {
+    Mutator<String> _mutator = mutator;
+    if (_mutator == null) {
+      ColumnFamilyTemplate<String, String> template = templates.get(CF_NAME);
+      if (template != null) {
+        _mutator = template.createMutator();
+      } else {
+        throw new ConnectionException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+            "Unable to find connection template for " + CF_NAME);
+      }
+    }
+    ColumnFamilyTemplate<String, String> templateByState = templates.get(CF_BY_STATE_NAME);
+    if (templateByState == null) {
+      throw new ConnectionException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Unable to find connection template for " + CF_NAME);
+    }
+
+    // persist the connection by fromUser: {toUser, propName} = propVal
     String fromUser = connection.getFromUserId();
     String toUser = connection.getToUserId();
+    String connectionState = connection.getConnectionState().toString();
 
-    addInsertion(mutator, fromUser, CF_NAME, toUser, "firstName", connection.getFirstName());
-    addInsertion(mutator, fromUser, CF_NAME, toUser, "lastName", connection.getFirstName());
-    addInsertion(mutator, fromUser, CF_NAME, toUser, "fromUserId", connection.getFromUserId());
-    addInsertion(mutator, fromUser, CF_NAME, toUser, "lastName", connection.getLastName());
-    addInsertion(mutator, fromUser, CF_NAME, toUser, "toUserId", connection.getToUserId());
-    addInsertion(mutator, fromUser, CF_NAME, toUser, "connectionState", connection.getConnectionState().toString());
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "firstName", connection.getFirstName());
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "lastName", connection.getFirstName());
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "fromUserId", connection.getFromUserId());
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "lastName", connection.getLastName());
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "toUserId", connection.getToUserId());
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "connectionState", connectionState);
 
-    for (Entry<String, Object> prop : connection.getProperties().entrySet()) {
-      Composite composite = new Composite();
-      composite.addComponent(toUser, StringSerializer.get());
-      composite.addComponent("property", StringSerializer.get());
-      composite.addComponent(prop.getKey(), StringSerializer.get());
-      HColumn<Composite, Object> column = HFactory.createColumn(composite, prop.getValue(), CompositeSerializer.get(), ObjectSerializer.get());
-      mutator.addInsertion(fromUser, CF_NAME, column);
+    // Serialize properties to a JSON string since we only get them back as a whole and don't search into them
+    JSONObject props = new JSONObject();
+    for (Entry<String, Object> property : connection.getProperties().entrySet()) {
+      props.put(property.getKey(), property.getValue());
     }
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "properties", props.toString());
 
+    // Serialize types to a JSON string since we only get them back as a whole and don't search into them
+    JSONArray types = new JSONArray();
     for (String type : connection.getConnectionTypes()) {
-      addInsertion(mutator, fromUser, CF_NAME, "connectionType", type, null);
+      types.put(type);
     }
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "types", types.toString());
+
+    if (mutator == null) {
+      _mutator.execute();
+    }
+
+    // persist the connection by status
+    Mutator<String> stateMutator = templateByState.createMutator();
+    addInsertion(stateMutator, fromUser, CF_BY_STATE_NAME, connectionState, toUser, null);
+    stateMutator.execute();
   }
 
   private void addInsertion(Mutator<String> mutator, String key, String columnFamilyName,
