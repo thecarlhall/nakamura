@@ -18,7 +18,9 @@
  */
 package org.sakaiproject.nakamura.api.media;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.Writer;
 
 /**
  *
@@ -58,8 +60,7 @@ public interface MediaService {
    * @return
    * @throws MediaServiceException
    */
-  String getStatus(String id) throws MediaServiceException;
-
+  void writeStatus(Writer writer, String id) throws MediaServiceException, IOException;
 
   /**
    * Return the HTML snippet for a player that will play the given video ID.

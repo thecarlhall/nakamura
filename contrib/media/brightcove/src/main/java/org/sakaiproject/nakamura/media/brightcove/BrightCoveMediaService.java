@@ -24,6 +24,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Writer;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -45,6 +46,7 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
+import org.apache.sling.commons.json.io.JSONWriter;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentException;
 import org.sakaiproject.nakamura.api.media.MediaService;
@@ -55,6 +57,21 @@ import org.slf4j.LoggerFactory;
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
 public class BrightCoveMediaService implements MediaService {
+
+  private static final String OBJECT_EL_TMPL = "<script language=\"JavaScript\" type=\"text/javascript\" src=\"http://admin.brightcove.com/js/BrightcoveExperiences.js\"></script>" +
+      "  <object id=\"myExperience1699010595001\" class=\"BrightcoveExperience\">" +
+      "    <param name=\"bgcolor\" value=\"#FFFFFF\" />" +
+      "    <param name=\"width\" value=\"500\" />" +
+      "    <param name=\"height\" value=\"470\" />" +
+      "    <param name=\"playerID\" value=\"1648880808001\" />" +
+      "    <param name=\"playerKey\" value=\"AQ~~,AAABchwNZ2E~,mhHIIVIf990d9oFgSAc7GMq_MDg9HMDS\" />" +
+      "    <param name=\"isVid\" value=\"true\" />" +
+      "    <param name=\"isUI\" value=\"true\" />" +
+      "    <param name=\"dynamicStreaming\" value=\"true\" />" +
+      "    <param name=\"wmode\" value=\"opaque\" />" +
+      "" +
+      "    <param name=\"@videoPlayer\" value=\"%s\" />" +
+      "  </object>";
 
   private static final Logger LOG = LoggerFactory.getLogger(BrightCoveMediaService.class);
 
@@ -89,7 +106,7 @@ public class BrightCoveMediaService implements MediaService {
     }
 
     writeToken = PropertiesUtil.toString(props.get(WRITE_TOKEN), null);
-    // if writeToken is blank, use readToken
+    // require writeToken
     if (StringUtils.isBlank(writeToken)) {
       throw new ComponentException("'writeToken' required to communicate with BrightCove");
     }
@@ -133,14 +150,16 @@ public class BrightCoveMediaService implements MediaService {
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.MediaService#getStatus(java.lang.String)
+   * @see org.sakaiproject.nakamura.api.media.MediaService#writeStatus(java.io.Writer, java.lang.String)
    */
   @Override
-  public String getStatus(String id) {
+  public void writeStatus(Writer writer, String id) throws MediaServiceException,
+      IOException {
     PostMethod post = null;
-    String status = null;
 
     try {
+      // TODO don't check for this every time. Should have a latency window and only check
+      // for certain statuses
       JSONObject json = new JSONObject()
           .put("method", "get_upload_status")
           .put("params", new JSONObject()
@@ -153,23 +172,22 @@ public class BrightCoveMediaService implements MediaService {
       int returnCode = client.executeMethod(post);
 
       String response = post.getResponseBodyAsString();
-      status = String.format("Media upload information [%s]: %s", new Object[] {
-          returnCode, response });
+      JSONWriter jsonWriter = new JSONWriter(writer);
+      jsonWriter.object();
+      jsonWriter.key("id").value(id);
+      jsonWriter.key("returnCode").value(returnCode);
+      jsonWriter.key("response").value(response);
+      jsonWriter.key("html_object").value(getPlayerFragment(id));
+      jsonWriter.endObject();
     } catch (JSONException e) {
       LOG.error(e.getMessage(), e);
-    } catch (HttpException e) {
-      LOG.error(e.getMessage(), e);
-    } catch (IOException e) {
-      LOG.error(e.getMessage(), e);
+      throw new MediaServiceException(e.getMessage(), e);
     } finally {
       if (post != null) {
         post.releaseConnection();
       }
     }
-    LOG.info(status);
-    return status;
   }
-
 
   /**
    * {@inheritDoc}
@@ -178,22 +196,7 @@ public class BrightCoveMediaService implements MediaService {
    */
   @Override
   public String getPlayerFragment(String id) {
-    String template = ("<script language=\"JavaScript\" type=\"text/javascript\" src=\"http://admin.brightcove.com/js/BrightcoveExperiences.js\"></script>" +
-                       "  <object id=\"myExperience1699010595001\" class=\"BrightcoveExperience\">" +
-                       "    <param name=\"bgcolor\" value=\"#FFFFFF\" />" +
-                       "    <param name=\"width\" value=\"500\" />" +
-                       "    <param name=\"height\" value=\"470\" />" +
-                       "    <param name=\"playerID\" value=\"1648880808001\" />" +
-                       "    <param name=\"playerKey\" value=\"AQ~~,AAABchwNZ2E~,mhHIIVIf990d9oFgSAc7GMq_MDg9HMDS\" />" +
-                       "    <param name=\"isVid\" value=\"true\" />" +
-                       "    <param name=\"isUI\" value=\"true\" />" +
-                       "    <param name=\"dynamicStreaming\" value=\"true\" />" +
-                       "    <param name=\"wmode\" value=\"opaque\" />" +
-                       "" +
-                       "    <param name=\"@videoPlayer\" value=\"%s\" />" +
-                       "  </object>");
-
-    return String.format(template, id);
+    return String.format(OBJECT_EL_TMPL, id);
   }
 
 

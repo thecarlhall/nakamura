@@ -18,20 +18,12 @@
  */
 package org.sakaiproject.nakamura.media;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.List;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.fileupload.FileUploadException;
-import org.apache.commons.fileupload.disk.DiskFileItem;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Property;
@@ -57,8 +49,11 @@ public class MediaServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-    String status = mediaService.getPlayerFragment(req.getParameter("media_id"));
-    resp.getWriter().write(status);
+    try {
+      mediaService.writeStatus(resp.getWriter(), req.getParameter("media_id"));
+    } catch (MediaServiceException e) {
+      throw new ServletException(e.getMessage(), e);
+    }
   }
 
   @Override

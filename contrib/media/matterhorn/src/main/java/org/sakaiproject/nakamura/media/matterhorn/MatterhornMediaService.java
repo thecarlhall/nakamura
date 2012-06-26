@@ -17,7 +17,9 @@
  */
 package org.sakaiproject.nakamura.media.matterhorn;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.Writer;
 
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -44,8 +46,8 @@ public class MatterhornMediaService implements MediaService {
   }
 
   @Override
-  public String getStatus(String id) throws MediaServiceException {
-    return null;
+  public void writeStatus(Writer writer, String id) throws MediaServiceException,
+      IOException {
   }
 
   @Override
