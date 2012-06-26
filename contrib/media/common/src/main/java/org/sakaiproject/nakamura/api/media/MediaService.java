@@ -59,4 +59,12 @@ public interface MediaService {
    * @throws MediaServiceException
    */
   String getStatus(String id) throws MediaServiceException;
+
+
+  /**
+   * Return the HTML snippet for a player that will play the given video ID.
+   * @param id The ID of the video in the media service
+   * @return A string of HTML that will be inserted into the UI's DOM
+   */
+  String getPlayerFragment(String id);
 }

@@ -17,7 +17,7 @@
  */
 package org.sakaiproject.nakamura.media.matterhorn;
 
-import java.io.File;
+import java.io.InputStream;
 
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
@@ -32,8 +32,8 @@ import org.sakaiproject.nakamura.api.media.MediaServiceException;
 @Service
 public class MatterhornMediaService implements MediaService {
   @Override
-  public String createMedia(File media, String title, String description, String[] tags)
-      throws MediaServiceException {
+  public String createMedia(InputStream media, String title, String description, String extension, String[] tags)
+    throws MediaServiceException {
     return null;
   }
 
@@ -47,4 +47,10 @@ public class MatterhornMediaService implements MediaService {
   public String getStatus(String id) throws MediaServiceException {
     return null;
   }
+
+  @Override
+  public String getPlayerFragment(String id) {
+    return "IMPLEMENTME";
+  }
+
 }

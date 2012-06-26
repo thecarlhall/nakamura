@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  */
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
-@Property(name = "alias", value = "/var/brightcove")
+@Property(name = "alias", value = "/var/media")
 public class MediaServlet extends HttpServlet {
   private static final Logger LOG = LoggerFactory.getLogger(MediaServlet.class);
 
@@ -57,66 +57,13 @@ public class MediaServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-    try {
-      String status = mediaService.getStatus(req.getParameter("media_id"));
-      resp.getWriter().write(status);
-    } catch (MediaServiceException e) {
-      throw new ServletException(e.getMessage(), e);
-    }
+    String status = mediaService.getPlayerFragment(req.getParameter("media_id"));
+    resp.getWriter().write(status);
   }
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
-    /*
-     * STEP 1. Handle the incoming request from the client
-     */
-
-    // Request parsing using the FileUpload lib from Jakarta Commons
-    // http://commons.apache.org/fileupload/
-
-    // Create a factory for disk-based file items
-    DiskFileItemFactory factory = new DiskFileItemFactory();
-
-    // Create a new file upload handler
-    ServletFileUpload upload = new ServletFileUpload(factory);
-    int sizeMax = 1024 /*1 kB*/ * 1000 /*1 MB*/ * 100 /*100 MB*/; 
-    upload.setSizeMax(sizeMax);
-
-    try {
-      // Parse the request into a list of DiskFileItems
-      @SuppressWarnings("unchecked")
-      List<DiskFileItem> items = upload.parseRequest(req);
-
-      File mediaFile = items.get(0).getStoreLocation();
-      String mediaName = req.getParameter("name");
-      String mediaDescription = req.getParameter("desc");
-
-      String fileName = mediaFile.getName();
-      String extension = fileName.substring(fileName.lastIndexOf("."));
-
-      String[] tags = req.getParameterValues("tags");
-      /*
-       * STEP 2. Assemble the JSON params
-       */
-      FileInputStream fis = new FileInputStream(mediaFile);
-      String response = null;
-      try {
-        response = mediaService.createMedia(fis, mediaName, mediaDescription,
-                                            extension,
-                                            tags);
-      } finally {
-        fis.close();
-      }
-
-      String msg = "Posted media information: " + response;
-      LOG.info(msg);
-      resp.getWriter().write(msg);
-    } catch (FileUploadException e) {
-      throw new ServletException(e.getMessage(), e);
-    } catch (MediaServiceException e) {
-      throw new ServletException(e.getMessage(), e);
-    }
   }
 
   @Override

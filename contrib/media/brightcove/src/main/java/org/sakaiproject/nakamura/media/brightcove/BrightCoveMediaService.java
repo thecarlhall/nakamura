@@ -170,6 +170,33 @@ public class BrightCoveMediaService implements MediaService {
     return status;
   }
 
+
+  /**
+   * {@inheritDoc}
+   *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#getPlayerFragment(java.lang.String)
+   */
+  @Override
+  public String getPlayerFragment(String id) {
+    String template = ("<script language=\"JavaScript\" type=\"text/javascript\" src=\"http://admin.brightcove.com/js/BrightcoveExperiences.js\"></script>" +
+                       "  <object id=\"myExperience1699010595001\" class=\"BrightcoveExperience\">" +
+                       "    <param name=\"bgcolor\" value=\"#FFFFFF\" />" +
+                       "    <param name=\"width\" value=\"500\" />" +
+                       "    <param name=\"height\" value=\"470\" />" +
+                       "    <param name=\"playerID\" value=\"1648880808001\" />" +
+                       "    <param name=\"playerKey\" value=\"AQ~~,AAABchwNZ2E~,mhHIIVIf990d9oFgSAc7GMq_MDg9HMDS\" />" +
+                       "    <param name=\"isVid\" value=\"true\" />" +
+                       "    <param name=\"isUI\" value=\"true\" />" +
+                       "    <param name=\"dynamicStreaming\" value=\"true\" />" +
+                       "    <param name=\"wmode\" value=\"opaque\" />" +
+                       "" +
+                       "    <param name=\"@videoPlayer\" value=\"%s\" />" +
+                       "  </object>");
+
+    return String.format(template, id);
+  }
+
+
   private FileInputStream asFileInputStream(InputStream is) throws MediaServiceException {
     if (is instanceof FileInputStream) {
       // Easy.
