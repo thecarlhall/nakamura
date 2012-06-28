@@ -74,8 +74,8 @@ public class HectorConnectionStorage implements ConnectionStorage {
 
   private static final String CLUSTER_NAME = "SakaiOAE";
   private static final String KEYSPACE_NAME = "SakaiOAE";
-  private static final String CF_NAME = "contactConnections";
-  private static final String CF_BY_STATE_NAME = "contactConnections_ByState";
+  private static final String CF_NAME = "ContactConnections";
+  private static final String CF_BY_STATE_NAME = "ContactConnections_ByState";
 
   private Keyspace keyspace = null;
   private Map<String, ColumnFamilyTemplate<String, String>> templates = null;
@@ -87,6 +87,7 @@ public class HectorConnectionStorage implements ConnectionStorage {
     ColumnFamilyDefinition cfDef = HFactory.createColumnFamilyDefinition(KEYSPACE_NAME,
         CF_NAME, ComparatorType.BYTESTYPE);
 
+    // TODO should make this configurable
     int replicationFactor = 1;
     KeyspaceDefinition newKeyspace = HFactory.createKeyspaceDefinition(KEYSPACE_NAME,
         ThriftKsDef.DEF_STRATEGY_CLASS, replicationFactor, Arrays.asList(cfDef));
@@ -173,22 +174,26 @@ public class HectorConnectionStorage implements ConnectionStorage {
   public ContactConnection getContactConnection(Authorizable thisUser,
       Authorizable otherUser) throws ConnectionException {
     try {
+      SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace,
+          StringSerializer.get(),    /* key serializer */
+          CompositeSerializer.get(), /* name serializer */
+          StringSerializer.get()     /* value serializer */);
+      query.setColumnFamily(CF_NAME);
+      query.setKey(thisUser.getId());
+
+      // get all columns that have otherUserId:* as their composite keys
       Composite start = new Composite();
       start.addComponent(otherUser.getId(), StringSerializer.get())
           .addComponent(Character.toString(Character.MIN_VALUE), StringSerializer.get());
+
       Composite finish = new Composite();
       finish.addComponent(otherUser.getId(), StringSerializer.get())
           .addComponent(Character.toString(Character.MAX_VALUE), StringSerializer.get());
-
-      SliceQuery<String, Composite, String> query = HFactory.createSliceQuery(keyspace, StringSerializer.get(), CompositeSerializer.get(), StringSerializer.get());
-      query.setColumnFamily(CF_NAME);
-      query.setKey(thisUser.getId());
       query.setRange(start, finish, false, 0);
+
       ColumnSlice<Composite, String> queryResult = query.execute().get();
       List<HColumn<Composite, String>> columns = queryResult.getColumns();
-      
-      // TODO use columns from above
-//      ColumnFamilyResult<String, String> res = template.queryColumns(thisUser.getId());
+
       ContactConnection cc = null;
       if (!columns.isEmpty()) {
         ConnectionState state = null;
@@ -296,18 +301,10 @@ public class HectorConnectionStorage implements ConnectionStorage {
     String connectionState = connection.getConnectionState().toString();
 
     addInsertion(_mutator, fromUser, CF_NAME, toUser, "firstName", connection.getFirstName());
-    addInsertion(_mutator, fromUser, CF_NAME, toUser, "lastName", connection.getFirstName());
-    addInsertion(_mutator, fromUser, CF_NAME, toUser, "fromUserId", connection.getFromUserId());
     addInsertion(_mutator, fromUser, CF_NAME, toUser, "lastName", connection.getLastName());
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "fromUserId", connection.getFromUserId());
     addInsertion(_mutator, fromUser, CF_NAME, toUser, "toUserId", connection.getToUserId());
     addInsertion(_mutator, fromUser, CF_NAME, toUser, "connectionState", connectionState);
-
-    // Serialize properties to a JSON string since we only get them back as a whole and don't search into them
-    JSONObject props = new JSONObject();
-    for (Entry<String, Object> property : connection.getProperties().entrySet()) {
-      props.put(property.getKey(), property.getValue());
-    }
-    addInsertion(_mutator, fromUser, CF_NAME, toUser, "properties", props.toString());
 
     // Serialize types to a JSON string since we only get them back as a whole and don't search into them
     JSONArray types = new JSONArray();
@@ -316,11 +313,19 @@ public class HectorConnectionStorage implements ConnectionStorage {
     }
     addInsertion(_mutator, fromUser, CF_NAME, toUser, "types", types.toString());
 
+    // Serialize properties to a JSON string since we only get them back as a whole and don't search into them
+    JSONObject props = new JSONObject();
+    for (Entry<String, Object> property : connection.getProperties().entrySet()) {
+      props.put(property.getKey(), property.getValue());
+    }
+    addInsertion(_mutator, fromUser, CF_NAME, toUser, "properties", props.toString());
+
     if (mutator == null) {
       _mutator.execute();
     }
 
-    // persist the connection by status
+    // persist the connection by status. this allows us to get all users connected with a
+    // certain state in a single column slice.
     Mutator<String> stateMutator = templateByState.createMutator();
     addInsertion(stateMutator, fromUser, CF_BY_STATE_NAME, connectionState, toUser, null);
     stateMutator.execute();
