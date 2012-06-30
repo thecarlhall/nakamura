@@ -20,7 +20,10 @@ package org.sakaiproject.nakamura.media;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.util.Map;
+import java.util.HashMap;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -45,8 +48,18 @@ import org.sakaiproject.nakamura.api.activemq.ConnectionFactoryService;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.media.MediaListener;
+import org.sakaiproject.nakamura.api.lite.content.ContentManager;
+import org.sakaiproject.nakamura.api.lite.content.Content;
+import org.sakaiproject.nakamura.api.lite.ClientPoolException;
+import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.files.FilesConstants;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.commons.io.FilenameUtils;
+
 
 /*
  * use immediate = true to start the worker pool up during server start rather than leaving that
@@ -75,10 +88,47 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
   private MediaCoordinator ucbMediaCoordinator;
 
+  private Map<String,String> mimeTypeToExtension;
+
+
+  private Map<String,String> parseMimeTypes()
+  {
+    InputStream in = getClass().getResourceAsStream("/mime.types");
+
+    if (in == null) {
+      throw new RuntimeException("Couldn't find resource 'mime.types'.");
+    }
+
+    Map<String,String> result = new HashMap<String,String>();
+
+    try {
+      BufferedReader rdr = new BufferedReader(new InputStreamReader(in));
+      try {
+        String line;
+        while ((line = rdr.readLine()) != null) {
+          if (line.startsWith("#")) {
+            continue;
+          }
+
+          String[] bits = line.split("\\s+");
+          result.put(bits[0], bits[1]);
+        }
+      } finally {
+        rdr.close();
+      }
+
+      return result;
+    } catch (IOException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+  }
+
   @Activate
   @Modified
   protected void activate(ComponentContext context) {
     LOGGER.info("Activating Media bundle");
+
+    mimeTypeToExtension = parseMimeTypes();
 
     connectionFactory = connectionFactoryService.getDefaultPooledConnectionFactory();
 
@@ -146,6 +196,38 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
   @Override
   public void handleFile(Map<String, Object> results, String poolId,
       InputStream inputStream, String userId, boolean isNew) throws IOException {
-    contentUpdated(poolId);
+
+    try {
+      org.sakaiproject.nakamura.api.lite.Session adminSession = sparseRepository.loginAdministrative();
+      ContentManager cm = adminSession.getContentManager();
+      Content obj = cm.get(poolId);
+
+      String mimeType = (String)obj.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE);
+      String extension = mimeTypeToExtension.get(mimeType);
+
+      LOGGER.info("STUFF: {} AND {}", mimeType, extension);
+
+      if (mimeType != null && extension != null &&
+          mediaService.acceptsFileType(mimeType, extension)) {
+        obj = cm.get(poolId);
+        obj.setProperty(FilesConstants.POOLED_CONTENT_MIMETYPE,
+                        mediaService.getMimeType());
+        obj.setProperty("media:extension", extension);
+
+        cm.update(obj);
+      }
+
+      contentUpdated(poolId);
+    } catch (ClientPoolException e) {
+      LOGGER.info("ClientPoolException when handling file: {}", e);
+      e.printStackTrace();
+    } catch (StorageClientException e) {
+      LOGGER.info("StorageClientException when handling file: {}", e);
+      e.printStackTrace();
+    } catch (AccessDeniedException e) {
+      LOGGER.info("AccessDeniedException when handling file: {}", e);
+      e.printStackTrace();
+    }
+
   }
 }

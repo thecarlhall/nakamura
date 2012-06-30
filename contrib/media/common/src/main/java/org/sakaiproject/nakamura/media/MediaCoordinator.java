@@ -48,8 +48,6 @@ public class MediaCoordinator implements Runnable {
   private int WORKER_COUNT = 5;
   private int POLL_FREQUENCY = 5000;
 
-  private String VERSION_ID = "_previousVersion";
-
   private ConnectionFactory connectionFactory;
   private String queueName;
   private AtomicBoolean running;
@@ -146,11 +144,9 @@ public class MediaCoordinator implements Runnable {
   }
 
 
-  private boolean isMedia(String mimeType, String extension) {
-    return (mimeType != null &&
-            mediaService.acceptsFileType(mimeType, extension) || mimeType.equals(mediaService.getMimeType()));
+  private boolean isMedia(String mimeType) {
+    return mimeType.equals(mediaService.getMimeType());
   }
-
 
 
   private void syncMedia(Content obj, ContentManager cm) throws IOException {
@@ -168,7 +164,7 @@ public class MediaCoordinator implements Runnable {
 
         LOGGER.info("Version particulars: {} and {}", version.getMimeType(), version.getExtension());
 
-        if (!isMedia(version.getMimeType(), version.getExtension())) {
+        if (!isMedia(version.getMimeType())) {
           LOGGER.info("This version isn't a video.  Skipped.");
           continue;
         }
@@ -176,17 +172,6 @@ public class MediaCoordinator implements Runnable {
         if (!mediaNode.isBodyUploaded(version)) {
           LOGGER.info("Uploading body for version {} of object {}",
                       version, path);
-
-            if (obj.getProperty(VERSION_ID).equals(version.getVersionId())) {
-              // This version is the current incarnation of the object.  Set the
-              // object's mime type to mark it as handled by us.
-              
-              obj = cm.get(path);
-              obj.setProperty(FilesConstants.POOLED_CONTENT_MIMETYPE,
-                              mediaService.getMimeType());
-              cm.update(obj);
-            }
-
           InputStream is = cm.getVersionInputStream(path, version.getVersionId());
           try {
             String mediaId = mediaService.createMedia(is,
@@ -248,9 +233,9 @@ public class MediaCoordinator implements Runnable {
       }
 
       String mimeType = (String)obj.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE);
-      String extension = (String)obj.getProperty("sakai:fileextension");
-      if (!isMedia(mimeType, extension)) {
-        LOGGER.info("Path '{}' isn't a media (type is: {}).  Skipped.",
+
+      if (!isMedia(mimeType)) {
+        LOGGER.info("Path '{}' isn't a media file (type is: {}).  Skipped.",
                     pid, mimeType);
         return;
       }

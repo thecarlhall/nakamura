@@ -59,7 +59,7 @@ class VersionManager {
                              (String)current.getProperty("_id"),
                              (String)last.getProperty("sakai:pooled-content-file-name"),
                              (String)last.getProperty("sakai:description"),
-                             (String)last.getProperty("sakai:fileextension"),
+                             (String)current.getProperty("media:extension"),
                              (String)current.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE),
                              tags,
                              contentManager));
