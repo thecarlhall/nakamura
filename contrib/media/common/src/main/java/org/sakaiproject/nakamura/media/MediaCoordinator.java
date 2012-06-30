@@ -30,6 +30,7 @@ import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 
 import org.sakaiproject.nakamura.api.files.FilesConstants;
 
@@ -95,6 +96,54 @@ public class MediaCoordinator implements Runnable {
       }
     } else {
       LOGGER.info("No thread active");
+    }
+  }
+
+
+  /**
+   * If poolId looks like a media file, set its mime type to have it handled by the media service
+   * @param poolId A content path
+   */
+  public void maybeMarkAsMedia(String poolId) {
+    org.sakaiproject.nakamura.api.lite.Session adminSession = null;
+
+    try {
+      adminSession = sparseRepository.loginAdministrative();
+      ContentManager cm = adminSession.getContentManager();
+      Content obj = cm.get(poolId);
+
+      String mimeType = (String)obj.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE);
+      String extension = MediaUtils.mimeTypeToExtension(mimeType);
+
+      LOGGER.info("Media mime type and extension: {} AND {}", mimeType, extension);
+
+      if (mimeType != null && extension != null &&
+          mediaService.acceptsFileType(mimeType, extension)) {
+        obj = cm.get(poolId);
+        obj.setProperty(FilesConstants.POOLED_CONTENT_MIMETYPE,
+                        mediaService.getMimeType());
+        obj.setProperty("media:extension", extension);
+
+        cm.update(obj);
+      }
+    } catch (ClientPoolException e) {
+      LOGGER.info("ClientPoolException when handling file: {}", e);
+      e.printStackTrace();
+    } catch (StorageClientException e) {
+      LOGGER.info("StorageClientException when handling file: {}", e);
+      e.printStackTrace();
+    } catch (AccessDeniedException e) {
+      LOGGER.info("AccessDeniedException when handling file: {}", e);
+      e.printStackTrace();
+    } finally {
+      if (adminSession != null) {
+        try {
+          adminSession.logout();
+        } catch (Exception e) {
+          LOGGER.warn("Failed to logout of administrative session {} ",
+                      e.getMessage());
+        }
+      }
     }
   }
 
@@ -259,7 +308,6 @@ public class MediaCoordinator implements Runnable {
         LOGGER.warn("Failed to logout of administrative session {} ",
                     e.getMessage());
       }
-
     }
   }
 
