@@ -51,6 +51,7 @@ import org.apache.sling.commons.json.io.JSONWriter;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentException;
 import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.MediaStatus;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,14 +61,13 @@ import org.slf4j.LoggerFactory;
 public class BrightCoveMediaService implements MediaService {
 
   private static final String OBJECT_EL_TMPL = "<script language=\"JavaScript\" type=\"text/javascript\" src=\"http://admin.brightcove.com/js/BrightcoveExperiences.js\"></script>" +
-      "  <object id=\"myExperience1699010595001\" class=\"BrightcoveExperience\">" +
+      "  <object id=\"myExperience%s\" class=\"BrightcoveExperience\">" +
       "    <param name=\"bgcolor\" value=\"#FFFFFF\" />" +
       "    <param name=\"width\" value=\"500\" />" +
       "    <param name=\"height\" value=\"470\" />" +
-      "    <param name=\"playerID\" value=\"1648880808001\" />" +
-      "    <param name=\"playerKey\" value=\"AQ~~,AAABchwNZ2E~,mhHIIVIf990d9oFgSAc7GMq_MDg9HMDS\" />" +
+      "    <param name=\"playerID\" value=\"1592571526001\" />" +
+      "    <param name=\"playerKey\" value=\"AQ~~,AAABchwNZ2E~,mhHIIVIf993EWLhxM-UK10NvBOSeYNCF\" />" +
       "    <param name=\"isVid\" value=\"true\" />" +
-      "    <param name=\"isUI\" value=\"true\" />" +
       "    <param name=\"dynamicStreaming\" value=\"true\" />" +
       "    <param name=\"wmode\" value=\"opaque\" />" +
       "" +
@@ -164,9 +164,11 @@ public class BrightCoveMediaService implements MediaService {
    * @see org.sakaiproject.nakamura.api.media.MediaService#writeStatus(java.io.Writer, java.lang.String)
    */
   @Override
-  public void writeStatus(Writer writer, String id) throws MediaServiceException,
+  public MediaStatus getStatus(String id) throws MediaServiceException,
       IOException {
     PostMethod post = null;
+
+    MediaStatus result;
 
     try {
       // TODO don't check for this every time. Should have a latency window and only check
@@ -175,21 +177,33 @@ public class BrightCoveMediaService implements MediaService {
           .put("method", "get_upload_status")
           .put("params", new JSONObject()
               .put("token", writeToken)
-              .put("media_id", id));
+              .put("video_id", id));
       // Define the url to the api
       post = new PostMethod(postUrl);
       Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
       post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
       int returnCode = client.executeMethod(post);
 
-      String response = post.getResponseBodyAsString();
-      JSONWriter jsonWriter = new JSONWriter(writer);
-      jsonWriter.object();
-      jsonWriter.key("id").value(id);
-      jsonWriter.key("returnCode").value(returnCode);
-      jsonWriter.key("response").value(response);
-      jsonWriter.key("html_object").value(getPlayerFragment(id));
-      jsonWriter.endObject();
+      JSONObject response = new JSONObject(post.getResponseBodyAsString());
+      final String status = response.getString("result");
+
+      LOG.info("Status from Brightcove: {}", status);
+
+      result = new MediaStatus() {
+          public boolean isReady() {
+            return ("COMPLETE".equals(status));
+          }
+
+          public boolean isProcessing() {
+            return ("PROCESSING".equals(status) || "UPLOADING".equals(status));
+          }
+
+          public boolean isError() {
+            // TODO: Can this happen?
+            return false;
+          }
+        };
+
     } catch (JSONException e) {
       LOG.error(e.getMessage(), e);
       throw new MediaServiceException(e.getMessage(), e);
@@ -198,6 +212,8 @@ public class BrightCoveMediaService implements MediaService {
         post.releaseConnection();
       }
     }
+
+    return result;
   }
 
   /**
@@ -207,7 +223,7 @@ public class BrightCoveMediaService implements MediaService {
    */
   @Override
   public String getPlayerFragment(String id) {
-    return String.format(OBJECT_EL_TMPL, id);
+    return String.format(OBJECT_EL_TMPL, id, id);
   }
 
 

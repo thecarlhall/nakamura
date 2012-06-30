@@ -54,10 +54,10 @@ public interface MediaService {
    * Get the status of a media.
    *
    * @param id
-   * @return
+   * @return A MediaStatus object representing the media's state
    * @throws MediaServiceException
    */
-  void writeStatus(Writer writer, String id) throws MediaServiceException, IOException;
+  MediaStatus getStatus(String id) throws MediaServiceException, IOException;
 
   /**
    * Return the HTML snippet for a player that will play the given video ID.

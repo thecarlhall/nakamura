@@ -159,7 +159,7 @@ public class MediaCoordinator implements Runnable {
     String path = obj.getPath();
 
     try {
-      MediaNode mediaNode = MediaNode.get(path, cm);
+      MediaNode mediaNode = MediaNode.get(path, cm, true);
       VersionManager vm = new VersionManager(cm);
 
       for (Version version : vm.getVersionsMetadata(path)) {
@@ -177,16 +177,6 @@ public class MediaCoordinator implements Runnable {
           LOGGER.info("Uploading body for version {} of object {}",
                       version, path);
 
-          InputStream is = cm.getVersionInputStream(path, version.getVersionId());
-          try {
-            String mediaId = mediaService.createMedia(is,
-                                                      version.getTitle(),
-                                                      version.getDescription(),
-                                                      version.getExtension(),
-                                                      version.getTags());
-
-            mediaNode.storeMediaId(version, mediaId);
-
             if (obj.getProperty(VERSION_ID).equals(version.getVersionId())) {
               // This version is the current incarnation of the object.  Set the
               // object's mime type to mark it as handled by us.
@@ -197,6 +187,15 @@ public class MediaCoordinator implements Runnable {
               cm.update(obj);
             }
 
+          InputStream is = cm.getVersionInputStream(path, version.getVersionId());
+          try {
+            String mediaId = mediaService.createMedia(is,
+                                                      version.getTitle(),
+                                                      version.getDescription(),
+                                                      version.getExtension(),
+                                                      version.getTags());
+
+            mediaNode.storeMediaId(version, mediaId);
           } catch (MediaServiceException e) {
             throw new RuntimeException("Got MediaServiceException during body upload", e);
           } finally {

@@ -27,19 +27,23 @@ class MediaNode {
   }
 
 
-  public static MediaNode get(String parent, ContentManager cm)
+  public static MediaNode get(String parent, ContentManager cm, boolean create)
     throws StorageClientException, AccessDeniedException {
     String mediaNodePath = parent + "/medianode";
 
     Content obj = cm.get(mediaNodePath);
 
     if (obj == null) {
-      obj = new Content(mediaNodePath, new HashMap<String, Object>());
-      cm.update(obj, true);
+      if (create) {
+        obj = new Content(mediaNodePath, new HashMap<String, Object>());
+        cm.update(obj, true);
 
-      cm.update(new Content(mediaNodePath + "/replicationStatus",
-                            new HashMap<String, Object>()),
-                true);
+        cm.update(new Content(mediaNodePath + "/replicationStatus",
+                              new HashMap<String, Object>()),
+                  true);
+      } else {
+        return null;
+      }
     }
 
     return new MediaNode(cm, mediaNodePath);
