@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.HashSet;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.httpclient.HttpClient;
@@ -84,11 +85,17 @@ public class BrightCoveMediaService implements MediaService {
   @Property(value = "http://api.brightcove.com/services")
   public static final String BASE_URL = "baseUrl";
 
+  @Property(value = { "mpg", "avi", "wmv", "mp4", "mov", "flv" })
+  public static final String VIDEO_EXTENSIONS = "supportedVideoExtensionsList";
+
   String readToken;
   String writeToken;
+  String supportedVideoExtensionsList;
   String baseUrl;
   String libraryUrl;
   String postUrl;
+
+  private HashSet<String> supportedVideoExtensions = new HashSet<String>();
 
   private HttpClient client;
 
@@ -118,6 +125,10 @@ public class BrightCoveMediaService implements MediaService {
     }
     libraryUrl = String.format("%s/library", baseUrl);
     postUrl = String.format("%s/post", baseUrl);
+
+    for (String ext : PropertiesUtil.toStringArray(props.get(VIDEO_EXTENSIONS), new String[] {}))  {
+      supportedVideoExtensions.add(ext.toLowerCase());
+    }
   }
 
   // --------------- MediaService interface -----------------------------------
@@ -197,6 +208,28 @@ public class BrightCoveMediaService implements MediaService {
   @Override
   public String getPlayerFragment(String id) {
     return String.format(OBJECT_EL_TMPL, id);
+  }
+
+
+  /**
+   * {@inheritDoc}
+   *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#getMimeType()
+   */
+  @Override
+  public String getMimeType() {
+    return "application/x-media-brightcove";
+  }
+
+
+  /**
+   * {@inheritDoc}
+   *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#acceptsMimeType(String)
+   */
+  @Override
+  public boolean acceptsFileType(String mimeType, String extension) {
+    return mimeType.startsWith("video/") && supportedVideoExtensions.contains(extension);
   }
 
 

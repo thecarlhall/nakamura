@@ -6,6 +6,8 @@ import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 
+import org.sakaiproject.nakamura.api.files.FilesConstants;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,6 +60,7 @@ class VersionManager {
                              (String)last.getProperty("sakai:pooled-content-file-name"),
                              (String)last.getProperty("sakai:description"),
                              (String)last.getProperty("sakai:fileextension"),
+                             (String)current.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE),
                              tags,
                              contentManager));
     }

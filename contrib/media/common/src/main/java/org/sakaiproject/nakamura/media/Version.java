@@ -16,12 +16,13 @@ class Version {
   private String description;
   private String extension;
   private String mediaId;
+  private String mimeType;
   private String[] tags;
   private ContentManager contentManager;
 
 
   public Version(String pid, String versionId,
-                 String title, String description, String extension,
+                 String title, String description, String extension, String mimeType,
                  String[] tags,
                  ContentManager cm) {
     contentManager = cm;
@@ -31,6 +32,11 @@ class Version {
     this.description = description;
     this.extension = extension;
     this.tags = tags;
+    this.mimeType = mimeType;
+
+    if (this.title == null || "".equals(this.title)) {
+      this.title = pid;
+    }
   }
 
 
@@ -45,12 +51,21 @@ class Version {
 
 
   public String getDescription() {
-    return description;
+    if (description == null) {
+      return title;
+    } else {
+      return description;
+    }
   }
 
 
   public String getExtension() {
     return extension;
+  }
+
+
+  public String getMimeType() {
+    return mimeType;
   }
 
 

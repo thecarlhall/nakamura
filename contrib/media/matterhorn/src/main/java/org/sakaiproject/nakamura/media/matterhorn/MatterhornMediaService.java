@@ -45,6 +45,28 @@ public class MatterhornMediaService implements MediaService {
     return null;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#getMimeType()
+   */
+  @Override
+  public String getMimeType() {
+    return "application/x-media-matterhorn";
+  }
+
+
+  /**
+   * {@inheritDoc}
+   *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#acceptsMimeType(String)
+   */
+  @Override
+  public boolean acceptsFileType(String mimeType, String extension) {
+    return mimeType.startsWith("video/");
+  }
+
+
   @Override
   public void writeStatus(Writer writer, String id) throws MediaServiceException,
       IOException {

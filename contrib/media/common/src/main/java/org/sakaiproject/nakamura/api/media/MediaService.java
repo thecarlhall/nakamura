@@ -22,9 +22,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
 
-/**
- *
- */
 public interface MediaService {
   /**
    * Create media with supplied metadata.
@@ -68,4 +65,23 @@ public interface MediaService {
    * @return A string of HTML that will be inserted into the UI's DOM
    */
   String getPlayerFragment(String id);
+
+
+  /**
+   * The mime type that will be set for content objects handled by this service.
+   * @return A string like "application/x-media-[servicename]"
+   */
+  String getMimeType();
+
+
+  /**
+   * Check whether the media service can handle a certain mime type and
+   * extension.
+   * @param mimeType A mime type like "video/mpeg"
+   * @param extension A file extension like "mpg"
+   * @return True if this media service supports a given mime type. False
+   *        otherwise.
+   */
+  boolean acceptsFileType(String mimeType, String extension);
+
 }
