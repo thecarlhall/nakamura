@@ -1,0 +1,391 @@
+package org.sakaiproject.nakamura.media;
+
+import java.io.IOException;
+import java.io.InputStream;
+
+import java.lang.reflect.Field;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
+
+import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.MediaStatus;
+import org.sakaiproject.nakamura.api.media.MediaServiceException;
+
+import javax.jms.Connection;
+import javax.jms.MessageProducer;
+import javax.jms.Queue;
+
+import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.broker.BrokerService;
+import org.sakaiproject.nakamura.api.lite.content.Content;
+import org.sakaiproject.nakamura.api.lite.content.ContentManager;
+import org.sakaiproject.nakamura.api.lite.Repository;
+import org.sakaiproject.nakamura.lite.BaseMemoryRepository;
+import org.sakaiproject.nakamura.media.MediaCoordinator;
+import org.sakaiproject.nakamura.media.MediaUtils;
+
+import org.sakaiproject.nakamura.api.lite.Session;
+
+import org.junit.Test;
+import org.junit.Before;
+import org.junit.After;
+import org.junit.BeforeClass;
+import org.junit.AfterClass;
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertTrue;
+import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.fail;
+import com.google.common.collect.ImmutableMap;
+
+
+public class MediaCoordinatorTest {
+
+  private static String TEST_QUEUE = "MEDIA_TEST";
+  private static String JMS_URL = "tcp://localhost:12331";
+  private static BrokerService broker;
+  private static ActiveMQConnectionFactory connectionFactory;
+
+  private int POLL_MS = 500;
+  private int MAX_WAIT_MS = 10000;
+
+  private class MockMediaService implements MediaService {
+
+    public List<Map<String, String>> created = new ArrayList<Map<String, String>>();
+    public List<Map<String, String>> updated = new ArrayList<Map<String, String>>();
+
+    public boolean failOnNextCreate = false;
+
+    public String createMedia(InputStream media, String title, String description, String extension, String[] tags)
+      throws MediaServiceException {
+
+      if (failOnNextCreate) {
+        failOnNextCreate = false;
+        throw new RuntimeException("Transient failure!");
+      }
+
+      created.add(ImmutableMap.of("title", title,
+                                  "description", description,
+                                  "extension", extension,
+                                  "tags", Arrays.asList(tags).toString()));
+
+      return String.valueOf(System.currentTimeMillis());
+    }
+
+
+    public String updateMedia(String id, String title, String description, String[] tags)
+      throws MediaServiceException {
+
+      updated.add(ImmutableMap.of("id", id,
+                                  "title", title,
+                                  "description", description,
+                                  "tags", Arrays.asList(tags).toString()));
+
+      return id;
+    }
+
+    public MediaStatus getStatus(String id) throws MediaServiceException, IOException {
+      return new MediaStatus() {
+        public boolean isReady() {
+          return true;
+        }
+
+        public boolean isProcessing() {
+          return false;
+        }
+
+        public boolean isError() {
+          return false;
+        }
+      };
+    }
+
+    public String getPlayerFragment(String id) {
+      return "[the player]";
+    }
+
+    public String getMimeType() {
+      return "application/x-media-testsuite";
+    }
+
+    public boolean acceptsFileType(String mimeType, String extension) {
+      // Sure!
+      return true;
+    }
+  }
+
+
+  private Repository repository;
+  private Session adminSession;
+  private ContentManager cm;
+
+  MockMediaService mediaService;
+  MediaCoordinator mc;
+
+
+  @BeforeClass
+  public static void init() throws Exception {
+    broker = new BrokerService();
+    broker.setBrokerName(TEST_QUEUE);
+    broker.addConnector(JMS_URL);
+
+    broker.start();
+
+
+    connectionFactory = new ActiveMQConnectionFactory(JMS_URL);
+  }
+  
+
+  @Before
+  public void setUp() throws Exception {
+    repository = new BaseMemoryRepository().getRepository();
+    adminSession = repository.loginAdministrative();
+    cm = adminSession.getContentManager();
+
+    mediaService = new MockMediaService();
+    mc = new MediaCoordinator(connectionFactory, TEST_QUEUE, repository, mediaService);
+    mc.start();
+  }
+
+
+  private void contentUpdated(String pid) {
+    try {
+      Connection conn = connectionFactory.createConnection();
+      javax.jms.Session jmsSession = conn.createSession(false, javax.jms.Session.AUTO_ACKNOWLEDGE);
+      Queue mediaQueue = jmsSession.createQueue(TEST_QUEUE);
+
+      MessageProducer producer = jmsSession.createProducer(mediaQueue);
+
+      producer.send(MediaUtils.message(jmsSession, "pid", pid));
+
+      producer.close();
+      jmsSession.close();
+      conn.close();
+
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+  }
+
+
+  private void saveVersion(String path, String mimeType, String extension, String title,
+                               String description, String ... tags)
+    throws Exception {
+    Map<String, Object> props = new HashMap<String, Object>();
+
+    props.put("_path", path);
+    props.put("_mimeType", mimeType);
+    props.put("media:extension", extension);
+    props.put("sakai:pooled-content-file-name", title);
+    props.put("sakai:description", description);
+
+    cm.update(new Content(path, props));
+    cm.saveVersion(path);
+  }
+
+
+  @Test
+  public void testSimpleVideo() throws Exception {
+
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+
+    contentUpdated("abc");
+
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> created = mediaService.created;
+
+      if (created.size() > 0) {
+        assertEquals(created.get(0).get("title"), "test video 1");
+        assertEquals(created.get(0).get("description"), "hello, world");
+
+        return;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    fail("Video upload didn't arrive in time.");
+  }
+
+
+  @Test
+  public void testTwoVersions() throws Exception {
+
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+    saveVersion("abc", "application/x-media-testsuite", "avi", "test video 1", "hello, world (updated)");
+
+    contentUpdated("abc");
+
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> created = mediaService.created;
+
+      if (created.size() == 2) {
+        assertTrue(("mpg".equals(created.get(0).get("extension")) && "avi".equals(created.get(1).get("extension"))) ||
+                   ("avi".equals(created.get(0).get("extension")) && "mpg".equals(created.get(1).get("extension"))));
+
+        return;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    fail("Video upload didn't arrive in time.");
+  }
+
+
+  @Test
+  public void testNonVideoVersion() throws Exception {
+
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+    saveVersion("abc", "image/png", "png", "test video 1", "this isn't a video");
+    saveVersion("abc", "application/x-media-testsuite", "avi", "test video 1", "hello, world (updated)");
+
+    contentUpdated("abc");
+
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> created = mediaService.created;
+
+      if (created.size() == 2) {
+        assertTrue(("mpg".equals(created.get(0).get("extension")) && "avi".equals(created.get(1).get("extension"))) ||
+                   ("avi".equals(created.get(0).get("extension")) && "mpg".equals(created.get(1).get("extension"))));
+
+        return;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    fail("Video upload didn't arrive in time.");
+  }
+
+
+  @Test
+  public void testNonVideoInitialVersion() throws Exception {
+
+    saveVersion("abc", "image/png", "png", "test video 1", "this isn't a video");
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+    saveVersion("abc", "application/x-media-testsuite", "avi", "test video 1", "hello, world (updated)");
+
+    contentUpdated("abc");
+
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> created = mediaService.created;
+
+      if (created.size() == 2) {
+        assertTrue(("mpg".equals(created.get(0).get("extension")) && "avi".equals(created.get(1).get("extension"))) ||
+                   ("avi".equals(created.get(0).get("extension")) && "mpg".equals(created.get(1).get("extension"))));
+
+        return;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    fail("Video upload didn't arrive in time.");
+  }
+
+
+  @Test
+  public void testUpdateMetadata() throws Exception {
+
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+
+    contentUpdated("abc");
+
+    boolean wasCreated = false;
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> created = mediaService.created;
+
+      if (created.size() == 1) {
+        assertEquals(created.get(0).get("title"), "test video 1");
+
+        wasCreated = true;
+        break;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    if (!wasCreated) {
+      fail("Video upload didn't arrive in time.");
+      return;
+    }
+
+    // Update the metadata without creating a new version and verify that it propagates
+    Content obj = cm.get("abc");
+    obj.setProperty("sakai:description", "a new description");
+    obj.setProperty("sakai:tags", new String[] { "anewtag", "anothernewtag" });
+    cm.update(obj);
+
+    contentUpdated("abc");
+
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> updated = mediaService.updated;
+
+      if (updated.size() == 1) {
+        assertEquals(updated.get(0).get("description"), "a new description");
+        assertEquals(updated.get(0).get("tags"), "[anewtag, anothernewtag]");
+
+        return;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    fail("Video metadata update didn't arrive in time.");
+  }
+
+
+  @Test
+  public void testRetryOnFail() throws Exception {
+
+    mediaService.failOnNextCreate = true;
+
+    // Change the retry to 1 second
+    Field retry_ms = MediaCoordinator.class.getDeclaredField("RETRY_MS");
+    retry_ms.setAccessible(true);
+    retry_ms.setInt(mc, 1000);
+
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+    contentUpdated("abc");
+
+    boolean wasCreated = false;
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> created = mediaService.created;
+
+      if (created.size() == 1) {
+        // The first attempt failed...
+        assertFalse(mediaService.failOnNextCreate);
+
+        // ... but we got there in the end.
+        assertEquals(created.get(0).get("title"), "test video 1");
+
+        return;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    if (!wasCreated) {
+      fail("Video upload didn't arrive in time.");
+      return;
+    }
+  }
+
+
+  @After
+  public void tearDown() throws Exception {
+    mc.shutdown();
+    adminSession.logout();
+  }
+
+
+  @AfterClass
+  public static void destroy() throws Exception
+  {
+    broker.stop();
+  }
+}
