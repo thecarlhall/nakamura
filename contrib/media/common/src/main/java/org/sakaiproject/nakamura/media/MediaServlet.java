@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 /**
  *
  */
-@Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
+@Component(metatype = true)
 @Service
 @Property(name = "alias", value = "/var/media")
 public class MediaServlet extends HttpServlet {
