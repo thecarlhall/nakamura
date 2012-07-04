@@ -162,7 +162,7 @@ public class BrightCoveMediaService implements MediaService {
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.MediaService#writeStatus(java.io.Writer, java.lang.String)
+   * @see org.sakaiproject.nakamura.api.media.MediaService#getStatus(java.lang.String)
    */
   @Override
   public MediaStatus getStatus(String id) throws MediaServiceException,
@@ -200,8 +200,7 @@ public class BrightCoveMediaService implements MediaService {
           }
 
           public boolean isError() {
-            // TODO: Can this happen?
-            return false;
+            return "ERROR".equals(status);
           }
         };
 
