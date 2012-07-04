@@ -36,7 +36,7 @@ import org.sakaiproject.nakamura.api.files.FilesConstants;
 
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
-
+import org.sakaiproject.nakamura.api.media.ErrorHandler;
 
 
 public class MediaCoordinator implements Runnable {
@@ -45,6 +45,7 @@ public class MediaCoordinator implements Runnable {
 
   protected Repository sparseRepository;
 
+  private int MAX_RETRIES = 5;
   private int RETRY_MS = 5 * 60 * 1000;
   private int WORKER_COUNT = 5;
   private int POLL_FREQUENCY = 5000;
@@ -60,7 +61,7 @@ public class MediaCoordinator implements Runnable {
   Thread activeThread;
 
   private MediaService mediaService;
-
+  private ErrorHandler errorHandler = null;
 
   public MediaCoordinator(ConnectionFactory connectionFactory,
                           String queueName,
@@ -317,7 +318,7 @@ public class MediaCoordinator implements Runnable {
       // A bit funny to wait like this, but if we give a new file upload a
       // few seconds we can usually handle the initial upload and all its
       // events in one shot.  Just a dumb optimisation.
-      Thread.sleep(2000);
+      Thread.sleep(POLL_FREQUENCY);
     } catch (InterruptedException e) {}
 
     for (Message msg : incoming) {
@@ -350,6 +351,11 @@ public class MediaCoordinator implements Runnable {
   }
 
 
+  public void setErrorHandler(ErrorHandler handler) {
+    this.errorHandler = handler;
+  }
+
+
   public void run() {
     LOGGER.info("Running MediaCoordinator");
 
@@ -361,6 +367,7 @@ public class MediaCoordinator implements Runnable {
 
     ExecutorService[] workers = createWorkerPool();
     Map<String, Message> inProgress = new HashMap<String, Message>();
+    Map<String, Integer> retryCounts = new HashMap<String, Integer>();
 
     Slowdown slowdown = new Slowdown((long)(POLL_FREQUENCY));
     while (running.get()) {
@@ -402,6 +409,7 @@ public class MediaCoordinator implements Runnable {
                 } catch (Exception e) {
                   LOGGER.warn("Failed while processing PID '{}'", pid);
                   e.printStackTrace();
+
                   LOGGER.warn("This job will be queued for retry in {} ms",
                               RETRY_MS);
 
@@ -444,12 +452,29 @@ public class MediaCoordinator implements Runnable {
                 Message failedMsg = inProgress.get(job.jobId);
 
                 if (failedMsg != null) {
-                  LOGGER.info("Requeueing job for pid '{}'",
-                              failedMsg.getStringProperty("pid"));
+                  String pid = failedMsg.getStringProperty("pid");
 
                   inProgress.remove(job.jobId);
+                  int retriesSoFar = retryCounts.containsKey(pid) ? retryCounts.get(pid) : 0;
+
+                  if (MAX_RETRIES >= 0 && (retriesSoFar + 1) > MAX_RETRIES) {
+                    LOGGER.error("Giving up on {} after {} failed retry attempts.",
+                                 pid, retriesSoFar);
+
+                    retryCounts.remove(pid);
+                    failedMsg.acknowledge();
+
+                    if (errorHandler != null) {
+                      errorHandler.error(pid);
+                    }
+                  } else {
+                    int retry = retriesSoFar + 1;
+                    LOGGER.info("Requeueing job for pid '{}' (retry #{})", pid, retry);
+
+                    retryCounts.put(pid, retry);
+                    incoming.add(failedMsg);
+                  }
                   
-                  incoming.add(failedMsg);
                 }
               } else {
                 break;

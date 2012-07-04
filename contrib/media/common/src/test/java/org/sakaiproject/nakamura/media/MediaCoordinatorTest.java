@@ -5,13 +5,17 @@ import java.io.InputStream;
 
 import java.lang.reflect.Field;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.ErrorHandler;
 import org.sakaiproject.nakamura.api.media.MediaStatus;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 
@@ -49,23 +53,33 @@ public class MediaCoordinatorTest {
   private static BrokerService broker;
   private static ActiveMQConnectionFactory connectionFactory;
 
-  private int POLL_MS = 500;
+  private int POLL_MS = 100;
   private int MAX_WAIT_MS = 10000;
 
   private class MockMediaService implements MediaService {
 
-    public List<Map<String, String>> created = new ArrayList<Map<String, String>>();
-    public List<Map<String, String>> updated = new ArrayList<Map<String, String>>();
+    public List<Map<String, String>> created = Collections.synchronizedList(new ArrayList<Map<String, String>>());
+    public List<Map<String, String>> updated = Collections.synchronizedList(new ArrayList<Map<String, String>>());
 
+    public boolean alwaysFail = false;
     public boolean failOnNextCreate = false;
+
+    volatile public int failCount = 0;
 
     public String createMedia(InputStream media, String title, String description, String extension, String[] tags)
       throws MediaServiceException {
 
       if (failOnNextCreate) {
         failOnNextCreate = false;
+        failCount++;
         throw new RuntimeException("Transient failure!");
       }
+
+      if (alwaysFail) {
+        failCount++;
+        throw new RuntimeException("Permanent failure!");
+      }
+
 
       created.add(ImmutableMap.of("title", title,
                                   "description", description,
@@ -147,6 +161,11 @@ public class MediaCoordinatorTest {
 
     mediaService = new MockMediaService();
     mc = new MediaCoordinator(connectionFactory, TEST_QUEUE, repository, mediaService);
+
+    Field poll_frequency = MediaCoordinator.class.getDeclaredField("POLL_FREQUENCY");
+    poll_frequency.setAccessible(true);
+    poll_frequency.setInt(mc, 500);
+
     mc.start();
   }
 
@@ -344,10 +363,9 @@ public class MediaCoordinatorTest {
 
     mediaService.failOnNextCreate = true;
 
-    // Change the retry to 1 second
     Field retry_ms = MediaCoordinator.class.getDeclaredField("RETRY_MS");
     retry_ms.setAccessible(true);
-    retry_ms.setInt(mc, 1000);
+    retry_ms.setInt(mc, 200);
 
     saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
     contentUpdated("abc");
@@ -373,6 +391,43 @@ public class MediaCoordinatorTest {
       fail("Video upload didn't arrive in time.");
       return;
     }
+  }
+
+
+  @Test
+  public void testMaxRetries() throws Exception {
+
+    mediaService.alwaysFail = true;
+
+    Field retry_ms = MediaCoordinator.class.getDeclaredField("RETRY_MS");
+    retry_ms.setAccessible(true);
+    retry_ms.setInt(mc, 200);
+
+    Field max_retries = MediaCoordinator.class.getDeclaredField("MAX_RETRIES");
+    max_retries.setAccessible(true);
+    max_retries.setInt(mc, 2);
+
+    final Semaphore semaphore = new Semaphore(0);
+
+    mc.setErrorHandler(new ErrorHandler() {
+        public void error(String pid) {
+          if ("abc".equals(pid)) {
+            semaphore.release();
+          }
+        }
+      });
+
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+    contentUpdated("abc");
+
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      if (semaphore.tryAcquire(POLL_MS, TimeUnit.MILLISECONDS)) {
+        System.out.println("Hooray");
+        return;
+      }
+    }
+
+    fail("Failed upload didn't give up in time");
   }
 
 
