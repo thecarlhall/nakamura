@@ -36,6 +36,7 @@ import org.sakaiproject.nakamura.api.files.FilesConstants;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.sakaiproject.nakamura.api.media.ErrorHandler;
+import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
 
 
 public class MediaCoordinator implements Runnable {
@@ -219,6 +220,7 @@ public class MediaCoordinator implements Runnable {
 
         if (!isMedia(version.getMimeType())) {
           LOGGER.info("This version isn't a video.  Skipped.");
+          TelemetryCounter.incrementValue("media", "Coordinator", "skips");
           continue;
         }
 
@@ -227,11 +229,13 @@ public class MediaCoordinator implements Runnable {
                       version, path);
           InputStream is = cm.getVersionInputStream(path, version.getVersionId());
           try {
+            TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
             String mediaId = mediaService.createMedia(is,
                                                       version.getTitle(),
                                                       version.getDescription(),
                                                       version.getExtension(),
                                                       version.getTags());
+            TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
 
             mediaNode.storeMediaId(version, mediaId);
           } catch (MediaServiceException e) {
@@ -246,10 +250,12 @@ public class MediaCoordinator implements Runnable {
                       version, path);
 
           try {
+            TelemetryCounter.incrementValue("media", "Coordinator", "updates-started");
             mediaService.updateMedia(mediaNode.getMediaId(version),
                                      version.getTitle(),
                                      version.getDescription(),
                                      version.getTags());
+            TelemetryCounter.incrementValue("media", "Coordinator", "updates-finished");
 
             mediaNode.recordVersion(version);
 
@@ -290,6 +296,7 @@ public class MediaCoordinator implements Runnable {
       if (!isMedia(mimeType)) {
         LOGGER.info("Path '{}' isn't a media file (type is: {}).  Skipped.",
                     pid, mimeType);
+        TelemetryCounter.incrementValue("media", "Coordinator", "skips");
         return;
       }
 
@@ -463,6 +470,7 @@ public class MediaCoordinator implements Runnable {
                   if (maxRetries >= 0 && (retriesSoFar + 1) > maxRetries) {
                     LOGGER.error("Giving up on {} after {} failed retry attempts.",
                                  pid, retriesSoFar);
+                    TelemetryCounter.incrementValue("media", "Coordinator", "failures");
 
                     retryCounts.remove(pid);
                     failedMsg.acknowledge();
@@ -473,6 +481,7 @@ public class MediaCoordinator implements Runnable {
                   } else {
                     int retry = retriesSoFar + 1;
                     LOGGER.info("Requeueing job for pid '{}' (retry #{})", pid, retry);
+                    TelemetryCounter.incrementValue("media", "Coordinator", "retries");
 
                     retryCounts.put(pid, retry);
                     incoming.add(failedMsg);

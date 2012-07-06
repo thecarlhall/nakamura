@@ -19,13 +19,12 @@ package org.sakaiproject.nakamura.media.matterhorn;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Writer;
-
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
 import org.apache.felix.scr.annotations.Service;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
+import org.sakaiproject.nakamura.api.media.MediaStatus;
 
 /**
  *
@@ -68,13 +67,14 @@ public class MatterhornMediaService implements MediaService {
 
 
   @Override
-  public void writeStatus(Writer writer, String id) throws MediaServiceException,
-      IOException {
+  public String getPlayerFragment(String id) {
+    return "IMPLEMENTME";
   }
 
   @Override
-  public String getPlayerFragment(String id) {
-    return "IMPLEMENTME";
+  public MediaStatus getStatus(String id) throws MediaServiceException, IOException {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 }
