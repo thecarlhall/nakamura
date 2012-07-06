@@ -60,41 +60,41 @@ public class BrightCoveMediaService implements MediaService {
 
   static final String SCRIPT_SRC_DEFAULT = "http://admin.brightcove.com/js/BrightcoveExperiences.js";
   @Property(value = SCRIPT_SRC_DEFAULT)
-  public static final String SCRIPT_SRC = "sakai.media.bc.script.src";
+  public static final String SCRIPT_SRC = "script.src";
 
   static final String OBJECT_CLASS_DEFAULT = "BrightcoveExperience";
   @Property(value = OBJECT_CLASS_DEFAULT)
-  public static final String OBJECT_CLASS = "sakai.media.bc.myExperience.class";
+  public static final String OBJECT_CLASS = "myExperience.class";
 
   static final String BG_COLOR_DEFAULT = "#FFFFFF";
   @Property
-  public static final String BG_COLOR = "sakai.media.bc.bgcolor";
+  public static final String BG_COLOR = "bgcolor";
 
   static final String WIDTH_DEFAULT = "500";
   @Property
-  public static final String WIDTH = "sakai.media.bc.width";
+  public static final String WIDTH = "width";
 
   static final String HEIGHT_DEFAULT = "470";
   @Property
-  public static final String HEIGHT = "sakai.media.bc.height";
+  public static final String HEIGHT = "height";
 
   @Property
-  public static final String PLAYER_ID = "sakai.media.bc.playerID";
+  public static final String PLAYER_ID = "playerID";
 
   @Property
-  public static final String PLAYER_KEY = "sakai.media.bc.playerKey";
+  public static final String PLAYER_KEY = "playerKey";
 
   static final boolean IS_VID_DEFAULT = true;
   @Property(boolValue = IS_VID_DEFAULT)
-  public static final String IS_VID = "sakai.media.bc.isVid";
+  public static final String IS_VID = "isVid";
 
   static final boolean DYNAMIC_STREAMING_DEFAULT = true;
   @Property(boolValue = DYNAMIC_STREAMING_DEFAULT)
-  public static final String DYNAMIC_STREAMING = "sakai.media.bc.dynamicStreaming";
+  public static final String DYNAMIC_STREAMING = "dynamicStreaming";
 
   static final String W_MODE_DEFAULT = "opaque";
   @Property
-  public static final String W_MODE = "sakai.media.bc.wmode";
+  public static final String W_MODE = "wmode";
 
   private static final Logger LOG = LoggerFactory.getLogger(BrightCoveMediaService.class);
 
