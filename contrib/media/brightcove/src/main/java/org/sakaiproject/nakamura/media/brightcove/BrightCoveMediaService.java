@@ -24,7 +24,6 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.Writer;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashSet;
@@ -47,7 +46,6 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
-import org.apache.sling.commons.json.io.JSONWriter;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentException;
 import org.sakaiproject.nakamura.api.media.MediaService;
@@ -60,19 +58,43 @@ import org.slf4j.LoggerFactory;
 @Service
 public class BrightCoveMediaService implements MediaService {
 
-  private static final String OBJECT_EL_TMPL = "<script language=\"JavaScript\" type=\"text/javascript\" src=\"http://admin.brightcove.com/js/BrightcoveExperiences.js\"></script>" +
-      "  <object id=\"myExperience%s\" class=\"BrightcoveExperience\">" +
-      "    <param name=\"bgcolor\" value=\"#FFFFFF\" />" +
-      "    <param name=\"width\" value=\"500\" />" +
-      "    <param name=\"height\" value=\"470\" />" +
-      "    <param name=\"playerID\" value=\"1592571526001\" />" +
-      "    <param name=\"playerKey\" value=\"AQ~~,AAABchwNZ2E~,mhHIIVIf993EWLhxM-UK10NvBOSeYNCF\" />" +
-      "    <param name=\"isVid\" value=\"true\" />" +
-      "    <param name=\"dynamicStreaming\" value=\"true\" />" +
-      "    <param name=\"wmode\" value=\"opaque\" />" +
-      "" +
-      "    <param name=\"@videoPlayer\" value=\"%s\" />" +
-      "  </object>";
+  static final String SCRIPT_SRC_DEFAULT = "http://admin.brightcove.com/js/BrightcoveExperiences.js";
+  @Property(value = SCRIPT_SRC_DEFAULT)
+  public static final String SCRIPT_SRC = "sakai.media.bc.script.src";
+
+  static final String OBJECT_CLASS_DEFAULT = "BrightcoveExperience";
+  @Property(value = OBJECT_CLASS_DEFAULT)
+  public static final String OBJECT_CLASS = "sakai.media.bc.myExperience.class";
+
+  static final String BG_COLOR_DEFAULT = "#FFFFFF";
+  @Property
+  public static final String BG_COLOR = "sakai.media.bc.bgcolor";
+
+  static final String WIDTH_DEFAULT = "500";
+  @Property
+  public static final String WIDTH = "sakai.media.bc.width";
+
+  static final String HEIGHT_DEFAULT = "470";
+  @Property
+  public static final String HEIGHT = "sakai.media.bc.height";
+
+  @Property
+  public static final String PLAYER_ID = "sakai.media.bc.playerID";
+
+  @Property
+  public static final String PLAYER_KEY = "sakai.media.bc.playerKey";
+
+  static final boolean IS_VID_DEFAULT = true;
+  @Property(boolValue = IS_VID_DEFAULT)
+  public static final String IS_VID = "sakai.media.bc.isVid";
+
+  static final boolean DYNAMIC_STREAMING_DEFAULT = true;
+  @Property(boolValue = DYNAMIC_STREAMING_DEFAULT)
+  public static final String DYNAMIC_STREAMING = "sakai.media.bc.dynamicStreaming";
+
+  static final String W_MODE_DEFAULT = "opaque";
+  @Property
+  public static final String W_MODE = "sakai.media.bc.wmode";
 
   private static final Logger LOG = LoggerFactory.getLogger(BrightCoveMediaService.class);
 
@@ -82,12 +104,28 @@ public class BrightCoveMediaService implements MediaService {
   @Property
   public static final String WRITE_TOKEN = "writeToken";
 
-  @Property(value = "http://api.brightcove.com/services")
+  static final String BASE_URL_DEFAULT = "http://api.brightcove.com/services";
+  @Property(value = BASE_URL_DEFAULT)
   public static final String BASE_URL = "baseUrl";
 
-  
   @Property(value = { "3gp", "3g2", "h261", "h263", "h264", "jpgv", "jpm", "jpgm", "mj2", "mjp2", "mp4", "mp4v", "mpg4", "mpeg", "mpg", "mpe", "m1v", "m2v", "ogv", "qt", "mov", "uvh", "uvvh", "uvm", "uvvm", "uvp", "uvvp", "uvs", "uvvs", "uvv", "uvvv", "dvb", "fvt", "mxu", "m4u", "pyv", "uvu", "uvvu", "viv", "webm", "f4v", "fli", "flv", "m4v", "mkv", "mk3d", "mks", "mng", "asf", "asx", "vob", "wm", "wmv", "wmx", "wvx", "avi", "movie", "smv" })
   public static final String VIDEO_EXTENSIONS = "supportedVideoExtensionsList";
+
+  private static final String REQ_MSG_TMPL = "'%s' required to communicate with BrightCove";
+
+  private static final String OBJECT_EL_TMPL = "<script language=\"JavaScript\" type=\"text/javascript\" src=\"%s\"></script>" +
+      "<object id=\"myExperience%s\" class=\"%s\">" +
+      "  <param name=\"bgcolor\" value=\"%s\" />" +
+      "  <param name=\"width\" value=\"%s\" />" +
+      "  <param name=\"height\" value=\"%s\" />" +
+      "  <param name=\"playerID\" value=\"%s\" />" +
+      "  <param name=\"playerKey\" value=\"%s\" />" +
+      "  <param name=\"isVid\" value=\"%s\" />" +
+      "  <param name=\"dynamicStreaming\" value=\"%s\" />" +
+      "  <param name=\"wmode\" value=\"%s\" />" +
+      "  <param name=\"@videoPlayer\" value=\"%s\" />" +
+      "</object>";
+
 
   String readToken;
   String writeToken;
@@ -95,6 +133,16 @@ public class BrightCoveMediaService implements MediaService {
   String baseUrl;
   String libraryUrl;
   String postUrl;
+  String bgcolor;
+  String dynamicStreaming;
+  String height;
+  String isVid;
+  String objectClass;
+  String playerID;
+  String playerKey;
+  String scriptSrc;
+  String width;
+  String wMode;
 
   private HashSet<String> supportedVideoExtensions = new HashSet<String>();
 
@@ -107,40 +155,64 @@ public class BrightCoveMediaService implements MediaService {
   @Activate
   @Modified
   protected void activate(Map<?, ?> props) {
+    // ---------- required properties ------------------------------------------
     readToken = PropertiesUtil.toString(props.get(READ_TOKEN), null);
     // require readToken
     if (StringUtils.isBlank(readToken)) {
-      throw new ComponentException("'readToken' required to communicate with BrightCove");
+      throw new ComponentException(String.format(REQ_MSG_TMPL, "readToken"));
     }
 
     writeToken = PropertiesUtil.toString(props.get(WRITE_TOKEN), null);
     // require writeToken
     if (StringUtils.isBlank(writeToken)) {
-      throw new ComponentException("'writeToken' required to communicate with BrightCove");
+      throw new ComponentException(String.format(REQ_MSG_TMPL, "writeToken"));
     }
 
-    baseUrl = PropertiesUtil.toString(props.get(BASE_URL), null);
+    playerID = PropertiesUtil.toString(props.get(PLAYER_ID), null);
+    // require playerID
+    if (StringUtils.isBlank(playerID)) {
+      throw new ComponentException(String.format(REQ_MSG_TMPL, "playerID"));
+    }
+
+    playerKey = PropertiesUtil.toString(props.get(PLAYER_KEY), null);
+    // require playerKey
+    if (StringUtils.isBlank(playerKey)) {
+      throw new ComponentException(String.format(REQ_MSG_TMPL, "playerKey"));
+    }
+
+    baseUrl = PropertiesUtil.toString(props.get(BASE_URL), BASE_URL_DEFAULT);
     // require baseUrl
     if (StringUtils.isBlank(baseUrl)) {
-      throw new ComponentException("'baseUrl' required to communicate with BrightCove");
+      throw new ComponentException(String.format(REQ_MSG_TMPL, "baseUrl"));
     }
     libraryUrl = String.format("%s/library", baseUrl);
     postUrl = String.format("%s/post", baseUrl);
 
+    // ---------- optional properties ------------------------------------------
     for (String ext : PropertiesUtil.toStringArray(props.get(VIDEO_EXTENSIONS), new String[] {}))  {
       supportedVideoExtensions.add(ext.toLowerCase());
     }
+
+    bgcolor = PropertiesUtil.toString(props.get(BG_COLOR), BG_COLOR_DEFAULT);
+    dynamicStreaming = Boolean.toString(PropertiesUtil.toBoolean(props.get(DYNAMIC_STREAMING), DYNAMIC_STREAMING_DEFAULT));
+    height = PropertiesUtil.toString(props.get(HEIGHT), HEIGHT_DEFAULT);
+    isVid = Boolean.toString(PropertiesUtil.toBoolean(props.get(IS_VID), IS_VID_DEFAULT));
+    objectClass = PropertiesUtil.toString(props.get(OBJECT_CLASS), OBJECT_CLASS_DEFAULT);
+    scriptSrc = PropertiesUtil.toString(props.get(SCRIPT_SRC), SCRIPT_SRC_DEFAULT);
+    width = PropertiesUtil.toString(WIDTH, WIDTH_DEFAULT);
+    wMode = PropertiesUtil.toString(W_MODE, W_MODE_DEFAULT);
   }
 
   // --------------- MediaService interface -----------------------------------
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.MediaService#createMedia(java.io.InputStream, java.lang.String, java.lang.String, java.lang.String[])
+   * @see org.sakaiproject.nakamura.api.media.MediaService#createMedia(java.io.InputStream,
+   *      java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
   public String createMedia(InputStream mediaFile, String title, String description,
-                            String extension, String[] tags) throws MediaServiceException {
+      String extension, String[] tags) throws MediaServiceException {
     String response = sendMedia(title, description, extension, tags, mediaFile, null);
     LOG.info(response);
     return response;
@@ -149,7 +221,8 @@ public class BrightCoveMediaService implements MediaService {
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.MediaService#updateMedia(java.lang.String, java.lang.String, java.lang.String, java.lang.String[])
+   * @see org.sakaiproject.nakamura.api.media.MediaService#updateMedia(java.lang.String,
+   *      java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
   public String updateMedia(String id, String title, String description, String[] tags)
@@ -223,7 +296,8 @@ public class BrightCoveMediaService implements MediaService {
    */
   @Override
   public String getPlayerFragment(String id) {
-    return String.format(OBJECT_EL_TMPL, id, id);
+    return String.format(OBJECT_EL_TMPL, scriptSrc, id, objectClass, bgcolor,
+        width, height, playerID, playerKey, isVid, dynamicStreaming, wMode, id);
   }
 
 
