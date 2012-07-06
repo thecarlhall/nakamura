@@ -36,6 +36,7 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
+import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventHandler;
@@ -97,10 +98,15 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
   @Activate
   @Modified
-  protected void activate(ComponentContext context) {
+  protected void activate(Map<?, ?> props) {
     LOGGER.info("Activating Media bundle");
 
     connectionFactory = connectionFactoryService.getDefaultPooledConnectionFactory();
+
+    maxRetries = PropertiesUtil.toInteger(props.get(MAX_RETRIES), MAX_RETRIES_DEFAULT);
+    retryMs = PropertiesUtil.toInteger(props.get(RETRY_MS), RETRY_MS_DEFAULT);
+    workerCount = PropertiesUtil.toInteger(props.get(WORKER_COUNT), WORKER_COUNT_DEFAULT);
+    pollFrequency = PropertiesUtil.toInteger(props.get(POLL_FREQUENCY), POLL_FREQUENCY_DEFAULT);
 
     mediaCoordinator = new MediaCoordinator(connectionFactory, QUEUE_NAME,
         sparseRepository, mediaService, maxRetries, retryMs, workerCount, pollFrequency);

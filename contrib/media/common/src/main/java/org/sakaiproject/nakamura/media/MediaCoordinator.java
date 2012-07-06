@@ -73,7 +73,7 @@ public class MediaCoordinator implements Runnable {
 
     this.maxRetries = maxRetries;
     this.retryMs = retryMs;
-    this.workerCount = workerCount;
+    this.workerCount = Math.max(1, workerCount);
     this.pollFrequency = pollFrequency;
 
     running = new AtomicBoolean(false);
