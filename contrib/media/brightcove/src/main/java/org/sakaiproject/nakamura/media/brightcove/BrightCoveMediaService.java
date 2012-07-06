@@ -67,15 +67,15 @@ public class BrightCoveMediaService implements MediaService {
   public static final String OBJECT_CLASS = "myExperience.class";
 
   static final String BG_COLOR_DEFAULT = "#FFFFFF";
-  @Property
+  @Property(value = BG_COLOR_DEFAULT)
   public static final String BG_COLOR = "bgcolor";
 
   static final String WIDTH_DEFAULT = "500";
-  @Property
+  @Property(value = WIDTH_DEFAULT)
   public static final String WIDTH = "width";
 
   static final String HEIGHT_DEFAULT = "470";
-  @Property
+  @Property(value = HEIGHT_DEFAULT)
   public static final String HEIGHT = "height";
 
   @Property
@@ -93,7 +93,7 @@ public class BrightCoveMediaService implements MediaService {
   public static final String DYNAMIC_STREAMING = "dynamicStreaming";
 
   static final String W_MODE_DEFAULT = "opaque";
-  @Property
+  @Property(value = W_MODE_DEFAULT)
   public static final String W_MODE = "wmode";
 
   private static final Logger LOG = LoggerFactory.getLogger(BrightCoveMediaService.class);
