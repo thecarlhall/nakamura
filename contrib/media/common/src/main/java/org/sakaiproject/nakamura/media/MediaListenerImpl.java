@@ -60,19 +60,19 @@ import org.slf4j.LoggerFactory;
 })
 public class MediaListenerImpl implements MediaListener, EventHandler, FileUploadHandler {
   static final int MAX_RETRIES_DEFAULT = 5;
-  @Property
+  @Property(intValue = MAX_RETRIES_DEFAULT)
   public static final String MAX_RETRIES = "maxRetries";
 
   static final int RETRY_MS_DEFAULT = 5 * 60 * 1000;
-  @Property
+  @Property(intValue = RETRY_MS_DEFAULT)
   public static final String RETRY_MS = "retryMs";
 
   static final int WORKER_COUNT_DEFAULT = 5;
-  @Property
+  @Property(intValue = WORKER_COUNT_DEFAULT)
   public static final String WORKER_COUNT = "workerCount";
 
   static final int POLL_FREQUENCY_DEFAULT = 5000;
-  @Property
+  @Property(intValue = POLL_FREQUENCY_DEFAULT)
   public static final String POLL_FREQUENCY = "pollFrequency";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MediaListenerImpl.class);
