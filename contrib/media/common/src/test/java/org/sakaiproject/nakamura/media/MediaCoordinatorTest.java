@@ -22,7 +22,6 @@ import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import javax.jms.Connection;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
-
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.sakaiproject.nakamura.api.lite.content.Content;
@@ -160,11 +159,9 @@ public class MediaCoordinatorTest {
     cm = adminSession.getContentManager();
 
     mediaService = new MockMediaService();
-    mc = new MediaCoordinator(connectionFactory, TEST_QUEUE, repository, mediaService);
-
-    Field poll_frequency = MediaCoordinator.class.getDeclaredField("POLL_FREQUENCY");
-    poll_frequency.setAccessible(true);
-    poll_frequency.setInt(mc, 500);
+    mc = new MediaCoordinator(connectionFactory, TEST_QUEUE, repository, mediaService,
+        MediaListenerImpl.MAX_RETRIES_DEFAULT, MediaListenerImpl.RETRY_MS_DEFAULT,
+        MediaListenerImpl.WORKER_COUNT_DEFAULT, 500);
 
     mc.start();
   }
@@ -363,7 +360,7 @@ public class MediaCoordinatorTest {
 
     mediaService.failOnNextCreate = true;
 
-    Field retry_ms = MediaCoordinator.class.getDeclaredField("RETRY_MS");
+    Field retry_ms = MediaCoordinator.class.getDeclaredField("retryMs");
     retry_ms.setAccessible(true);
     retry_ms.setInt(mc, 200);
 
@@ -399,11 +396,11 @@ public class MediaCoordinatorTest {
 
     mediaService.alwaysFail = true;
 
-    Field retry_ms = MediaCoordinator.class.getDeclaredField("RETRY_MS");
+    Field retry_ms = MediaCoordinator.class.getDeclaredField("retryMs");
     retry_ms.setAccessible(true);
     retry_ms.setInt(mc, 200);
 
-    Field max_retries = MediaCoordinator.class.getDeclaredField("MAX_RETRIES");
+    Field max_retries = MediaCoordinator.class.getDeclaredField("maxRetries");
     max_retries.setAccessible(true);
     max_retries.setInt(mc, 2);
 

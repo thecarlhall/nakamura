@@ -20,11 +20,7 @@ package org.sakaiproject.nakamura.media;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
 import java.util.Map;
-import java.util.HashMap;
-
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
@@ -48,8 +44,6 @@ import org.sakaiproject.nakamura.api.activemq.ConnectionFactoryService;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.media.MediaListener;
-import org.sakaiproject.nakamura.api.lite.content.Content;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +58,22 @@ import org.slf4j.LoggerFactory;
   @Property(name = "event.topics", value = "org/sakaiproject/nakamura/lite/content/UPDATED")
 })
 public class MediaListenerImpl implements MediaListener, EventHandler, FileUploadHandler {
+  static final int MAX_RETRIES_DEFAULT = 5;
+  @Property
+  public static final String MAX_RETRIES = "sakai.media.coordinator.maxRetries";
+
+  static final int RETRY_MS_DEFAULT = 5 * 60 * 1000;
+  @Property
+  public static final String RETRY_MS = "sakai.media.coordinator.maxRetries";
+
+  static final int WORKER_COUNT_DEFAULT = 5;
+  @Property
+  public static final String WORKER_COUNT = "sakai.media.coordinator.maxRetries";
+
+  static final int POLL_FREQUENCY_DEFAULT = 5000;
+  @Property
+  public static final String POLL_FREQUENCY = "sakai.media.coordinator.maxRetries";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(MediaListenerImpl.class);
 
   private String QUEUE_NAME = "MEDIA";
@@ -80,7 +90,10 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
 
   private MediaCoordinator mediaCoordinator;
-
+  private int maxRetries;
+  private int retryMs;
+  private int workerCount;
+  private int pollFrequency;
 
   @Activate
   @Modified
@@ -89,10 +102,8 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
     connectionFactory = connectionFactoryService.getDefaultPooledConnectionFactory();
 
-    mediaCoordinator = new MediaCoordinator(connectionFactory,
-                                            QUEUE_NAME,
-                                            sparseRepository,
-                                            mediaService);
+    mediaCoordinator = new MediaCoordinator(connectionFactory, QUEUE_NAME,
+        sparseRepository, mediaService, maxRetries, retryMs, workerCount, pollFrequency);
     mediaCoordinator.start();
   }
 

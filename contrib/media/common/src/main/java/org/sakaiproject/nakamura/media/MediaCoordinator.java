@@ -16,7 +16,6 @@ import javax.jms.Message;
 import javax.jms.JMSException;
 
 import org.apache.activemq.ActiveMQSession;
-
 import java.util.Map;
 import java.util.HashMap;
 
@@ -45,11 +44,6 @@ public class MediaCoordinator implements Runnable {
 
   protected Repository sparseRepository;
 
-  private int MAX_RETRIES = 5;
-  private int RETRY_MS = 5 * 60 * 1000;
-  private int WORKER_COUNT = 5;
-  private int POLL_FREQUENCY = 5000;
-
   private ConnectionFactory connectionFactory;
   private String queueName;
   private AtomicBoolean running;
@@ -63,14 +57,23 @@ public class MediaCoordinator implements Runnable {
   private MediaService mediaService;
   private ErrorHandler errorHandler = null;
 
-  public MediaCoordinator(ConnectionFactory connectionFactory,
-                          String queueName,
-                          Repository sparseRepository,
-                          MediaService mediaService) {
+  private int maxRetries;
+  private int retryMs;
+  private int workerCount;
+  private int pollFrequency;
+
+  public MediaCoordinator(ConnectionFactory connectionFactory, String queueName,
+      Repository sparseRepository, MediaService mediaService, int maxRetries,
+      int retryMs, int workerCount, int pollFrequency) {
     this.connectionFactory = connectionFactory;
     this.queueName = queueName;
     this.sparseRepository = sparseRepository;
     this.mediaService = mediaService;
+
+    this.maxRetries = maxRetries;
+    this.retryMs = retryMs;
+    this.workerCount = workerCount;
+    this.pollFrequency = pollFrequency;
 
     running = new AtomicBoolean(false);
   }
@@ -184,9 +187,9 @@ public class MediaCoordinator implements Runnable {
 
 
   private ExecutorService[] createWorkerPool() {
-    ExecutorService[] pool = new ExecutorService[WORKER_COUNT];
+    ExecutorService[] pool = new ExecutorService[workerCount];
 
-    for (int i = 0; i < WORKER_COUNT; i++) {
+    for (int i = 0; i < workerCount; i++) {
       pool[i] = Executors.newFixedThreadPool(1);
     }
 
@@ -318,7 +321,7 @@ public class MediaCoordinator implements Runnable {
       // A bit funny to wait like this, but if we give a new file upload a
       // few seconds we can usually handle the initial upload and all its
       // events in one shot.  Just a dumb optimisation.
-      Thread.sleep(POLL_FREQUENCY);
+      Thread.sleep(pollFrequency);
     } catch (InterruptedException e) {}
 
     for (Message msg : incoming) {
@@ -369,12 +372,12 @@ public class MediaCoordinator implements Runnable {
     Map<String, Message> inProgress = new HashMap<String, Message>();
     Map<String, Integer> retryCounts = new HashMap<String, Integer>();
 
-    Slowdown slowdown = new Slowdown((long)(POLL_FREQUENCY));
+    Slowdown slowdown = new Slowdown((long)(pollFrequency));
     while (running.get()) {
       try {
         Message msg = null;
         try {
-          msg = incoming.poll(POLL_FREQUENCY, TimeUnit.MILLISECONDS);
+          msg = incoming.poll(pollFrequency, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {}
 
         if (!running.get()) {
@@ -393,7 +396,7 @@ public class MediaCoordinator implements Runnable {
           // on the same worker.  Workers will need to update the
           // content object being synced, so this is our concurrency
           // control.
-          ExecutorService worker = workers[Math.abs(pid.hashCode() % WORKER_COUNT)];
+          ExecutorService worker = workers[Math.abs(pid.hashCode() % workerCount)];
 
           worker.execute(new Runnable() {
               public void run() {
@@ -411,7 +414,7 @@ public class MediaCoordinator implements Runnable {
                   e.printStackTrace();
 
                   LOGGER.warn("This job will be queued for retry in {} ms",
-                              RETRY_MS);
+                              retryMs);
 
                   failed.add(new FailedJob(jobId, System.currentTimeMillis()));
                 }
@@ -447,7 +450,7 @@ public class MediaCoordinator implements Runnable {
             while (true) {
               FailedJob job = failed.peek();
 
-              if (job != null && (System.currentTimeMillis() - job.time) > RETRY_MS) {
+              if (job != null && (System.currentTimeMillis() - job.time) > retryMs) {
                 job = failed.take();
                 Message failedMsg = inProgress.get(job.jobId);
 
@@ -457,7 +460,7 @@ public class MediaCoordinator implements Runnable {
                   inProgress.remove(job.jobId);
                   int retriesSoFar = retryCounts.containsKey(pid) ? retryCounts.get(pid) : 0;
 
-                  if (MAX_RETRIES >= 0 && (retriesSoFar + 1) > MAX_RETRIES) {
+                  if (maxRetries >= 0 && (retriesSoFar + 1) > maxRetries) {
                     LOGGER.error("Giving up on {} after {} failed retry attempts.",
                                  pid, retriesSoFar);
 
@@ -489,7 +492,7 @@ public class MediaCoordinator implements Runnable {
         LOGGER.error("JMS exception while waiting for message: {}", e);
         e.printStackTrace();
         LOGGER.error("Waiting {} ms before trying again",
-                     POLL_FREQUENCY);
+                     pollFrequency);
       }
 
       // Paranoia...
