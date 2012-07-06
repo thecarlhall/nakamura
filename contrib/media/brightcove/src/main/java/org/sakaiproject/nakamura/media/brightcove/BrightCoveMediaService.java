@@ -199,8 +199,8 @@ public class BrightCoveMediaService implements MediaService {
     isVid = Boolean.toString(PropertiesUtil.toBoolean(props.get(IS_VID), IS_VID_DEFAULT));
     objectClass = PropertiesUtil.toString(props.get(OBJECT_CLASS), OBJECT_CLASS_DEFAULT);
     scriptSrc = PropertiesUtil.toString(props.get(SCRIPT_SRC), SCRIPT_SRC_DEFAULT);
-    width = PropertiesUtil.toString(WIDTH, WIDTH_DEFAULT);
-    wMode = PropertiesUtil.toString(W_MODE, W_MODE_DEFAULT);
+    width = PropertiesUtil.toString(props.get(WIDTH), WIDTH_DEFAULT);
+    wMode = PropertiesUtil.toString(props.get(W_MODE), W_MODE_DEFAULT);
   }
 
   // --------------- MediaService interface -----------------------------------
