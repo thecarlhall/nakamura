@@ -77,21 +77,15 @@ public class MediaServlet extends HttpServlet {
       Session adminSession = repository.loginAdministrative();
       ContentManager cm = adminSession.getContentManager();
 
-      MediaNode mediaNode = MediaNode.get(pid, cm, false);
-
-      if (mediaNode == null) {
-        throw new ServletException("Couldn't find media for PID: " + pid);
-      }
-
       VersionManager vm = new VersionManager(cm);
-
 
       JSONObject responseJSON = new JSONObject();
 
-      String mediaId = mediaNode.getMediaId(vm.getVersionsMetadata(pid).get(0));
+      MediaNode mediaNode = MediaNode.get(pid, cm, false);
+      String mediaId = (mediaNode == null) ? null : mediaNode.getMediaId(vm.getVersionsMetadata(pid).get(0));
 
-      if (mediaId == null) {
-        // Assume that this means we haven't yet finished uploading the body.  Report as processing.
+      if (mediaNode == null || mediaId == null) {
+        // The media coordinator hasn't picked up this job yet.
         responseJSON.put("status", "processing");
       } else {
 
