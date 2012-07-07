@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashSet;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.httpclient.HttpClient;
@@ -53,6 +55,7 @@ import org.sakaiproject.nakamura.api.media.MediaStatus;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
@@ -101,8 +104,8 @@ public class BrightCoveMediaService implements MediaService {
   @Property
   public static final String READ_TOKEN = "readToken";
 
-  @Property
-  public static final String WRITE_TOKEN = "writeToken";
+  @Property(cardinality = Integer.MAX_VALUE)
+  public static final String WRITE_TOKENS = "writeTokens";
 
   static final String BASE_URL_DEFAULT = "http://api.brightcove.com/services";
   @Property(value = BASE_URL_DEFAULT)
@@ -128,7 +131,7 @@ public class BrightCoveMediaService implements MediaService {
 
 
   String readToken;
-  String writeToken;
+  String[] writeTokens;
   String supportedVideoExtensionsList;
   String baseUrl;
   String libraryUrl;
@@ -146,6 +149,8 @@ public class BrightCoveMediaService implements MediaService {
 
   private HashSet<String> supportedVideoExtensions = new HashSet<String>();
 
+  private BlockingQueue<String> writeTokenPool = new LinkedBlockingQueue<String>();
+
   private HttpClient client;
 
   public BrightCoveMediaService() {
@@ -162,11 +167,16 @@ public class BrightCoveMediaService implements MediaService {
       throw new ComponentException(String.format(REQ_MSG_TMPL, "readToken"));
     }
 
-    writeToken = PropertiesUtil.toString(props.get(WRITE_TOKEN), null);
-    // require writeToken
-    if (StringUtils.isBlank(writeToken)) {
-      throw new ComponentException(String.format(REQ_MSG_TMPL, "writeToken"));
+    writeTokens = PropertiesUtil.toStringArray(props.get(WRITE_TOKENS), new String[] {});
+    // require at least one write token
+    if (writeTokens.length == 0) {
+      throw new ComponentException(String.format(REQ_MSG_TMPL, "writeTokens"));
     }
+
+    for (String writeToken : writeTokens) {
+      writeTokenPool.add(writeToken);
+    }
+
 
     playerID = PropertiesUtil.toString(props.get(PLAYER_ID), null);
     // require playerID
@@ -203,6 +213,34 @@ public class BrightCoveMediaService implements MediaService {
     wMode = PropertiesUtil.toString(props.get(W_MODE), W_MODE_DEFAULT);
   }
 
+
+  // --------------- Write token coordination -----------------------------------
+  
+  abstract class WriteTask<E> {
+    abstract E handle(String writeToken) throws MediaServiceException;
+
+    public E run() throws MediaServiceException {
+      String writeToken;
+
+      try {
+        LOG.info("Acquiring write token");
+        writeToken = writeTokenPool.take();
+        LOG.info("Acquired token '{}'", writeToken);
+      } catch (InterruptedException e) {
+        throw new MediaServiceException("Got InterruptedException while acquiring write token", e);
+      }
+
+      try {
+        return handle(writeToken);
+      } finally {
+        LOG.info("Returning token '{}' to pool", writeToken);
+        writeTokenPool.add(writeToken);
+        LOG.info("Token '{}' returned", writeToken);
+      }
+    }
+  }
+
+
   // --------------- MediaService interface -----------------------------------
   /**
    * {@inheritDoc}
@@ -238,55 +276,61 @@ public class BrightCoveMediaService implements MediaService {
    * @see org.sakaiproject.nakamura.api.media.MediaService#getStatus(java.lang.String)
    */
   @Override
-  public MediaStatus getStatus(String id) throws MediaServiceException,
-      IOException {
-    PostMethod post = null;
+  public MediaStatus getStatus(final String id) throws MediaServiceException {
+    return new WriteTask<MediaStatus>() {
+      public MediaStatus handle (String writeToken) throws MediaServiceException {
 
-    MediaStatus result;
+        PostMethod post = null;
 
-    try {
-      // TODO don't check for this every time. Should have a latency window and only check
-      // for certain statuses
-      JSONObject json = new JSONObject()
-          .put("method", "get_upload_status")
-          .put("params", new JSONObject()
-              .put("token", writeToken)
-              .put("video_id", id));
-      // Define the url to the api
-      post = new PostMethod(postUrl);
-      Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
-      post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
-      int returnCode = client.executeMethod(post);
+        MediaStatus result;
 
-      JSONObject response = new JSONObject(post.getResponseBodyAsString());
-      final String status = response.getString("result");
+        try {
+          // TODO don't check for this every time. Should have a latency window and only check
+          // for certain statuses
+          JSONObject json = new JSONObject()
+            .put("method", "get_upload_status")
+            .put("params", new JSONObject()
+                 .put("token", writeToken)
+                 .put("video_id", id));
+          // Define the url to the api
+          post = new PostMethod(postUrl);
+          Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
+          post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
+          int returnCode = client.executeMethod(post);
 
-      LOG.info("Status from Brightcove: {}", status);
+          JSONObject response = new JSONObject(post.getResponseBodyAsString());
+          final String status = response.getString("result");
 
-      result = new MediaStatus() {
-          public boolean isReady() {
-            return ("COMPLETE".equals(status));
+          LOG.info("Status from Brightcove: {}", status);
+
+          result = new MediaStatus() {
+              public boolean isReady() {
+                return ("COMPLETE".equals(status));
+              }
+
+              public boolean isProcessing() {
+                return ("PROCESSING".equals(status) || "UPLOADING".equals(status));
+              }
+
+              public boolean isError() {
+                return "ERROR".equals(status);
+              }
+            };
+
+        } catch (JSONException e) {
+          LOG.error(e.getMessage(), e);
+          throw new MediaServiceException(e.getMessage(), e);
+        } catch (IOException e) {
+          throw new MediaServiceException(e.getMessage(), e);
+        } finally {
+          if (post != null) {
+            post.releaseConnection();
           }
+        }
 
-          public boolean isProcessing() {
-            return ("PROCESSING".equals(status) || "UPLOADING".equals(status));
-          }
-
-          public boolean isError() {
-            return "ERROR".equals(status);
-          }
-        };
-
-    } catch (JSONException e) {
-      LOG.error(e.getMessage(), e);
-      throw new MediaServiceException(e.getMessage(), e);
-    } finally {
-      if (post != null) {
-        post.releaseConnection();
+        return result;
       }
-    }
-
-    return result;
+    }.run();
   }
 
   /**
@@ -353,107 +397,111 @@ public class BrightCoveMediaService implements MediaService {
     }
   }
 
-  private String sendMedia(final String title, String description, final String extension, String[] tags,
-                           InputStream mediaFile, final String id) throws MediaServiceException {
+  private String sendMedia(final String title, final String description, final String extension, final String[] tags,
+                           final InputStream mediaFile, final String id) throws MediaServiceException {
     if (id == null && mediaFile == null) {
       throw new IllegalArgumentException("Must supply 'id' or 'mediaFile'");
     }
 
-    PostMethod post = null;
-    try {
-      /*
-       * Assemble the JSON params
-       */
-      JSONObject media = new JSONObject()
-        .put("name", title)
-        .put("shortDescription", description)
-        .put("tags", Arrays.asList(tags));
+    return new WriteTask<String>() {
+      public String handle (String writeToken) throws MediaServiceException {
+        PostMethod post = null;
+        try {
+          /*
+           * Assemble the JSON params
+           */
+          JSONObject media = new JSONObject()
+            .put("name", title)
+            .put("shortDescription", description)
+            .put("tags", Arrays.asList(tags));
 
-      String method = "update_video";
+          String method = "update_video";
 
-      if (mediaFile != null) {
-        method = "create_video";
-      } else {
-        media.put("id", id);
+          if (mediaFile != null) {
+            method = "create_video";
+          } else {
+            media.put("id", id);
+          }
+
+          JSONObject json = new JSONObject()
+            .put("method", method)
+            .put("params", new JSONObject()
+                 .put("token", writeToken)
+                 .put("video", media));
+
+          Part[] parts;
+          if (mediaFile != null) {
+            final FileInputStream fileInput = asFileInputStream(mediaFile);
+            parts = new Part[] {
+              new StringPart("JSON-RPC", json.toString()),
+              new FilePart("fileData",
+                           new PartSource () {
+                             public InputStream createInputStream() {
+                               return fileInput;
+                             }
+
+                             public String getFileName() {
+                               if (extension != null) {
+                                 return title + "." + extension;
+                               } else {
+                                 return title;
+                               }
+                             }
+
+                             public long getLength() {
+                               try {
+                                 return fileInput.getChannel().size();
+                               } catch (IOException e) {
+                                 LOG.error("Failed to calculate size for file '{}'", id);
+                                 throw new RuntimeException("getLength failed for file: " + id, e); 
+                               }
+                             }
+                           })
+            };
+          } else {
+            parts = new Part[] { new StringPart("JSON-RPC", json.toString()) };
+          }
+
+          post = new PostMethod(postUrl);
+          post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
+          int returnCode = client.executeMethod(post);
+
+          String response = post.getResponseBodyAsString();
+
+          String msg = String.format("Sent: %s, Posted media information [%s]: %s", new Object[] {
+              json.toString(), returnCode, response });
+          LOG.info(msg);
+
+          JSONObject responseJSON = new JSONObject(response);
+
+          JSONObject error = responseJSON.has("error") ? responseJSON.optJSONObject("error") : null;
+
+          if (error != null) {
+            throw new MediaServiceException(error.getString("name") + ": " + error.getString("message"));
+          }
+
+          if (mediaFile != null) {
+            // This was an upload.  Return the new ID
+            return String.valueOf(responseJSON.getLong("result"));
+          } else {
+            // An update.  Return the old ID
+            return id;
+          }
+
+        } catch (JSONException e) {
+          throw new MediaServiceException(e.getMessage(), e);
+        } catch (FileNotFoundException e) {
+          throw new MediaServiceException(e.getMessage(), e);
+        } catch (HttpException e) {
+          throw new MediaServiceException(e.getMessage(), e);
+        } catch (IOException e) {
+          throw new MediaServiceException(e.getMessage(), e);
+        } finally {
+          if (post != null) {
+            post.releaseConnection();
+          }
+        }
       }
-
-      JSONObject json = new JSONObject()
-          .put("method", method)
-          .put("params", new JSONObject()
-              .put("token", writeToken)
-              .put("video", media));
-
-      Part[] parts;
-      if (mediaFile != null) {
-        final FileInputStream fileInput = asFileInputStream(mediaFile);
-        parts = new Part[] {
-          new StringPart("JSON-RPC", json.toString()),
-          new FilePart("fileData",
-                       new PartSource () {
-                         public InputStream createInputStream() {
-                           return fileInput;
-                         }
-
-                         public String getFileName() {
-                           if (extension != null) {
-                             return title + "." + extension;
-                           } else {
-                             return title;
-                           }
-                         }
-
-                         public long getLength() {
-                           try {
-                             return fileInput.getChannel().size();
-                           } catch (IOException e) {
-                             LOG.error("Failed to calculate size for file '{}'", id);
-                             throw new RuntimeException("getLength failed for file: " + id, e); 
-                           }
-                         }
-                       })
-        };
-      } else {
-        parts = new Part[] { new StringPart("JSON-RPC", json.toString()) };
-      }
-
-      post = new PostMethod(postUrl);
-      post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
-      int returnCode = client.executeMethod(post);
-
-      String response = post.getResponseBodyAsString();
-
-      String msg = String.format("Sent: %s, Posted media information [%s]: %s", new Object[] {
-          json.toString(), returnCode, response });
-      LOG.info(msg);
-
-      JSONObject responseJSON = new JSONObject(response);
-
-      JSONObject error = responseJSON.has("error") ? responseJSON.optJSONObject("error") : null;
-
-      if (error != null) {
-          throw new MediaServiceException(error.getString("name") + ": " + error.getString("message"));
-      }
-
-      if (mediaFile != null) {
-        // This was an upload.  Return the new ID
-        return String.valueOf(responseJSON.getLong("result"));
-      } else {
-        // An update.  Return the old ID
-        return id;
-      }
-
-    } catch (JSONException e) {
-      throw new MediaServiceException(e.getMessage(), e);
-    } catch (FileNotFoundException e) {
-      throw new MediaServiceException(e.getMessage(), e);
-    } catch (HttpException e) {
-      throw new MediaServiceException(e.getMessage(), e);
-    } catch (IOException e) {
-      throw new MediaServiceException(e.getMessage(), e);
-    } finally {
-      if (post != null) {
-        post.releaseConnection();
-      }
-    }
+    }.run();
   }
 }
