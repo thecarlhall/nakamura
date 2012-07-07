@@ -151,10 +151,8 @@ public class BrightCoveMediaService implements MediaService {
 
   private BlockingQueue<String> writeTokenPool = new LinkedBlockingQueue<String>();
 
-  private HttpClient client;
 
   public BrightCoveMediaService() {
-    client = new HttpClient();
   }
 
   @Activate
@@ -296,6 +294,8 @@ public class BrightCoveMediaService implements MediaService {
           post = new PostMethod(postUrl);
           Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
           post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
+
+          HttpClient client = new HttpClient();
           int returnCode = client.executeMethod(post);
 
           JSONObject response = new JSONObject(post.getResponseBodyAsString());
@@ -462,8 +462,11 @@ public class BrightCoveMediaService implements MediaService {
             parts = new Part[] { new StringPart("JSON-RPC", json.toString()) };
           }
 
+          HttpClient client = new HttpClient();
+
           post = new PostMethod(postUrl);
           post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
+
           int returnCode = client.executeMethod(post);
 
           String response = post.getResponseBodyAsString();
