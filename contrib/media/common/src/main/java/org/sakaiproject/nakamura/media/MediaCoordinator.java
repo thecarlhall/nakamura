@@ -185,10 +185,21 @@ public class MediaCoordinator implements Runnable {
   private void disconnectFromJMS() {
     try {
       mediaQueueConsumer.close();
+    } catch (JMSException e) {
+      LOGGER.error("Problems when disconnecting from JMS: {}", e);
+    }
+
+    try {
       jmsSession.rollback();
       jmsSession.close();
+    } catch (JMSException e) {
+      LOGGER.error("Problems when disconnecting from JMS: {}", e);
+    }
+
+    try {
       conn.close();
     } catch (JMSException e) {
+      LOGGER.error("Problems when disconnecting from JMS: {}", e);
     }
   }
 
@@ -385,154 +396,157 @@ public class MediaCoordinator implements Runnable {
     Map<String, Message> inProgress = new HashMap<String, Message>();
     Map<String, Integer> retryCounts = new HashMap<String, Integer>();
 
-    Slowdown slowdown = new Slowdown((long)(pollFrequency));
-    while (running.get()) {
-      try {
-        Message msg = null;
+    try {
+      Slowdown slowdown = new Slowdown((long)(pollFrequency));
+      while (running.get()) {
         try {
-          msg = incoming.poll(pollFrequency, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {}
-
-        if (!running.get()) {
-          break;
-        }
-
-        if (msg != null) {
-          final String jobId = msg.getJMSMessageID();
-          final String pid = msg.getStringProperty("pid");
-
-          if (pid == null) {
-            LOGGER.error("Discarded dud message: {}", msg);
-            msg.acknowledge();
-            continue;
-          }
-
-          LOGGER.info("Pulled pid from queue: {}", pid);
-
-          clearDuplicates(incoming, pid);
-
-          inProgress.put(jobId, msg);
-
-          // The hashing here ensures that same PID must always runs
-          // on the same worker.  Workers will need to update the
-          // content object being synced, so this is our concurrency
-          // control.
-          ExecutorService worker = workers[Math.abs(pid.hashCode() % workerCount)];
-
-          LOGGER.info("Running pid '{}' on worker: {}", pid,
-                      Math.abs(pid.hashCode() % workerCount));
-
-          worker.execute(new Runnable() {
-              public void run() {
-                LOGGER.info("Worker processing " + pid);
-
-                try {
-                  processObject(pid);
-
-                  completed.add(jobId);
-                  LOGGER.info("Worker completed processing {}",
-                              pid);
-
-                } catch (Exception e) {
-                  LOGGER.warn("Failed while processing PID '{}'", pid);
-                  e.printStackTrace();
-
-                  LOGGER.warn("This job will be queued for retry in {} ms",
-                              retryMs);
-
-                  failed.add(new FailedJob(jobId, System.currentTimeMillis()));
-                }
-              }
-            });
-
-          LOGGER.info("Media waiting to process: {}; " +
-                      "Media in progress: {}",
-                      incoming.size(), inProgress.size());
-        }
-
-        // Remove objects marked as completed from the "in progress"
-        // queue
-        while (!completed.isEmpty()) {
-          String jobId = completed.poll();
-
-          Message completedMsg = inProgress.get(jobId);
-
-          if (completedMsg != null) {
-            LOGGER.info("Completed processing: {} (pid: {})",
-                        jobId,
-                        completedMsg.getStringProperty("pid"));
-
-            completedMsg.acknowledge();
-            inProgress.remove(jobId);
-          }
-        }
-
-
-        // Requeue jobs in the failed queue if their retry time has elapsed
-        if (!failed.isEmpty()) {
+          Message msg = null;
           try {
-            while (true) {
-              FailedJob job = failed.peek();
+            msg = incoming.poll(pollFrequency, TimeUnit.MILLISECONDS);
+          } catch (InterruptedException e) {}
 
-              if (job != null && (System.currentTimeMillis() - job.time) > retryMs) {
-                job = failed.take();
-                Message failedMsg = inProgress.get(job.jobId);
-
-                if (failedMsg != null) {
-                  String pid = failedMsg.getStringProperty("pid");
-
-                  inProgress.remove(job.jobId);
-                  int retriesSoFar = retryCounts.containsKey(pid) ? retryCounts.get(pid) : 0;
-
-                  if (maxRetries >= 0 && (retriesSoFar + 1) > maxRetries) {
-                    LOGGER.error("Giving up on {} after {} failed retry attempts.",
-                                 pid, retriesSoFar);
-                    TelemetryCounter.incrementValue("media", "Coordinator", "failures");
-
-                    retryCounts.remove(pid);
-                    failedMsg.acknowledge();
-
-                    if (errorHandler != null) {
-                      errorHandler.error(pid);
-                    }
-                  } else {
-                    int retry = retriesSoFar + 1;
-                    LOGGER.info("Requeueing job for pid '{}' (retry #{})", pid, retry);
-                    TelemetryCounter.incrementValue("media", "Coordinator", "retries");
-
-                    retryCounts.put(pid, retry);
-                    incoming.add(failedMsg);
-                  }
-                  
-                }
-              } else {
-                break;
-              }
-            }
-          } catch (InterruptedException ex) {
+          if (!running.get()) {
+            break;
           }
+
+          if (msg != null) {
+            final String jobId = msg.getJMSMessageID();
+            final String pid = msg.getStringProperty("pid");
+
+            if (pid == null) {
+              LOGGER.error("Discarded dud message: {}", msg);
+              msg.acknowledge();
+              continue;
+            }
+
+            LOGGER.info("Pulled pid from queue: {}", pid);
+
+            clearDuplicates(incoming, pid);
+
+            inProgress.put(jobId, msg);
+
+            // The hashing here ensures that same PID must always runs
+            // on the same worker.  Workers will need to update the
+            // content object being synced, so this is our concurrency
+            // control.
+            ExecutorService worker = workers[Math.abs(pid.hashCode() % workerCount)];
+
+            LOGGER.info("Running pid '{}' on worker: {}", pid,
+                        Math.abs(pid.hashCode() % workerCount));
+
+            worker.execute(new Runnable() {
+                public void run() {
+                  LOGGER.info("Worker processing " + pid);
+
+                  try {
+                    processObject(pid);
+
+                    completed.add(jobId);
+                    LOGGER.info("Worker completed processing {}",
+                                pid);
+
+                  } catch (Exception e) {
+                    LOGGER.warn("Failed while processing PID '{}'", pid);
+                    e.printStackTrace();
+
+                    LOGGER.warn("This job will be queued for retry in {} ms",
+                                retryMs);
+
+                    failed.add(new FailedJob(jobId, System.currentTimeMillis()));
+                  }
+                }
+              });
+
+            LOGGER.info("Media waiting to process: {}; " +
+                        "Media in progress: {}",
+                        incoming.size(), inProgress.size());
+          }
+
+          // Remove objects marked as completed from the "in progress"
+          // queue
+          while (!completed.isEmpty()) {
+            String jobId = completed.poll();
+
+            Message completedMsg = inProgress.get(jobId);
+
+            if (completedMsg != null) {
+              LOGGER.info("Completed processing: {} (pid: {})",
+                          jobId,
+                          completedMsg.getStringProperty("pid"));
+
+              completedMsg.acknowledge();
+              inProgress.remove(jobId);
+            }
+          }
+
+
+          // Requeue jobs in the failed queue if their retry time has elapsed
+          if (!failed.isEmpty()) {
+            try {
+              while (true) {
+                FailedJob job = failed.peek();
+
+                if (job != null && (System.currentTimeMillis() - job.time) > retryMs) {
+                  job = failed.take();
+                  Message failedMsg = inProgress.get(job.jobId);
+
+                  if (failedMsg != null) {
+                    String pid = failedMsg.getStringProperty("pid");
+
+                    inProgress.remove(job.jobId);
+                    int retriesSoFar = retryCounts.containsKey(pid) ? retryCounts.get(pid) : 0;
+
+                    if (maxRetries >= 0 && (retriesSoFar + 1) > maxRetries) {
+                      LOGGER.error("Giving up on {} after {} failed retry attempts.",
+                                   pid, retriesSoFar);
+                      TelemetryCounter.incrementValue("media", "Coordinator", "failures");
+
+                      retryCounts.remove(pid);
+                      failedMsg.acknowledge();
+
+                      if (errorHandler != null) {
+                        errorHandler.error(pid);
+                      }
+                    } else {
+                      int retry = retriesSoFar + 1;
+                      LOGGER.info("Requeueing job for pid '{}' (retry #{})", pid, retry);
+                      TelemetryCounter.incrementValue("media", "Coordinator", "retries");
+
+                      retryCounts.put(pid, retry);
+                      incoming.add(failedMsg);
+                    }
+                    
+                  }
+                } else {
+                  break;
+                }
+              }
+            } catch (InterruptedException ex) {
+            }
+          }
+
+
+        } catch (JMSException e) {
+          LOGGER.error("JMS exception while waiting for message: {}", e);
+          e.printStackTrace();
+          LOGGER.error("Waiting {} ms before trying again",
+                       pollFrequency);
+        } catch (Exception e) {
+          LOGGER.error("Got exception in MediaCoordinator main loop: {}", e);
+          e.printStackTrace();
         }
 
-
-      } catch (JMSException e) {
-        LOGGER.error("JMS exception while waiting for message: {}", e);
-        e.printStackTrace();
-        LOGGER.error("Waiting {} ms before trying again",
-                     pollFrequency);
-      } catch (Exception e) {
-        LOGGER.error("Got exception in MediaCoordinator main loop: {}", e);
-        e.printStackTrace();
+        // Paranoia...
+        slowdown.sleep();
       }
 
-      // Paranoia...
-      slowdown.sleep();
+      LOGGER.info("Shutting down worker pool...");
+      for (ExecutorService worker : workers) {
+        worker.shutdownNow();
+      }
+    } finally {
+      LOGGER.info("Disconnecting from the message queue");
+      disconnectFromJMS();
     }
-
-    LOGGER.info("Shutting down worker pool...");
-    for (ExecutorService worker : workers) {
-      worker.shutdownNow();
-    }
-
-    disconnectFromJMS();
   }
 }
