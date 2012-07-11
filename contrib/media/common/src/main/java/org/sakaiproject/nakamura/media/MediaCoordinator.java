@@ -165,6 +165,12 @@ public class MediaCoordinator implements Runnable {
 
       mediaQueueConsumer.setMessageListener(new MessageListener() {
           public void onMessage(Message msg) {
+            try {
+              LOGGER.info("Received JMS message for pid {}", msg.getStringProperty("pid"));
+            } catch (JMSException e) {
+              LOGGER.info("JMS exception onMessage: {}", e);
+              e.printStackTrace();
+            }
             incoming.add(msg);
           }
         });
@@ -395,6 +401,8 @@ public class MediaCoordinator implements Runnable {
           final String jobId = msg.getJMSMessageID();
           final String pid = msg.getStringProperty("pid");
 
+          LOGGER.info("Pulled pid from queue: {}", pid);
+
           clearDuplicates(incoming, pid);
 
           inProgress.put(jobId, msg);
@@ -404,6 +412,9 @@ public class MediaCoordinator implements Runnable {
           // content object being synced, so this is our concurrency
           // control.
           ExecutorService worker = workers[Math.abs(pid.hashCode() % workerCount)];
+
+          LOGGER.info("Running pid '{}' on worker: {}", pid,
+                      Math.abs(pid.hashCode() % workerCount));
 
           worker.execute(new Runnable() {
               public void run() {
