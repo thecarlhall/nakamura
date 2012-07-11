@@ -401,6 +401,12 @@ public class MediaCoordinator implements Runnable {
           final String jobId = msg.getJMSMessageID();
           final String pid = msg.getStringProperty("pid");
 
+          if (pid == null) {
+            LOGGER.error("Discarded dud message: {}", msg);
+            msg.acknowledge();
+            continue;
+          }
+
           LOGGER.info("Pulled pid from queue: {}", pid);
 
           clearDuplicates(incoming, pid);
@@ -513,6 +519,9 @@ public class MediaCoordinator implements Runnable {
         e.printStackTrace();
         LOGGER.error("Waiting {} ms before trying again",
                      pollFrequency);
+      } catch (Exception e) {
+        LOGGER.error("Got exception in MediaCoordinator main loop: {}", e);
+        e.printStackTrace();
       }
 
       // Paranoia...

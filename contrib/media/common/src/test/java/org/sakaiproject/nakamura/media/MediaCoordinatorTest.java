@@ -428,6 +428,33 @@ public class MediaCoordinatorTest {
   }
 
 
+  @Test
+  public void testMalformedMessage() throws Exception {
+
+    contentUpdated(null);
+
+    saveVersion("abc", "application/x-media-testsuite", "mpg", "test video 1", "hello, world");
+
+    contentUpdated("abc");
+
+    for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
+      List<Map<String,String>> created = mediaService.created;
+
+      if (created.size() > 0) {
+        assertEquals(created.get(0).get("title"), "test video 1");
+        assertEquals(created.get(0).get("description"), "hello, world");
+
+        return;
+      }
+
+      Thread.sleep(POLL_MS);
+    }
+
+    fail("Malformed message killed the queue.");
+
+
+  }
+
   @After
   public void tearDown() throws Exception {
     mc.shutdown();
