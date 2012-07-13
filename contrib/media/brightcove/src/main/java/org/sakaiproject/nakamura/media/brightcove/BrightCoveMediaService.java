@@ -470,6 +470,9 @@ public class BrightCoveMediaService implements MediaService {
             .put("method", method)
             .put("params", new JSONObject()
                  .put("token", writeToken)
+                 .put("create_multiple_renditions", true)
+                 .put("preserve_source_rendition", true)
+                 .put("encode_to", "MP4")
                  .put("video", media));
 
           Part[] parts;
