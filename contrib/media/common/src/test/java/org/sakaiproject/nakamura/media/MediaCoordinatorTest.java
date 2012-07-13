@@ -128,6 +128,11 @@ public class MediaCoordinatorTest {
       // Sure!
       return true;
     }
+
+
+    @Override
+    public void deleteMedia(String id) throws MediaServiceException {
+    }
   }
 
 

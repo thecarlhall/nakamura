@@ -271,6 +271,49 @@ public class BrightCoveMediaService implements MediaService {
   /**
    * {@inheritDoc}
    *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#deleteMedia(java.lang.String)
+   */
+  @Override
+  public void deleteMedia(final String id) throws MediaServiceException {
+    new WriteTask<MediaStatus>() {
+      public MediaStatus handle(String writeToken) throws MediaServiceException {
+        PostMethod post = null;
+
+        try {
+          JSONObject json = new JSONObject()
+            .put("method", "delete_video")
+            .put("params", new JSONObject()
+              .put("token", writeToken)
+              .put("video_id", id));
+          // Define the url to the api
+          post = new PostMethod(postUrl);
+          Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
+          post.setRequestEntity(new MultipartRequestEntity(parts, post.getParams()));
+
+          HttpClient client = new HttpClient();
+          int returnCode = client.executeMethod(post);
+          if (returnCode != 200) {
+            throw new MediaServiceException("Unexpected return code: " + returnCode);
+          }
+          return null;
+        } catch (JSONException e) {
+          LOG.error(e.getMessage(), e);
+          throw new MediaServiceException(e.getMessage(), e);
+        } catch (IOException e) {
+          throw new MediaServiceException(e.getMessage(), e);
+        } finally {
+          if (post != null) {
+            post.releaseConnection();
+          }
+        }
+      }
+    }.run();
+  }
+
+
+  /**
+   * {@inheritDoc}
+   *
    * @see org.sakaiproject.nakamura.api.media.MediaService#getStatus(java.lang.String)
    */
   @Override

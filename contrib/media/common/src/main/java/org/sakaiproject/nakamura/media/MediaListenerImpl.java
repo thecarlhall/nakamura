@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 @Component(immediate = true, metatype = true)
 @Service({ MediaListener.class, EventHandler.class, FileUploadHandler.class })
 @Properties({
-  @Property(name = "event.topics", value = "org/sakaiproject/nakamura/lite/content/UPDATED")
+  @Property(name = "event.topics", value = {"org/sakaiproject/nakamura/lite/content/UPDATED", "org/sakaiproject/nakamura/lite/content/DELETE"})
 })
 public class MediaListenerImpl implements MediaListener, EventHandler, FileUploadHandler {
   static final int MAX_RETRIES_DEFAULT = 5;
@@ -149,6 +149,14 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
   }
 
   // --------------- EventHandler interface -----------------------------------
+  /**
+   * Handle updated & delete events for content and add a message to a queue we control
+   * separately.
+   *
+   * {@inheritDoc}
+   *
+   * @see org.osgi.service.event.EventHandler#handleEvent(org.osgi.service.event.Event)
+   */
   @Override
   public void handleEvent(Event event) {
     LOGGER.info("Got event: {}", event);
@@ -159,9 +167,8 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
     // We're only interested in top-level content PIDs here. Don't bother
     // us about /activity nodes or other children.
-    if (path.indexOf("/") == -1 && "update".equals(op)
-        && "sakai/pooled-content".equals(resourceType)) {
-
+    if (path.indexOf("/") == -1 && "sakai/pooled-content".equals(resourceType)
+        && (op == null || "update".equals(op))) {
       contentUpdated(path);
     }
   }

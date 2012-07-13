@@ -20,7 +20,6 @@ package org.sakaiproject.nakamura.api.media;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Writer;
 
 public interface MediaService {
   /**
@@ -49,6 +48,13 @@ public interface MediaService {
    */
   String updateMedia(String id, String title, String description, String[] tags)
       throws MediaServiceException;
+
+  /**
+   * Delete media.
+   *
+   * @param id
+   */
+  void deleteMedia(String id) throws MediaServiceException;
 
   /**
    * Get the status of a media.

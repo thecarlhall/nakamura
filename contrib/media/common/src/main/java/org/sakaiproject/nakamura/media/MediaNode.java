@@ -4,12 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
+
+import com.google.common.collect.Lists;
 
 
 class MediaNode {
@@ -29,7 +33,7 @@ class MediaNode {
 
   public static MediaNode get(String parent, ContentManager cm, boolean create)
     throws StorageClientException, AccessDeniedException {
-    String mediaNodePath = parent + "/medianode";
+    String mediaNodePath = parent + "-medianode";
 
     Content obj = cm.get(mediaNodePath);
 
@@ -59,6 +63,18 @@ class MediaNode {
     contentManager.update(replicationStatus);
   }
 
+  public List<String> getMediaIds() throws AccessDeniedException, StorageClientException {
+    String repStatusPath = path + "/replicationStatus";
+
+    Iterator<Content> repStatusChildren = contentManager.listChildren(repStatusPath);
+
+    List<String> mediaIds = Lists.newArrayList();
+    while(repStatusChildren.hasNext()) {
+      Content replicationStatus = repStatusChildren.next();
+      mediaIds.add((String) replicationStatus.getProperty("bodyMediaId"));
+    }
+    return mediaIds;
+  }
 
   public String getMediaId(Version version) throws AccessDeniedException, StorageClientException {
     Content replicationStatus = getReplicationStatus(version);

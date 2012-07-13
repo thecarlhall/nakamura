@@ -16,6 +16,8 @@ import javax.jms.Message;
 import javax.jms.JMSException;
 
 import org.apache.activemq.ActiveMQSession;
+
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -220,65 +222,84 @@ public class MediaCoordinator implements Runnable {
   }
 
 
-  private void syncMedia(Content obj, ContentManager cm) throws IOException {
+  private void syncMedia(String path, Content obj, ContentManager cm) throws IOException {
     LOGGER.info("Processing media now...");
-
-    String path = obj.getPath();
 
     try {
       MediaNode mediaNode = MediaNode.get(path, cm, true);
-      VersionManager vm = new VersionManager(cm);
 
-      for (Version version : vm.getVersionsMetadata(path)) {
-        LOGGER.info("Processing version {} of object {}",
-                    version, path);
+      // if the content object is null, treat this as a delete
+      if (obj == null) {
+        LOGGER.debug("Deleting media content for " + path);
 
-        LOGGER.info("Version particulars: {} and {}", version.getMimeType(), version.getExtension());
-
-        if (!isMedia(version.getMimeType())) {
-          LOGGER.info("This version isn't a video.  Skipped.");
-          TelemetryCounter.incrementValue("media", "Coordinator", "skips");
-          continue;
-        }
-
-        if (!mediaNode.isBodyUploaded(version)) {
-          LOGGER.info("Uploading body for version {} of object {}",
-                      version, path);
-          InputStream is = cm.getVersionInputStream(path, version.getVersionId());
+        List<String> mediaIds = mediaNode.getMediaIds();
+        for (String mediaId : mediaIds) {
           try {
-            TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
-            String mediaId = mediaService.createMedia(is,
-                                                      version.getTitle(),
-                                                      version.getDescription(),
-                                                      version.getExtension(),
-                                                      version.getTags());
-            TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
+            LOGGER.debug("Deleting media [{}]", mediaId);
+            TelemetryCounter.incrementValue("media", "Coordinator", "deletes-started");
 
-            mediaNode.storeMediaId(version, mediaId);
+            mediaService.deleteMedia(mediaId);
+
+            LOGGER.debug("Deleted media [{}]", mediaId);
+            TelemetryCounter.incrementValue("media", "Coordinator", "deletes-finished");
           } catch (MediaServiceException e) {
-            throw new RuntimeException("Got MediaServiceException during body upload", e);
-          } finally {
-            is.close();
+            LOGGER.error("Got MediaServiceException during delete [" + mediaId + "]", e);
           }
         }
+      } else {
+        VersionManager vm = new VersionManager(cm);
 
-        if (!mediaNode.isMetadataUpToDate(version)) {
-          LOGGER.info("Updating metadata for version {} of object {}",
+        for (Version version : vm.getVersionsMetadata(path)) {
+          LOGGER.info("Processing version {} of object {}",
                       version, path);
 
-          try {
-            TelemetryCounter.incrementValue("media", "Coordinator", "updates-started");
-            mediaService.updateMedia(mediaNode.getMediaId(version),
-                                     version.getTitle(),
-                                     version.getDescription(),
-                                     version.getTags());
-            TelemetryCounter.incrementValue("media", "Coordinator", "updates-finished");
+          LOGGER.info("Version particulars: {} and {}", version.getMimeType(), version.getExtension());
 
-            mediaNode.recordVersion(version);
+          if (!isMedia(version.getMimeType())) {
+            LOGGER.info("This version isn't a video.  Skipped.");
+            TelemetryCounter.incrementValue("media", "Coordinator", "skips");
+            continue;
+          }
 
-          } catch (MediaServiceException e) {
-            throw new RuntimeException("Got MediaServiceException during metadata update", e);
+          if (!mediaNode.isBodyUploaded(version)) {
+            LOGGER.info("Uploading body for version {} of object {}",
+                        version, path);
+            InputStream is = cm.getVersionInputStream(path, version.getVersionId());
+            try {
+              TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
+              String mediaId = mediaService.createMedia(is,
+                                                        version.getTitle(),
+                                                        version.getDescription(),
+                                                        version.getExtension(),
+                                                        version.getTags());
+              TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
 
+              mediaNode.storeMediaId(version, mediaId);
+            } catch (MediaServiceException e) {
+              throw new RuntimeException("Got MediaServiceException during body upload", e);
+            } finally {
+              is.close();
+            }
+          }
+
+          if (!mediaNode.isMetadataUpToDate(version)) {
+            LOGGER.info("Updating metadata for version {} of object {}",
+                        version, path);
+
+            try {
+              TelemetryCounter.incrementValue("media", "Coordinator", "updates-started");
+              mediaService.updateMedia(mediaNode.getMediaId(version),
+                                       version.getTitle(),
+                                       version.getDescription(),
+                                       version.getTags());
+              TelemetryCounter.incrementValue("media", "Coordinator", "updates-finished");
+
+              mediaNode.recordVersion(version);
+
+            } catch (MediaServiceException e) {
+              throw new RuntimeException("Got MediaServiceException during metadata update", e);
+
+            }
           }
         }
       }
@@ -303,21 +324,20 @@ public class MediaCoordinator implements Runnable {
       ContentManager contentManager = sparseSession.getContentManager();
       Content obj = contentManager.get(pid);
 
-      if (obj == null) {
-        LOGGER.warn("Object '{}' couldn't be fetched from sparse", pid);
-        return;
+      if (obj != null) {
+        String mimeType = (String)obj.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE);
+
+        if (!isMedia(mimeType)) {
+          LOGGER.info("Path '{}' isn't a media file (type is: {}).  Skipped.",
+              pid, mimeType);
+          TelemetryCounter.incrementValue("media", "Coordinator", "skips");
+          return;
+        }
+      } else {
+        TelemetryCounter.incrementValue("media", "Coordinator", "deletes");
       }
 
-      String mimeType = (String)obj.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE);
-
-      if (!isMedia(mimeType)) {
-        LOGGER.info("Path '{}' isn't a media file (type is: {}).  Skipped.",
-                    pid, mimeType);
-        TelemetryCounter.incrementValue("media", "Coordinator", "skips");
-        return;
-      }
-
-      syncMedia(obj, contentManager);
+      syncMedia(pid, obj, contentManager);
 
     } catch (StorageClientException e) {
       LOGGER.warn("StorageClientException while processing {}: {}",

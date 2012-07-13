@@ -77,4 +77,10 @@ public class MatterhornMediaService implements MediaService {
     return null;
   }
 
+  @Override
+  public void deleteMedia(String id) throws MediaServiceException {
+    // TODO Auto-generated method stub
+    
+  }
+
 }
