@@ -24,7 +24,6 @@
           <instructions>
             <Bundle-Category> sakai-nakamura </Bundle-Category>
             <Private-Package>org.sakaiproject.nakamura.email.outgoing</Private-Package>
-            <Import-Package>!org.sakaiproject.nakamura.message.listener,*</Import-Package>
           </instructions>
         </configuration>
       </plugin>

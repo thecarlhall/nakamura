@@ -48,13 +48,13 @@ public class BasicLtiWidgetCopyCleaner extends AbstractBasicLtiCleaner {
   
   @Reference
   protected Repository repository;
-  
+
   /**
    * {@inheritDoc}
-   * @see org.sakaiproject.nakamura.resource.lite.servlet.post.operations.AbstractBasicLtiCleaner#doClean(java.lang.String, java.lang.String, org.sakaiproject.nakamura.api.lite.content.ContentManager)
+   * @see org.sakaiproject.nakamura.resource.lite.servlet.post.operations.AbstractBasicLtiCleaner#doClean(java.lang.String, java.lang.String, org.sakaiproject.nakamura.api.lite.Session)
    */
   @Override
-  public List<Modification> doClean(String widgetFromPath, String widgetToPath, ContentManager cm)
+  public List<Modification> doClean(String widgetFromPath, String widgetToPath, Session session)
       throws StorageClientException, AccessDeniedException {
     List<Modification> modifications = new LinkedList<Modification>();
     LOGGER.debug("Cleaning a BasicLTI widget after copy from '{}' to '{}'", widgetFromPath, widgetToPath);
@@ -68,6 +68,11 @@ public class BasicLtiWidgetCopyCleaner extends AbstractBasicLtiCleaner {
       ContentManager adminContentManager = adminSession.getContentManager();
       List<ActionRecord> copies = StorageClientUtils.copyTree(adminContentManager, ltiKeyFromPath, ltiKeyToPath, true);
       keysWereCopied = (copies != null && !copies.isEmpty());
+      
+      // make sure the copied ltiKeys node is still locked down
+      if (keysWereCopied) {
+        lockDownKeys(adminSession, widgetToPath, session.getUserId());
+      }
     } catch (IOException e) {
       throw new StorageClientException("Exception occurred when copying BasicLTI keys to destination location.", e);
     } finally {

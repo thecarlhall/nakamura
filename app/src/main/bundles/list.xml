@@ -564,11 +564,6 @@ KERN-1187
     </bundle>
     <bundle>
       <groupId>org.sakaiproject.nakamura</groupId>
-      <artifactId>org.sakaiproject.nakamura.chat</artifactId>
-      <version>1.4.0-SNAPSHOT</version>
-    </bundle>
-    <bundle>
-      <groupId>org.sakaiproject.nakamura</groupId>
       <artifactId>org.sakaiproject.nakamura.discussion</artifactId>
       <version>1.4.0-SNAPSHOT</version>
     </bundle>
@@ -670,11 +665,6 @@ KERN-1187
       <groupId>org.apache.felix</groupId>
       <artifactId>org.apache.felix.fileinstall</artifactId>
       <version>3.1.10</version>
-    </bundle>
-    <bundle>
-      <groupId>org.sakaiproject.nakamura</groupId>
-      <artifactId>org.sakaiproject.nakamura.calendar</artifactId>
-      <version>1.4.0-SNAPSHOT</version>
     </bundle>
     <bundle>
       <groupId>org.sakaiproject.nakamura</groupId>

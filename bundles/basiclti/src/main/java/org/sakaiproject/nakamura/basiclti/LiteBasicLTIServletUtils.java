@@ -31,6 +31,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class LiteBasicLTIServletUtils {
+  private static final String UX_TMP_STR = "tmp_";
+
   /**
    * The keys that must be specially secured from normal Sling operation.
    */
@@ -99,4 +101,32 @@ public class LiteBasicLTIServletUtils {
     }
   }
 
+  /**
+   * Performs any cleanup of node's path to account for cases where path includes a "tmp_"
+   * during authoring/preview within the UX. See: SAKIII-5890, KERN-2982.
+   * 
+   * @param node
+   * @return
+   */
+  protected static String getNodePath(final Content node) {
+    return getNodePath(node.getPath());
+  }
+
+  /**
+   * Performs any cleanup of node's path to account for cases where path includes a "tmp_"
+   * during authoring/preview within the UX. See: SAKIII-5890, KERN-2982.
+   * 
+   * @param nodePath
+   * @return
+   */
+  protected static String getNodePath(final String nodePath) {
+    String path = nodePath;
+    // e.g. mvw0Gmalaa/id1987761/id3490751/basiclti
+    if (path != null && path.contains(UX_TMP_STR)) {
+      // UX is in authoring/preview mode SAKIII-5890
+      // e.g. mvw0Gmalaa/tmp_id1987761/id3490751/basiclti
+      path = path.replace(UX_TMP_STR, "");
+    }
+    return path;
+  }
 }

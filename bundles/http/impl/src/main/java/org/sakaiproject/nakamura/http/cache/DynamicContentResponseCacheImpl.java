@@ -93,7 +93,7 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
       cache.put(key, etag);
       TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-save", cacheCategory);
     }
-    response.setHeader("ETag", etag);
+    setHeaders(response, etag);
   }
 
   @Override
@@ -102,11 +102,15 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
       return;
     }
     String key = buildCacheKey(cacheCategory, userID);
-    if (!cache.containsKey(key)) {
-      return;
+    if (cache.containsKey(key)) {
+      cache.remove(key);
+      TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-invalidation", cacheCategory);
     }
-    cache.remove(key);
-    TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-invalidation", cacheCategory);
+    String wildcardKey = buildCacheKey("*", userID);
+    if (cache.containsKey(wildcardKey)) {
+      cache.remove(wildcardKey);
+      TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-invalidation", "*");
+    }
   }
 
   @Override
@@ -119,6 +123,7 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
     String serverEtag = cache.get(buildCacheKey(cacheCategory, request.getRemoteUser()));
     if (clientEtag != null && clientEtag.equals(serverEtag)) {
       response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+      setHeaders(response, serverEtag);
       TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-hit", cacheCategory);
       return true;
     }
@@ -151,5 +156,10 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
   private boolean isDisabled(HttpServletRequest request) {
     return disableForDevMode || (bypassForLocalhost && ("localhost".equals(request.getServerName())
         || "127.0.0.1".equals(request.getServerName())));
+  }
+
+  private void setHeaders(HttpServletResponse response, String etag) {
+    response.setHeader("ETag", etag);
+    response.setHeader("Cache-Control", "private, must-revalidate, max-age=0");
   }
 }

@@ -79,6 +79,14 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.apache.sling</groupId>
+      <artifactId>org.apache.sling.commons.osgi</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sling</groupId>
+      <artifactId>org.apache.sling.jcr.api</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.apache.jackrabbit</groupId>
       <artifactId>jackrabbit-api</artifactId>
     </dependency>
@@ -93,6 +101,10 @@
     <dependency>
       <groupId>org.apache.felix</groupId>
       <artifactId>org.osgi.compendium</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.felix</groupId>
+      <artifactId>org.apache.felix.scr.annotations</artifactId>
     </dependency>
     <dependency>
       <groupId>javax.servlet</groupId>
@@ -112,6 +124,10 @@
     </dependency>
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
+      <artifactId>org.sakaiproject.nakamura.core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.sakaiproject.nakamura</groupId>
       <artifactId>org.sakaiproject.nakamura.testutils</artifactId>
       <version>1.4.0-SNAPSHOT</version>
       <scope>test</scope>
@@ -128,7 +144,7 @@
     </dependency>
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
-      <artifactId>org.sakaiproject.nakamura.user</artifactId>
+      <artifactId>org.sakaiproject.nakamura.user.api</artifactId>
       <version>1.4.0-SNAPSHOT</version>
     </dependency>
     <dependency>

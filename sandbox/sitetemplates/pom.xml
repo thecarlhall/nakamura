@@ -101,8 +101,8 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
       </dependency>
-    
-    
+
+
     <!-- SAKAI  -->
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
@@ -116,7 +116,7 @@
     </dependency>
     <dependency>
     	<groupId>org.sakaiproject.nakamura</groupId>
-    	<artifactId>org.sakaiproject.nakamura.user</artifactId>
+    	<artifactId>org.sakaiproject.nakamura.user.api</artifactId>
 	<version>1.4.0-SNAPSHOT</version>
     </dependency>
     <dependency>
@@ -140,7 +140,7 @@
       <artifactId>org.sakaiproject.nakamura.version</artifactId>
       <version>1.4.0-SNAPSHOT</version>
     </dependency>
-    
+
     <!-- TESTING -->
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>

@@ -196,6 +196,9 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
         } catch (MissingParameterException e) {
           response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
           return;
+        } catch (IllegalArgumentException e) {
+          response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+          return;
         }
 
         long nitems = SolrSearchUtil.longRequestParameter(request, PARAMS_ITEMS_PER_PAGE,

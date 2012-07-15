@@ -46,7 +46,7 @@
               WARNING, these had to be excluded from the imports to get the bundle to activate there
               may be classcast exceptions
             -->
-            <Import-Package>!sun.misc,!org.jgroups.*,!org.hibernate.*,*</Import-Package>
+            <Import-Package>!sun.misc,!org.hibernate.*,*</Import-Package>
             <Private-Package>org.sakaiproject.nakamura.memory.*</Private-Package>
             <DynamicImport-Package>*</DynamicImport-Package>
             <Embed-Transitive>true</Embed-Transitive>

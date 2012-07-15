@@ -80,12 +80,11 @@ public class CasAuthenticationHandlerTest {
   @Before
   public void setUp() throws Exception {
     authnHandler = new CasAuthenticationHandler();
-    authnHandler.modified(props);
     when(
         cacheManagerService.getCache(Matchers.anyString(),
             Matchers.eq(CacheScope.CLUSTERREPLICATED))).thenReturn(cache);
     authnHandler.cacheManagerService = cacheManagerService;
-    authnHandler.activate(null);
+    authnHandler.modified(props);
   }
 
   @After
@@ -119,7 +118,7 @@ public class CasAuthenticationHandlerTest {
   public void dropCredentialsWithLogoutUrl() throws IOException {
     authnHandler.dropCredentials(request, response);
 
-    verify(request).setAttribute(Authenticator.LOGIN_RESOURCE, "http://localhost/cas/logout");
+    verify(response).sendRedirect("http://localhost/cas/logout");
   }
 
   @Test
@@ -128,7 +127,7 @@ public class CasAuthenticationHandlerTest {
 
     authnHandler.dropCredentials(request, response);
 
-    verify(request).setAttribute(Authenticator.LOGIN_RESOURCE, "http://localhost/cas/logout");
+    verify(response).sendRedirect("http://localhost/cas/logout");
   }
 
   @Test

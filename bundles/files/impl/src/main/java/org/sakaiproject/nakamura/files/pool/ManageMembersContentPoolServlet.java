@@ -418,7 +418,10 @@ import javax.servlet.http.HttpServletResponse;
       // 2.
       addManagers.removeAll(managerSet);
       addEditors.removeAll(editorSet);
+      addEditors.removeAll(managerSet);
       addViewers.removeAll(viewerSet);
+      addViewers.removeAll(editorSet);
+      addViewers.removeAll(managerSet);
       
       // 3.
       removeManagers.retainAll(managerSet);
@@ -433,8 +436,7 @@ import javax.servlet.http.HttpServletResponse;
       }
       
       //Checking for non-managers
-      if (!accessControlManager.can(thisUser, Security.ZONE_CONTENT, pooledContent.getPath(), Permissions.CAN_WRITE) 
-          || !accessControlManager.can(thisUser, Security.ZONE_CONTENT, pooledContent.getPath(), Permissions.CAN_WRITE_ACL)) {
+      if (!accessControlManager.can(thisUser, Security.ZONE_CONTENT, pooledContent.getPath(), Permissions.CAN_WRITE)) {
         if (!addManagers.isEmpty()) {
           response.sendError(SC_FORBIDDEN, "Non-managers may not add managers to content.");
           return;
@@ -463,6 +465,7 @@ import javax.servlet.http.HttpServletResponse;
             Authorizable viewer = authorizableManager.findAuthorizable(name);
             if (viewer != null && !accessControlManager.can(thisUser, Security.ZONE_AUTHORIZABLES, name, Permissions.CAN_WRITE)) {
               response.sendError(SC_FORBIDDEN, "Non-managers may not remove any viewer other than themselves or a group which they manage.");
+              return;
             }
           }
         }

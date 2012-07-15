@@ -1,7 +1,9 @@
 package org.sakaiproject.nakamura.basiclti;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.atMost;
@@ -26,6 +28,8 @@ import java.util.Set;
 public class LiteBasicLTIServletUtilsTest {
   final String property = "someProperty";
   final String adminUserId = User.ADMIN_USER;
+  final String normalPath = "mvw0Gmalaa/id1987761/id3490751/basiclti";
+  final String tmpUxPath = "mvw0Gmalaa/tmp_id1987761/id3490751/basiclti";
 
   @Mock
   Content node;
@@ -36,6 +40,7 @@ public class LiteBasicLTIServletUtilsTest {
   public void setUp() throws Exception {
     when(node.hasProperty(property)).thenReturn(true);
     when(session.getUserId()).thenReturn(adminUserId);
+    when(node.getPath()).thenReturn(normalPath);
   }
 
   /**
@@ -92,4 +97,44 @@ public class LiteBasicLTIServletUtilsTest {
     assertTrue(invalidPerms.contains(Permissions.CAN_WRITE));
   }
 
+  /**
+   * Normal use case where node path does NOT contain "tmp_" string from UX
+   * authoring/preview mode. {@link LiteBasicLTIServletUtils#getNodePath(Content)}
+   */
+  @Test
+  public void testGetNodePath() {
+    final String path = LiteBasicLTIServletUtils.getNodePath(node);
+    assertNotNull(path);
+    assertEquals(normalPath, path);
+  }
+
+  /**
+   * Alternate use case where node path DOES contain "tmp_" string from UX
+   * authoring/preview mode. {@link LiteBasicLTIServletUtils#getNodePath(Content)}
+   */
+  @Test
+  public void testGetNodePathTmpUxPath() {
+    when(node.getPath()).thenReturn(tmpUxPath);
+
+    final String path = LiteBasicLTIServletUtils.getNodePath(node);
+    assertNotNull(path);
+    assertEquals(normalPath, path);
+  }
+
+  /**
+   * Test edge case where node path is null.
+   * {@link LiteBasicLTIServletUtils#getNodePath(Content)}
+   */
+  @Test
+  public void testGetNodePathNullPath() {
+    when(node.getPath()).thenReturn(null);
+
+    final String path = LiteBasicLTIServletUtils.getNodePath(node);
+    assertNull(path);
+  }
+
+  @Test
+  public void testInstantiation() {
+    new LiteBasicLTIServletUtils();
+  }
 }

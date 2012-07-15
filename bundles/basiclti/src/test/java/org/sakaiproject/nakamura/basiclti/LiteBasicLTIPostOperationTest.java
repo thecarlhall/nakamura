@@ -77,6 +77,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletResponse;
+
 @RunWith(MockitoJUnitRunner.class)
 public class LiteBasicLTIPostOperationTest {
   private static final String LONG_PROP = "longProp";
@@ -129,6 +131,7 @@ public class LiteBasicLTIPostOperationTest {
   ContentManager adminContentManager;
   @Mock
   SlingHttpServletRequest request;
+  @SuppressWarnings("deprecation")
   @Mock
   HtmlResponse response;
   @Mock
@@ -667,6 +670,29 @@ public class LiteBasicLTIPostOperationTest {
   }
 
   /**
+   * Verification edge case where user UX has passed a malformed URL.
+   * {@link LiteBasicLTIPostOperation#doRun(SlingHttpServletRequest, HtmlResponse, ContentManager, List, String)}
+   * 
+   * @throws StorageClientException
+   * @throws AccessDeniedException
+   * @throws IOException
+   */
+  @SuppressWarnings("deprecation")
+  @Test
+  public void testDoRunMalformedURL() throws StorageClientException,
+      AccessDeniedException, IOException {
+    when(request.getParameter(COLON_CONTENT)).thenReturn(null);
+    when(request.getParameter(CONTENT_TYPE)).thenReturn(null);
+    when(requestParameterLtiUrl.getString(eq("UTF-8"))).thenReturn(".");
+
+    liteBasicLTIPostOperation.doRun(request, response, contentManager, changes,
+        contentPath);
+    verify(response, times(1)).setStatus(eq(HttpServletResponse.SC_PRECONDITION_FAILED),
+        anyString());
+    verify(contentManager, never()).update(any(Content.class));
+  }
+
+  /**
    * Edge case where multi-valued properties are passed to operation. See:
    * {@link LiteBasicLTIPostOperation#doRun(SlingHttpServletRequest, HtmlResponse, ContentManager, List, String)}
    * 
@@ -782,6 +808,54 @@ public class LiteBasicLTIPostOperationTest {
   public void testUnBindRepository() {
     liteBasicLTIPostOperation.unbindRepository(repository);
     assertNull(liteBasicLTIPostOperation.repository);
+  }
+
+  /**
+   * Test happy case.
+   * {@link LiteBasicLTIPostOperation#mutateProperties(Content, String, String, boolean, Map)}
+   */
+  @Test
+  public void testMutateProperties() {
+    liteBasicLTIPostOperation.mutateProperties(node, LTI_URL_KEY, LTI_URL_VALUE, false,
+        sensitiveData);
+    verify(node, times(1)).setProperty(LTI_URL_KEY, LTI_URL_VALUE);
+  }
+
+  /**
+   * Test illegal URL passed to operation.
+   * {@link LiteBasicLTIPostOperation#mutateProperties(Content, String, String, boolean, Map)}
+   */
+  @Test(expected = IllegalArgumentException.class)
+  public void testMutatePropertiesIllegalURL() {
+    liteBasicLTIPostOperation.mutateProperties(node, LTI_URL_KEY, ".", false,
+        sensitiveData);
+    verify(node, never()).setProperty(LTI_URL_KEY, LTI_URL_VALUE);
+  }
+
+  /**
+   * Test happy case where a property has been removed.
+   * {@link LiteBasicLTIPostOperation#mutateProperties(Content, String, String, boolean, Map)}
+   */
+  @Test
+  public void testMutatePropertiesNullValue() {
+    when(node.hasProperty(LTI_URL_KEY)).thenReturn(true);
+
+    liteBasicLTIPostOperation.mutateProperties(node, LTI_URL_KEY, null, false,
+        sensitiveData);
+    verify(node, times(1)).removeProperty(LTI_URL_KEY);
+  }
+
+  /**
+   * Test happy case where a property has been removed.
+   * {@link LiteBasicLTIPostOperation#mutateProperties(Content, String, String, boolean, Map)}
+   */
+  @Test
+  public void testMutatePropertiesEmptyValue() {
+    when(node.hasProperty(LTI_URL_KEY)).thenReturn(true);
+
+    liteBasicLTIPostOperation.mutateProperties(node, LTI_URL_KEY, "", false,
+        sensitiveData);
+    verify(node, times(1)).hasProperty(LTI_URL_KEY);
   }
 
   // --------------------------------------------------------------------------

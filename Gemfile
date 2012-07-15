@@ -1,5 +1,5 @@
 source :rubygems
-gem "nakamura", ">= 0.10"
+gem "nakamura", ">= 0.12"
 gem "json"
 
 group :preview_processor do

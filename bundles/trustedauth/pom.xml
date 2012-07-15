@@ -102,7 +102,12 @@
       <artifactId>org.sakaiproject.nakamura.jetty-config</artifactId>
       <version>1.4.0-SNAPSHOT</version>
     </dependency>
-    
+    <dependency>
+      <groupId>org.sakaiproject.nakamura</groupId>
+      <artifactId>org.sakaiproject.nakamura.http.api</artifactId>
+      <version>1.4.0-SNAPSHOT</version>
+    </dependency>
+
     <dependency>
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>

@@ -108,7 +108,7 @@ public class ServerProtectionServiceImpl implements ServerProtectionService {
   private static final String[] DEFAULT_TRUSTED_HOSTS = { "localhost:8080 = http://localhost:8082" };
   private static final String[] DEFAULT_TRUSTED_PATHS = { "/dev", "/devwidgets", "/system", "/logout", "/var" };
   private static final String[] DEFAULT_TRUSTED_EXACT_PATHS = { };
-  private static final String DEFAULT_TRUSTED_SECRET_VALUE = "This Must Be set in production";
+  private static final String DEFAULT_TRUSTED_SECRET_VALUE = "Change this in production to fully secure your server";
   private static final String[] DEFAULT_WHITELIST_POST_PATHS = {"/system/console"};
   private static final String[] DEFAULT_ANON_WHITELIST_POST_PATHS = {"/system/userManager/user.create"};
 
@@ -258,10 +258,12 @@ public class ServerProtectionServiceImpl implements ServerProtectionService {
     String transferSharedSecret = PropertiesUtil.toString(properties.get(TRUSTED_SECRET_CONF),
         DEFAULT_TRUSTED_SECRET_VALUE);
     if (DEFAULT_TRUSTED_SECRET_VALUE.equals(transferSharedSecret)) {
-      LOGGER.error("Configuration Error =============================");
+      LOGGER.error("Security Configuration Error =============================");
       LOGGER
-          .error("Configuration Error: Please set {} to secure Content Server in procuction ",TRUSTED_SECRET_CONF);
-      LOGGER.error("Configuration Error =============================");
+          .error("Security Configuration Error: In order to fully secure your server, please " +
+              "set {} to a long, unique string that is not publicly accessible.",
+              TRUSTED_SECRET_CONF);
+      LOGGER.error("Security Configuration Error =============================");
     }
 
     LOGGER.info("Trusted Hosts {}", applicationContentRedirects);

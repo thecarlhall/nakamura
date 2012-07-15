@@ -67,7 +67,8 @@ public class StaticContentResponseCacheImpl implements Filter, StaticContentResp
       "root;.*(js|css)$;172800",
       "root;.*html$;172800",
       "var;^/var/search/public/.*$;900",
-      "var;^/var/widgets.json$;172800"})
+      "var;^/var/widgets.json$;7200",
+      "system;^/system/staticfiles$;86400"})
   static final String SAKAI_CACHE_PATTERNS = "sakai.cache.patterns";
 
   @Property(value = {

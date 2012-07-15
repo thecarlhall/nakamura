@@ -185,7 +185,7 @@ public class LiteBasicLTIConsumerServletTest {
     when(request.getResourceResolver()).thenReturn(resourceResolver);
     when(resourceResolver.adaptTo(javax.jcr.Session.class)).thenReturn(jcrSession);
     when(((SessionAdaptable) jcrSession).getSession()).thenReturn(userSession);
-    contentPath = "/p/j25KqM5SU4/id7339024/sakai2gradebook";
+    contentPath = "mHAY1acZec/id470170/id7577541/sakai2gradebook";
     adminContentPath = contentPath + "/" + LTI_ADMIN_NODE_NAME;
     when(content.getPath()).thenReturn(contentPath);
     setupProperties();
@@ -697,6 +697,37 @@ public class LiteBasicLTIConsumerServletTest {
   }
 
   /**
+   * Edge case where LTI URL is malformed.
+   * {@link LiteBasicLTIConsumerServlet#doGet(SlingHttpServletRequest, SlingHttpServletResponse)}
+   * 
+   * @throws Exception
+   */
+  @Test
+  public void testDoGetDoLaunchMalformedLtiUrl() throws Exception {
+    setupWidgetUseCase();
+    setUpLaunchUseCase();
+    contentProperties.put(LTI_URL, ".");
+
+    liteBasicLTIConsumerServlet.doGet(request, response);
+
+    verify(response).sendError(eq(HttpServletResponse.SC_INTERNAL_SERVER_ERROR),
+        anyString());
+  }
+
+  @Test
+  public void testDoGetDoLaunchIncestuousLtiUrl() throws Exception {
+    setupWidgetUseCase();
+    setUpLaunchUseCase();
+    contentProperties.put(LTI_URL, "http://localhost:8080/p/" + contentPath
+        + ".launch.html");
+
+    liteBasicLTIConsumerServlet.doGet(request, response);
+
+    verify(response).sendError(eq(HttpServletResponse.SC_INTERNAL_SERVER_ERROR),
+        contains("cannot launch into itself"));
+  }
+
+  /**
    * Edge case where LTI key is null.
    * {@link LiteBasicLTIConsumerServlet#doGet(SlingHttpServletRequest, SlingHttpServletResponse)}
    * 
@@ -1202,7 +1233,7 @@ public class LiteBasicLTIConsumerServletTest {
     verify(writer, times(1)).write(contains("name=\"oauth_version\" value=\"1.0\""));
     verify(writer, times(1))
         .write(
-            contains("name=\"resource_link_id\" value=\"/p/j25KqM5SU4/id7339024/sakai2gradebook\""));
+            contains("name=\"resource_link_id\" value=\"mHAY1acZec/id470170/id7577541/sakai2gradebook\""));
     if (canManageContentPool) {
       verify(writer, times(1)).write(contains("name=\"roles\" value=\"Instructor\""));
       verify(writer, never()).write(contains("name=\"roles\" value=\"Student\""));

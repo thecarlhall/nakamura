@@ -41,7 +41,7 @@ artifact_version_replace org.sakaiproject.nakamura.jetty-config app/pom.xml
 simple_replace tools/version
 simple_replace tools/version.bat
 simple_replace webstart/src/main/jnlp/template.vm
-tag_replace app/src/main/bundles/list.xml
+simple_replace app/src/main/bundles/list.xml
 
 otherpoms=`find . -path "./contrib/*pom.xml" -o -path "./samples/*pom.xml" -o -path "./sandbox/*pom.xml" -o -path "./webstart/*pom.xml" -o -path "./modelling/*pom.xml"`
 for file in $otherpoms

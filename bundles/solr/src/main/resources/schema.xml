@@ -240,7 +240,7 @@
       Intended for fuzzier matching of usernames with varied case. -->
     <fieldType name="text_ci" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="true">
       <analyzer>
-        <tokenizer class="solr.PatternTokenizerFactory" pattern="(\p{Punct}|\p{Space})+" />
+        <tokenizer class="solr.PatternTokenizerFactory" pattern="[\p{Punct}\p{Space}]+" />
         <!-- Case insensitive stop word removal. -->
         <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt" enablePositionIncrements="true"/>
         <filter class="solr.LowerCaseFilterFactory"/>

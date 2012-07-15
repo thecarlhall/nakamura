@@ -32,7 +32,7 @@
           <instructions>
             <Bundle-Category> sakai-nakamura </Bundle-Category>
             <Private-Package> org.sakaiproject.nakamura.smtp.*  </Private-Package>
-            <Import-Package>!org.subethamail.smtp.*,!junit.framework,*</Import-Package>
+            <Import-Package>!junit.framework,*</Import-Package>
             <Embed-Dependency>subethasmtp</Embed-Dependency>
           </instructions>
         </configuration>

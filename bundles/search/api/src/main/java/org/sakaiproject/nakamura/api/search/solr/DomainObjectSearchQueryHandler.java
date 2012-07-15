@@ -22,21 +22,42 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.apache.commons.lang.StringUtils;
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.request.RequestParameter;
 import org.apache.sling.api.request.RequestParameterMap;
+import org.apache.sling.commons.json.JSONException;
+import org.apache.sling.commons.json.io.JSONWriter;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.FacetParams;
+import org.sakaiproject.nakamura.api.lite.Session;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.search.SearchUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public abstract class DomainObjectSearchQueryHandler {
+@Component(componentAbstract=true)
+@Service({
+    DomainObjectSearchQueryHandler.class,
+    SolrSearchPropertyProvider.class,
+    SolrSearchResultProcessor.class
+})
+public abstract class DomainObjectSearchQueryHandler
+    implements SolrSearchPropertyProvider, SolrSearchResultProcessor {
+  private static final Logger LOGGER = LoggerFactory.getLogger(DomainObjectSearchQueryHandler.class);
+
   private static Map<String, Object> QUERY_OPTIONS_MAP = ImmutableMap.<String, Object> of(
       FacetParams.FACET, Boolean.TRUE,
       FacetParams.FACET_FIELD, "tagname",
       FacetParams.FACET_MINCOUNT, 1
   );
+
+  private static Pattern TWO_OR_MORE_STARS = Pattern.compile("\\*{2,}");
 
   public enum DEFAULT_REQUEST_PARAMS {
     q,
@@ -46,6 +67,35 @@ public abstract class DomainObjectSearchQueryHandler {
   }
 
   /**
+   * Preserves backwards compatibility with the old search template approach
+   * until it can be discarded.
+   */
+  public enum TEMPLATE_PROPS {
+    _q
+  }
+
+  /**
+   * Most entries in the search parameters map come from HTTP request parameters.
+   * These are filled in from other properties of the request.
+   */
+  public enum REQUEST_PARAMETERS_PROPS {
+    _requestPath,
+    _traversalDepth,
+    _userId
+  }
+
+  @Reference
+  protected SolrSearchServiceFactory searchServiceFactory;
+
+  public DomainObjectSearchQueryHandler() {
+    
+  }
+  
+  public DomainObjectSearchQueryHandler(SolrSearchServiceFactory searchServiceFactory) {
+    this.searchServiceFactory = searchServiceFactory;
+  }
+  
+  /**
    * Return the search clause corresponding to the domain object. This will
    * typically be used as a Filter Query and as a fallback replacement for
    * match-all wildcards.
@@ -53,8 +103,14 @@ public abstract class DomainObjectSearchQueryHandler {
   abstract public String getResourceTypeClause(Map<String, String> parametersMap);
 
   /**
-   * If the base query string would be empty, use this as the default.
+   * Write the JSON object (if any) corresponding to the given result.
    */
+  abstract public void writeResult(Session session, Map<String, String> parametersMap, JSONWriter jsonWriter, Result result)
+      throws JSONException;
+
+    /**
+    * If the base query string would be empty, use this as the default.
+    */
   public String getDefaultQueryString(Map<String, String> parametersMap) {
     // Before 4.0, the usual "*:*" pass-through would incur unexpected cost.
     // As of 4.0, filter queries are processed in parallel with the main query
@@ -113,8 +169,16 @@ public abstract class DomainObjectSearchQueryHandler {
       qBuilder.append("tag:(").append(tagsParam).append(")");
     }
 
-    refineQString(parametersMap, qBuilder);
-
+    String customQueryString = buildCustomQString(parametersMap);
+    
+    if (customQueryString != null && !customQueryString.isEmpty()) {
+      // append the custom query string to the solr query if one has been provided
+      if (qBuilder.length() > 0) {
+        qBuilder.append(" AND ");
+      }
+      qBuilder.append("(").append(customQueryString).append(")");
+    }
+    
     if (qBuilder.length() == 0) {
       qBuilder.append(getDefaultQueryString(parametersMap));
     }
@@ -126,6 +190,10 @@ public abstract class DomainObjectSearchQueryHandler {
    */
   public String getSearchParam(Map<String, String> parametersMap, String key) {
     String param = StringUtils.stripToNull(parametersMap.get(key));
+    // solr hates long sequences of asterisks, so compress repeated *'s to single *
+    if ( param != null ) {
+      param = TWO_OR_MORE_STARS.matcher(param).replaceAll("*");
+    }
     if ("*".equals(param) || "*:*".equals(param)) {
       return null;
     } else {
@@ -142,7 +210,16 @@ public abstract class DomainObjectSearchQueryHandler {
 
     // 0. load authorizable (user) information
     String userId = request.getRemoteUser();
-    propertiesMap.put("_userId", ClientUtils.escapeQueryChars(userId));
+    propertiesMap.put(REQUEST_PARAMETERS_PROPS._userId.toString(), ClientUtils.escapeQueryChars(userId));
+
+    // Remember the requested path, since it sometimes determines the type of query or results handling.
+    propertiesMap.put(REQUEST_PARAMETERS_PROPS._requestPath.toString(), request.getRequestURI());
+
+    // If a recursion level was specified for hierarchical results, pass it along.
+    Integer traversalDepth = SearchUtil.getTraversalDepthSelector(request);
+    if (traversalDepth != null) {
+      propertiesMap.put(REQUEST_PARAMETERS_PROPS._traversalDepth.toString(), traversalDepth.toString());
+    }
 
     // 2. load in properties from the request
     RequestParameterMap params = request.getRequestParameterMap();
@@ -167,8 +244,41 @@ public abstract class DomainObjectSearchQueryHandler {
   /**
    * Add domain-specific clauses to the base query string.
    */
-  public StringBuilder refineQString(Map<String, String> parametersMap, StringBuilder qBuilder) {
-    return qBuilder;
+  public String buildCustomQString(Map<String, String> parametersMap) {
+    return null;
+  }
+
+  /**
+   * Preserves backwards compatibility with the old search template approach
+   * until it can be discarded.
+   */
+  @Override
+  public void loadUserProperties(SlingHttpServletRequest request, Map<String, String> propertiesMap) {
+    propertiesMap.put(TEMPLATE_PROPS._q.toString(), configureQString(propertiesMap));
+  }
+
+  /**
+   * Preserves backwards compatibility with the old search template approach
+   * until it can be discarded.
+   */
+  @Override
+  public SolrSearchResultSet getSearchResultSet(SlingHttpServletRequest request, Query query) throws SolrSearchException {
+    LOGGER.debug("Input Query configuration = {}", query);
+    Map<String, String> parametersMap = loadParametersMap(request);
+    configureQuery(parametersMap, query);
+    return searchServiceFactory.getSearchResultSet(request, query);
+  }
+
+  /**
+   * Preserves backwards compatibility with the old search template approach
+   * until it can be discarded.
+   */
+  @Override
+  public void writeResult(SlingHttpServletRequest request, JSONWriter jsonWriter, Result result) throws JSONException {
+    Session session = StorageClientUtils.adaptToSession(request
+        .getResourceResolver().adaptTo(javax.jcr.Session.class));
+    Map<String, String> parametersMap = loadParametersMap(request);
+    writeResult(session, parametersMap, jsonWriter, result);
   }
 
 }

@@ -17,7 +17,6 @@
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-scr-plugin</artifactId>
-				<version>1.4.4</version>
 				<dependencies>
 					<dependency>
 						<groupId>org.slf4j</groupId>
@@ -65,10 +64,7 @@
 							!org.jdom.*,
 							!org.apache.struts.*,
 							!org.apache.commons.logging.impl.*,
-							!org.apache.avalon.*,
 							!org.dom4j.*,
-							!org.sakaiproject.nakamura.solr.*,
-							!org.apache.lucene.*,
 							com.ctc.wstx.stax;resolution:=optional,
 							org.mortbay.*;resolution:=optional,
 							javax.servlet.jsp.*;resolution:=optional,
@@ -172,7 +168,7 @@
 		<dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
       <artifactId>org.sakaiproject.nakamura.utils</artifactId>
-      <version>${parent.version}</version>
+      <version>${project.parent.version}</version>
     </dependency>
 		<dependency>
 			<groupId>com.googlecode.guava-osgi</groupId>

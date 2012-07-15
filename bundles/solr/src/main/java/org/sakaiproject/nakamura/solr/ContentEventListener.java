@@ -32,7 +32,6 @@ import org.apache.felix.scr.annotations.Deactivate;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
-import org.apache.felix.scr.annotations.Services;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventAdmin;
 import org.osgi.service.event.EventConstants;
@@ -62,8 +61,7 @@ import com.google.common.collect.Sets;
  * 
  */
 @Component(immediate = true, metatype = true)
-@Services(value = { @Service(value = EventHandler.class),
-		@Service(value = TopicIndexer.class) })
+@Service(value = { EventHandler.class, TopicIndexer.class })
 public class ContentEventListener implements EventHandler, TopicIndexer,
 		QueueManagerDriver {
 

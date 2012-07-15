@@ -51,6 +51,7 @@ import static org.sakaiproject.nakamura.api.basiclti.BasicLTIAppConstants.RELEAS
 import static org.sakaiproject.nakamura.api.basiclti.BasicLTIAppConstants.TOPIC_BASICLTI_ACCESSED;
 import static org.sakaiproject.nakamura.api.basiclti.BasicLTIAppConstants.TOPIC_BASICLTI_LAUNCHED;
 import static org.sakaiproject.nakamura.api.basiclti.BasicLTIAppConstants.TOPIC_BASICLTI_REMOVED;
+import static org.sakaiproject.nakamura.basiclti.LiteBasicLTIServletUtils.getNodePath;
 import static org.sakaiproject.nakamura.basiclti.LiteBasicLTIServletUtils.sensitiveKeys;
 
 import org.apache.felix.scr.annotations.Activate;
@@ -97,6 +98,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Dictionary;
@@ -342,6 +345,23 @@ public class LiteBasicLTIConsumerServlet extends SlingAllMethodsServlet {
             new IllegalArgumentException(LTI_URL + " cannot be null"), response);
         return;
       }
+      URL url = null;
+      try {
+        url = new URL(ltiUrl);
+      } catch (MalformedURLException e) {
+        sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, LTI_URL
+            + " malformed URL", new IllegalArgumentException(LTI_URL + " malformed URL"),
+            response);
+        return;
+      }
+      // KERN-2990 ensure we are not launching into ourself!
+      if (url.getPath().contains(node.getPath())) {
+        sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, LTI_URL
+            + " cannot launch into itself", new IllegalArgumentException(LTI_URL
+            + " cannot launch into itself"), response);
+        return;
+      }
+
       // LTI_SECRET
       final String ltiSecret = (String) effectiveSettings.get(LTI_SECRET);
       if (ltiSecret == null || "".equals(ltiSecret)) {
@@ -359,8 +379,8 @@ public class LiteBasicLTIConsumerServlet extends SlingAllMethodsServlet {
         return;
       }
 
-      // e.g. /sites/foo/_widgets/id944280073/basiclti
-      launchProps.put(RESOURCE_LINK_ID, node.getPath());
+      // e.g. mvw0Gmalaa/id1987761/id3490751/basiclti
+      launchProps.put(RESOURCE_LINK_ID, getNodePath(node));
 
       final AuthorizableManager userManager = session.getAuthorizableManager();
       final org.sakaiproject.nakamura.api.lite.authorizable.Authorizable az = userManager

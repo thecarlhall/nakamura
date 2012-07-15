@@ -87,7 +87,7 @@ public class DynamicContentResponseCacheImplTest {
     dynamicContentResponseCache.recordResponse(cat, request, response);
     verify(cache, times(2)).get(anyString());
     verify(cache, atMost(1)).put(anyString(), anyString());
-    verify(response, times(2)).setHeader(anyString(), anyString());
+    verify(response, times(4)).setHeader(anyString(), anyString());
     when(cache.containsKey(dynamicContentResponseCache.buildCacheKey(cat, user))).thenReturn(true);
     dynamicContentResponseCache.invalidate(cat, user);
     verify(cache).remove(anyString());

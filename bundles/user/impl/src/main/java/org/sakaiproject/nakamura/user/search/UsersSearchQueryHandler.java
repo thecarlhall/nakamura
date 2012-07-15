@@ -24,33 +24,31 @@ import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.io.JSONWriter;
+import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.GroupParams;
+import org.sakaiproject.nakamura.api.connections.ConnectionManager;
+import org.sakaiproject.nakamura.api.lite.Session;
+import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
+import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.search.SearchConstants;
 import org.sakaiproject.nakamura.api.search.solr.DomainObjectSearchQueryHandler;
 import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.search.solr.Result;
-import org.sakaiproject.nakamura.api.search.solr.SolrSearchException;
-import org.sakaiproject.nakamura.api.search.solr.SolrSearchPropertyProvider;
-import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultProcessor;
-import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultSet;
+import org.sakaiproject.nakamura.api.user.BasicUserInfoService;
+import org.sakaiproject.nakamura.util.ExtendedJSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Component
-@Service({
-    SolrSearchPropertyProvider.class,
-    SolrSearchResultProcessor.class
-})
 @Properties({
     @Property(name = SearchConstants.REG_PROVIDER_NAMES, value="UsersSearchQueryHandler"),
     @Property(name = SearchConstants.REG_PROCESSOR_NAMES, value = "UsersSearchQueryHandler")
 })
-public class UsersSearchQueryHandler extends DomainObjectSearchQueryHandler
-    implements SolrSearchPropertyProvider, SolrSearchResultProcessor {
+public class UsersSearchQueryHandler extends DomainObjectSearchQueryHandler {
   private static final Logger LOGGER = LoggerFactory.getLogger(UsersSearchQueryHandler.class);
   private static final String Q_FORMAT =
       "name:(%s) OR firstName:(%<s) OR lastName:(%<s) OR email:(%<s) OR ngram:(%<s) OR edgengram:(%<s)";
@@ -65,32 +63,11 @@ public class UsersSearchQueryHandler extends DomainObjectSearchQueryHandler
     q
   }
 
-  /**
-   * For now, we delegate JSON handling to the Authorizable-result writer which currently
-   * resides in the Presence module. However, after refactoring that processor's Presence and
-   * Connections dependencies into their own result-writing services, we should finally be
-   * able to relocate its logic to this module.
-   */
-  @Reference(target = "(sakai.search.processor=Profile)")
-  SolrSearchResultProcessor profileNodeSearchResultProcessor;
+  @Reference
+  BasicUserInfoService basicUserInfoService;
 
-  @Override
-  public void loadUserProperties(SlingHttpServletRequest request, Map<String, String> parametersMap) {
-    parametersMap.put("_q", configureQString(parametersMap));
-  }
-
-  @Override
-  public SolrSearchResultSet getSearchResultSet(SlingHttpServletRequest request, Query query) throws SolrSearchException {
-    LOGGER.debug("Input Query configuration = {}", query);
-    Map<String, String> parametersMap = loadParametersMap(request);
-    configureQuery(parametersMap, query);
-    return profileNodeSearchResultProcessor.getSearchResultSet(request, query);
-  }
-
-  @Override
-  public void writeResult(SlingHttpServletRequest request, JSONWriter write, Result result) throws JSONException {
-    profileNodeSearchResultProcessor.writeResult(request, write, result);
-  }
+  @Reference
+  ConnectionManager connectionManager;
 
   @Override
   public String getResourceTypeClause(Map<String, String> parametersMap) {
@@ -105,29 +82,54 @@ public class UsersSearchQueryHandler extends DomainObjectSearchQueryHandler
 
   @Override
   public void refineQuery(Map<String, String> parametersMap, Query query) {
+    Map<String, Object> queryOptions = query.getOptions();
+    queryOptions.put(CommonParams.FL, "path");
+
     // If both Authorizable and Profile records will be searched, collapse them
     // into a single result for a single person.
     if (isFullProfile(parametersMap)) {
-      query.getOptions().putAll(FULLPROFILE_QUERY_OPTIONS_MAP);
+      queryOptions.putAll(FULLPROFILE_QUERY_OPTIONS_MAP);
     }
   }
 
   @Override
-  public StringBuilder refineQString(Map<String, String> parametersMap, StringBuilder qBuilder) {
+  public String buildCustomQString(Map<String, String> parametersMap) {
     // Did the client specify a text search?
+    String customQuery = null;
+    StringBuilder qBuilder = new StringBuilder();
     String qParam = getSearchParam(parametersMap, REQUEST_PARAMS.q.toString());
     if (qParam != null) {
-      if (qBuilder.length() > 0) {
-        qBuilder.append(" AND ");
-      }
       qBuilder.append("(");
       (new Formatter(qBuilder)).format(Q_FORMAT, qParam);
       if (isFullProfile(parametersMap)) {
         qBuilder.append(" OR profile:(").append(qParam).append(")");
       }
       qBuilder.append(")");
+      customQuery = qBuilder.toString();
     }
-    return qBuilder;
+    return customQuery;
+  }
+
+  @Override
+  public void writeResult(Session session, Map<String, String> parametersMap, JSONWriter jsonWriter, Result result)
+      throws JSONException {
+    String authorizableId = result.getPath();
+    ExtendedJSONWriter writer = (ExtendedJSONWriter) jsonWriter;
+    try {
+      AuthorizableManager authorizableManager = session.getAuthorizableManager();
+      Authorizable authorizable = authorizableManager.findAuthorizable(authorizableId);
+      if (authorizable != null) {
+        jsonWriter.object();
+        Map<String,Object> map = basicUserInfoService.getProperties(authorizable);
+        ExtendedJSONWriter.writeValueMapInternals(writer, map);
+        connectionManager.writeConnectionInfo(writer, session, session.getUserId(), authorizableId);
+        jsonWriter.endObject();
+      }
+    } catch (StorageClientException e) {
+      LOGGER.error(e.getMessage(), e);
+    } catch (AccessDeniedException e) {
+      LOGGER.error(e.getMessage(), e);
+    }
   }
 
   /**

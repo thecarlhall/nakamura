@@ -2,7 +2,7 @@
 <!--  developed for CSU by ieb
 Contains hard coded IP addresses and port numbers that may need changing. -->
 <ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:noNamespaceSchemaLocation="ehcache.xsd">
+	xsi:noNamespaceSchemaLocation="ehcache.xsd" updateCheck="false">
 
 
     <diskStore path="${cache-store}"/>
