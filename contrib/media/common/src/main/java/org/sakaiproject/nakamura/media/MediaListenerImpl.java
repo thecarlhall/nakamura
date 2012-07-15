@@ -18,8 +18,11 @@
  */
 package org.sakaiproject.nakamura.media;
 
+
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.FileNotFoundException;
 import java.util.Map;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -37,12 +40,14 @@ import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.osgi.PropertiesUtil;
+import org.apache.sling.api.request.RequestParameter;
 import org.osgi.service.component.ComponentContext;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventHandler;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.activemq.ConnectionFactoryService;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
+import org.sakaiproject.nakamura.api.files.FileUploadFilter;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.media.MediaListener;
 import org.slf4j.Logger;
@@ -54,11 +59,11 @@ import org.slf4j.LoggerFactory;
  * for the first caller to incur the cost of doing.
  */
 @Component(immediate = true, metatype = true)
-@Service({ MediaListener.class, EventHandler.class, FileUploadHandler.class })
+@Service({ MediaListener.class, EventHandler.class, FileUploadHandler.class, FileUploadFilter.class })
 @Properties({
   @Property(name = "event.topics", value = {"org/sakaiproject/nakamura/lite/content/UPDATED", "org/sakaiproject/nakamura/lite/content/DELETE"})
 })
-public class MediaListenerImpl implements MediaListener, EventHandler, FileUploadHandler {
+public class MediaListenerImpl implements MediaListener, EventHandler, FileUploadHandler, FileUploadFilter {
   static final int MAX_RETRIES_DEFAULT = 5;
   @Property(intValue = MAX_RETRIES_DEFAULT)
   public static final String MAX_RETRIES = "maxRetries";
@@ -74,6 +79,11 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
   static final int POLL_FREQUENCY_DEFAULT = 5000;
   @Property(intValue = POLL_FREQUENCY_DEFAULT)
   public static final String POLL_FREQUENCY = "pollFrequency";
+
+  @Property(description = "The directory path to store uploaded media files while they're being processed.  If you leave this blank, defaults to the 'java.io.tmpdir' property (which is usually /tmp)")
+  public static final String MEDIA_TEMPDIR = "mediaTempDirectory";
+
+
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MediaListenerImpl.class);
 
@@ -91,10 +101,14 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
 
   private MediaCoordinator mediaCoordinator;
+  private MediaTempFileStore mediaTempStore;
+
+
   private int maxRetries;
   private int retryMs;
   private int workerCount;
   private int pollFrequency;
+  private String mediaTempDirectory;
 
   @Activate
   @Modified
@@ -108,8 +122,22 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
     workerCount = PropertiesUtil.toInteger(props.get(WORKER_COUNT), WORKER_COUNT_DEFAULT);
     pollFrequency = PropertiesUtil.toInteger(props.get(POLL_FREQUENCY), POLL_FREQUENCY_DEFAULT);
 
+    mediaTempDirectory = PropertiesUtil.toString(props.get(MEDIA_TEMPDIR), "");
+
+    mediaTempDirectory = mediaTempDirectory.trim();
+
+    if ("".equals(mediaTempDirectory)) {
+      mediaTempDirectory = System.getProperty("java.io.tmpdir");
+    }
+
+    LOGGER.info("Using temporary directory for media files: {}", mediaTempDirectory);
+
+    mediaTempStore = new MediaTempFileStore(mediaTempDirectory);
+
     mediaCoordinator = new MediaCoordinator(connectionFactory, QUEUE_NAME,
-        sparseRepository, mediaService, maxRetries, retryMs, workerCount, pollFrequency);
+                                            sparseRepository, mediaTempStore,
+                                            mediaService, maxRetries,
+                                            retryMs, workerCount, pollFrequency);
     mediaCoordinator.start();
   }
 
@@ -181,5 +209,43 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
     mediaCoordinator.maybeMarkAsMedia(poolId);
 
     contentUpdated(poolId);
+  }
+
+
+  // --------------- FileUploadFilter interface ------------------------------  
+
+  @Override
+  public InputStream filterInputStream(String path, InputStream inputStream, String contentType, RequestParameter value) {
+    LOGGER.info("Filtering input stream?");
+
+    if (mediaCoordinator.isAcceptedMediaType(contentType)) {
+      // We're going to handle this file, but we want to prevent it from being
+      // permanently stored in the repository since we're just going to upload
+      // it to the remote media service anyway.
+
+      LOGGER.info("Returning empty InputStream");
+
+      try {
+        mediaTempStore.store(inputStream, path);
+      } catch (FileNotFoundException e) {
+        LOGGER.warn("Couldn't store temporary file: {}", e);
+        e.printStackTrace();
+        return inputStream;
+      } catch (IOException e) {
+        LOGGER.warn("Couldn't store temporary file: {}", e);
+        e.printStackTrace();
+        return inputStream;
+      }
+
+      try {
+        inputStream.close();
+      } catch (IOException ex) {
+        LOGGER.warn("Got IOException when closing original InputStream");
+      }
+
+      return new ByteArrayInputStream("".getBytes());
+    }
+
+    return inputStream;
   }
 }

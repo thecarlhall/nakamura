@@ -2,6 +2,7 @@ package org.sakaiproject.nakamura.media;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 
 import java.lang.reflect.Field;
 
@@ -139,6 +140,7 @@ public class MediaCoordinatorTest {
   private Repository repository;
   private Session adminSession;
   private ContentManager cm;
+  private MediaTempFileStore mediaTempStore;
 
   MockMediaService mediaService;
   MediaCoordinator mc;
@@ -163,10 +165,14 @@ public class MediaCoordinatorTest {
     adminSession = repository.loginAdministrative();
     cm = adminSession.getContentManager();
 
+    mediaTempStore = new MediaTempFileStore(System.getProperty("java.io.tmpdir"));
+
     mediaService = new MockMediaService();
-    mc = new MediaCoordinator(connectionFactory, TEST_QUEUE, repository, mediaService,
-        MediaListenerImpl.MAX_RETRIES_DEFAULT, MediaListenerImpl.RETRY_MS_DEFAULT,
-        MediaListenerImpl.WORKER_COUNT_DEFAULT, 500);
+    mc = new MediaCoordinator(connectionFactory, TEST_QUEUE, repository,
+                              mediaTempStore,
+                              mediaService,
+                              MediaListenerImpl.MAX_RETRIES_DEFAULT, MediaListenerImpl.RETRY_MS_DEFAULT,
+                              MediaListenerImpl.WORKER_COUNT_DEFAULT, 500);
 
     mc.start();
   }
@@ -195,6 +201,9 @@ public class MediaCoordinatorTest {
   private void saveVersion(String path, String mimeType, String extension, String title,
                                String description, String ... tags)
     throws Exception {
+
+    mediaTempStore.store(new ByteArrayInputStream("hello".getBytes()), path);
+
     Map<String, Object> props = new HashMap<String, Object>();
 
     props.put("_path", path);

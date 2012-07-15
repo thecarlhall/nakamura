@@ -10,6 +10,7 @@ import org.sakaiproject.nakamura.api.files.FilesConstants;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 
 class VersionManager {
@@ -22,8 +23,7 @@ class VersionManager {
   }
 
 
-  // Get the versions metadata for 'pid' from the most recent version to the
-  // oldest.
+  // Get the versions metadata for 'pid' from the oldest version to newest.
   public List<Version> getVersionsMetadata(String pid) throws StorageClientException, AccessDeniedException {
     List<Content> versions = new ArrayList<Content>();
 
@@ -64,6 +64,8 @@ class VersionManager {
                              tags,
                              contentManager));
     }
+
+    Collections.reverse(result);
 
     return result;
   }

@@ -1,5 +1,7 @@
 package org.sakaiproject.nakamura.media;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import org.slf4j.Logger;
@@ -42,8 +44,7 @@ import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
 
 
 public class MediaCoordinator implements Runnable {
-  private static final Logger LOGGER = LoggerFactory
-    .getLogger(MediaCoordinator.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MediaCoordinator.class); 
 
   protected Repository sparseRepository;
 
@@ -58,6 +59,7 @@ public class MediaCoordinator implements Runnable {
   Thread activeThread;
 
   private MediaService mediaService;
+  private MediaTempFileStore mediaTempStore;
   private ErrorHandler errorHandler = null;
 
   private int maxRetries;
@@ -66,11 +68,13 @@ public class MediaCoordinator implements Runnable {
   private int pollFrequency;
 
   public MediaCoordinator(ConnectionFactory connectionFactory, String queueName,
-      Repository sparseRepository, MediaService mediaService, int maxRetries,
+                          Repository sparseRepository, MediaTempFileStore mediaTempStore,
+                          MediaService mediaService, int maxRetries,
       int retryMs, int workerCount, int pollFrequency) {
     this.connectionFactory = connectionFactory;
     this.queueName = queueName;
     this.sparseRepository = sparseRepository;
+    this.mediaTempStore = mediaTempStore;
     this.mediaService = mediaService;
 
     this.maxRetries = maxRetries;
@@ -107,6 +111,17 @@ public class MediaCoordinator implements Runnable {
   }
 
 
+  public boolean isAcceptedMediaType(String mimeType)
+  {
+    String extension = MediaUtils.mimeTypeToExtension(mimeType);
+
+    LOGGER.info("Media mime type and extension: {} AND {}", mimeType, extension);
+
+    return (mimeType != null && extension != null &&
+            mediaService.acceptsFileType(mimeType, extension));
+  }
+
+
   /**
    * If poolId looks like a media file, set its mime type to have it handled by the media service
    * @param poolId A content path
@@ -120,15 +135,12 @@ public class MediaCoordinator implements Runnable {
       Content obj = cm.get(poolId);
 
       String mimeType = (String)obj.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE);
-      String extension = MediaUtils.mimeTypeToExtension(mimeType);
 
-      LOGGER.info("Media mime type and extension: {} AND {}", mimeType, extension);
+      if (isAcceptedMediaType(mimeType)) {
+        String extension = MediaUtils.mimeTypeToExtension(mimeType);
 
-      if (mimeType != null && extension != null &&
-          mediaService.acceptsFileType(mimeType, extension)) {
         obj = cm.get(poolId);
-        obj.setProperty(FilesConstants.POOLED_CONTENT_MIMETYPE,
-                        mediaService.getMimeType());
+        obj.setProperty(FilesConstants.POOLED_CONTENT_MIMETYPE, mediaService.getMimeType());
         obj.setProperty("media:extension", extension);
 
         cm.update(obj);
@@ -192,7 +204,6 @@ public class MediaCoordinator implements Runnable {
     }
 
     try {
-      jmsSession.rollback();
       jmsSession.close();
     } catch (JMSException e) {
       LOGGER.error("Problems when disconnecting from JMS: {}", e);
@@ -249,6 +260,11 @@ public class MediaCoordinator implements Runnable {
       } else {
         VersionManager vm = new VersionManager(cm);
 
+        // Important note: the VersionManager returns its list of versions in
+        // order of oldest to newest.  This is important because the temporary
+        // file store will return files in this order too, and we want the files
+        // to match the versions.
+        //
         for (Version version : vm.getVersionsMetadata(path)) {
           LOGGER.info("Processing version {} of object {}",
                       version, path);
@@ -264,8 +280,12 @@ public class MediaCoordinator implements Runnable {
           if (!mediaNode.isBodyUploaded(version)) {
             LOGGER.info("Uploading body for version {} of object {}",
                         version, path);
-            InputStream is = cm.getVersionInputStream(path, version.getVersionId());
+
+            File mediaFile = mediaTempStore.getFile(path, version.getVersionId());
+            
+            FileInputStream is = null;
             try {
+              is = new FileInputStream(mediaFile);
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
               String mediaId = mediaService.createMedia(is,
                                                         version.getTitle(),
@@ -275,10 +295,18 @@ public class MediaCoordinator implements Runnable {
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
 
               mediaNode.storeMediaId(version, mediaId);
+
+              is.close();
+              is = null;
+
+              mediaTempStore.completed(path, version.getVersionId());
+
             } catch (MediaServiceException e) {
               throw new RuntimeException("Got MediaServiceException during body upload", e);
             } finally {
-              is.close();
+              if (is != null) {
+                is.close();
+              }
             }
           }
 
@@ -523,6 +551,9 @@ public class MediaCoordinator implements Runnable {
 
                       retryCounts.remove(pid);
                       failedMsg.acknowledge();
+
+                      // Remove all temporary files associated with the failed job.
+                      mediaTempStore.completed(pid);
 
                       if (errorHandler != null) {
                         errorHandler.error(pid);
