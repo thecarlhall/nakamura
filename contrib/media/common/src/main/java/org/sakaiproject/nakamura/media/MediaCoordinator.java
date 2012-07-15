@@ -167,6 +167,40 @@ public class MediaCoordinator implements Runnable {
   }
 
 
+  public void recordTempVersion(String poolId, String tempVersion) {
+    org.sakaiproject.nakamura.api.lite.Session adminSession = null;
+
+    try {
+      adminSession = sparseRepository.loginAdministrative();
+      ContentManager cm = adminSession.getContentManager();
+      Content obj = cm.get(poolId);
+
+      obj.setProperty("media:tempStoreLocation", tempVersion);
+
+      cm.update(obj);
+
+    } catch (ClientPoolException e) {
+      LOGGER.info("ClientPoolException when handling file: {}", e);
+      e.printStackTrace();
+    } catch (StorageClientException e) {
+      LOGGER.info("StorageClientException when handling file: {}", e);
+      e.printStackTrace();
+    } catch (AccessDeniedException e) {
+      LOGGER.info("AccessDeniedException when handling file: {}", e);
+      e.printStackTrace();
+    } finally {
+      if (adminSession != null) {
+        try {
+          adminSession.logout();
+        } catch (Exception e) {
+          LOGGER.warn("Failed to logout of administrative session {} ",
+                      e.getMessage());
+        }
+      }
+    }
+  }
+
+
   private void connectToJMS(final LinkedBlockingQueue<Message> incoming) {
     try {
       conn = connectionFactory.createConnection();
@@ -260,11 +294,6 @@ public class MediaCoordinator implements Runnable {
       } else {
         VersionManager vm = new VersionManager(cm);
 
-        // Important note: the VersionManager returns its list of versions in
-        // order of oldest to newest.  This is important because the temporary
-        // file store will return files in this order too, and we want the files
-        // to match the versions.
-        //
         for (Version version : vm.getVersionsMetadata(path)) {
           LOGGER.info("Processing version {} of object {}",
                       version, path);
@@ -281,8 +310,15 @@ public class MediaCoordinator implements Runnable {
             LOGGER.info("Uploading body for version {} of object {}",
                         version, path);
 
-            File mediaFile = mediaTempStore.getFile(path, version.getVersionId());
-            
+            File mediaFile = mediaTempStore.getFile(path, version.getTempStoreLocation());
+
+            if (mediaFile == null) {
+              LOGGER.error("Couldn't find temp file for path {}, location {}",
+                           path, version.getTempStoreLocation());
+              System.out.println("Missing " + path + " " + version.getTempStoreLocation());
+              return;
+            }
+
             FileInputStream is = null;
             try {
               is = new FileInputStream(mediaFile);
@@ -299,7 +335,7 @@ public class MediaCoordinator implements Runnable {
               is.close();
               is = null;
 
-              mediaTempStore.completed(path, version.getVersionId());
+              mediaTempStore.completed(path, version.getTempStoreLocation());
 
             } catch (MediaServiceException e) {
               throw new RuntimeException("Got MediaServiceException during body upload", e);
@@ -551,9 +587,6 @@ public class MediaCoordinator implements Runnable {
 
                       retryCounts.remove(pid);
                       failedMsg.acknowledge();
-
-                      // Remove all temporary files associated with the failed job.
-                      mediaTempStore.completed(pid);
 
                       if (errorHandler != null) {
                         errorHandler.error(pid);

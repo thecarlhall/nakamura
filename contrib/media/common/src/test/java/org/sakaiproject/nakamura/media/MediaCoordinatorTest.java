@@ -202,13 +202,14 @@ public class MediaCoordinatorTest {
                                String description, String ... tags)
     throws Exception {
 
-    mediaTempStore.store(new ByteArrayInputStream("hello".getBytes()), path);
+    String tempId = mediaTempStore.store(new ByteArrayInputStream("hello".getBytes()), path);
 
     Map<String, Object> props = new HashMap<String, Object>();
 
     props.put("_path", path);
     props.put("_mimeType", mimeType);
     props.put("media:extension", extension);
+    props.put("media:tempStoreLocation", tempId);
     props.put("sakai:pooled-content-file-name", title);
     props.put("sakai:description", description);
 

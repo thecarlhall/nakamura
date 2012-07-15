@@ -17,12 +17,14 @@ class Version {
   private String extension;
   private String mediaId;
   private String mimeType;
+  private String tempStoreLocation;
   private String[] tags;
   private ContentManager contentManager;
 
 
   public Version(String pid, String versionId,
                  String title, String description, String extension, String mimeType,
+                 String tempStoreLocation,
                  String[] tags,
                  ContentManager cm) {
     contentManager = cm;
@@ -31,6 +33,7 @@ class Version {
     this.title = title;
     this.description = description;
     this.extension = extension;
+    this.tempStoreLocation = tempStoreLocation;
     this.tags = tags;
     this.mimeType = mimeType;
 
@@ -66,6 +69,11 @@ class Version {
 
   public String getMimeType() {
     return mimeType;
+  }
+
+
+  public String getTempStoreLocation() {
+    return tempStoreLocation;
   }
 
 

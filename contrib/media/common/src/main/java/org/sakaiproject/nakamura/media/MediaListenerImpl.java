@@ -226,7 +226,8 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
       LOGGER.info("Returning empty InputStream");
 
       try {
-        mediaTempStore.store(inputStream, path);
+        String tempVersion = mediaTempStore.store(inputStream, path);
+        mediaCoordinator.recordTempVersion(path, tempVersion);
       } catch (FileNotFoundException e) {
         LOGGER.warn("Couldn't store temporary file: {}", e);
         e.printStackTrace();
