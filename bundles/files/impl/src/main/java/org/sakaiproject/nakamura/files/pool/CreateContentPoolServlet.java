@@ -32,6 +32,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.References;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.sling.SlingServlet;
@@ -52,6 +53,7 @@ import org.sakaiproject.nakamura.api.doc.ServiceExtension;
 import org.sakaiproject.nakamura.api.doc.ServiceMethod;
 import org.sakaiproject.nakamura.api.doc.ServiceResponse;
 import org.sakaiproject.nakamura.api.files.FileUploadHandler;
+import org.sakaiproject.nakamura.api.files.FileUploadFilter;
 import org.sakaiproject.nakamura.api.files.FilesConstants;
 import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 import org.sakaiproject.nakamura.api.lite.Repository;
@@ -77,6 +79,7 @@ import org.sakaiproject.nakamura.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
@@ -121,12 +124,20 @@ import javax.servlet.http.HttpServletResponse;
         @ServiceResponse(code = 500, description = "Failure with HTML explanation.")
       }))
 
-@Reference(name = "fileUploadHandler",
-           referenceInterface = FileUploadHandler.class,
-           cardinality = ReferenceCardinality.OPTIONAL_MULTIPLE,
-           policy = ReferencePolicy.DYNAMIC,
-           bind = "bindFileUploadHandler",
-           unbind = "unbindFileUploadHandler")
+@References(value = {
+  @Reference(name = "fileUploadHandler",
+             referenceInterface = FileUploadHandler.class,
+             cardinality = ReferenceCardinality.OPTIONAL_MULTIPLE,
+             policy = ReferencePolicy.DYNAMIC,
+             bind = "bindFileUploadHandler",
+             unbind = "unbindFileUploadHandler"),
+  @Reference(name = "fileUploadFilter",
+             referenceInterface = FileUploadFilter.class,
+             cardinality = ReferenceCardinality.OPTIONAL_MULTIPLE,
+             policy = ReferencePolicy.DYNAMIC,
+             bind = "bindFileUploadFilter",
+             unbind = "unbindFileUploadFilter")
+})
 public class CreateContentPoolServlet extends SlingAllMethodsServlet {
 
   private static final char ALTERNATIVE_STREAM_SELECTOR_SEPARATOR = '-';
@@ -159,16 +170,29 @@ public class CreateContentPoolServlet extends SlingAllMethodsServlet {
   }
 
 
-  private void notifyFileUploadHandlers(Map<String, Object> results, String poolId, RequestParameter p,
+  private Set<FileUploadFilter> fileUploadFilters = new HashSet<FileUploadFilter>();
+
+  public void bindFileUploadFilter(FileUploadFilter fileUploadFilter) {
+    fileUploadFilters.add(fileUploadFilter);
+  }
+
+  public void unbindFileUploadFilter(FileUploadFilter fileUploadFilter) {
+    fileUploadFilters.remove(fileUploadFilter);
+  }
+
+
+  private void notifyFileUploadHandlers(Map<String, Object> results, Session session,
+                                        String poolId, RequestParameter p,
                                         String userId, boolean isNew)
     throws AccessDeniedException, StorageClientException
   {
-    // A note to the curious: it's safe to repeatedly call p.getInputStream()
-    // because each call yields a newly-created InputStream object (positioned
-    // to the beginning of the file).
+    ContentManager contentManager = session.getContentManager();
+
     for (FileUploadHandler fileUploadHandler : fileUploadHandlers) {
       try {
-        fileUploadHandler.handleFile(results, poolId, p.getInputStream(), userId, isNew);
+        InputStream inputStream = contentManager.getInputStream(poolId);
+        fileUploadHandler.handleFile(results, poolId, inputStream, userId, isNew);
+        inputStream.close();
       } catch (Throwable t) {
         LOGGER.error("FileUploadHandler '{}' failed to handle upload of file '{}' for userid '{}': {}",
                      new Object[] { fileUploadHandler, p.getFileName(), userId, t.getMessage()});
@@ -235,7 +259,7 @@ public class CreateContentPoolServlet extends SlingAllMethodsServlet {
               statusCode = HttpServletResponse.SC_CREATED;
               fileUpload = true;
 
-              notifyFileUploadHandlers(results, createPoolId, p, au.getId(), true);
+              notifyFileUploadHandlers(results, adminSession, createPoolId, p, au.getId(), true);
             } else {
               // Add it to the map so we can output something to the UI.
               Content content = createFile(poolId, alternativeStream, session, p, au, false);
@@ -243,7 +267,7 @@ public class CreateContentPoolServlet extends SlingAllMethodsServlet {
               statusCode = HttpServletResponse.SC_OK;
               fileUpload = true;
 
-              notifyFileUploadHandlers(results, poolId, p, au.getId(), false);
+              notifyFileUploadHandlers(results, adminSession, poolId, p, au.getId(), false);
               break;
             }
 
@@ -355,10 +379,29 @@ public class CreateContentPoolServlet extends SlingAllMethodsServlet {
     return contentManager.get(poolId);
   }
 
+
+  private InputStream filterUploadInputStream(String poolId, InputStream inputStream, String contentType, RequestParameter value) {
+
+    InputStream result = inputStream;
+
+    for (FileUploadFilter filter : fileUploadFilters) {
+      try {
+        result = filter.filterInputStream(poolId, inputStream, contentType, value);
+      } catch (Throwable t) {
+        LOGGER.error("FileUploadFilter '{}' failed when filtering file upload.", filter);
+        LOGGER.error(t.getMessage(), t);
+      }
+    }
+
+    return result;
+  }
+
+
   private Content createFile(String poolId, String alternativeStream, Session session, RequestParameter value,
       Authorizable au, boolean create) throws IOException, AccessDeniedException, StorageClientException {
     // Get the content type.
     String contentType = getContentType(value);
+
     ContentManager contentManager = session.getContentManager();
     AccessControlManager accessControlManager = session.getAccessControlManager();
     if ( create ) {
@@ -376,7 +419,9 @@ public class CreateContentPoolServlet extends SlingAllMethodsServlet {
       
       contentManager.update(content);
       
-      contentManager.writeBody(poolId, value.getInputStream());
+      InputStream inputStream = filterUploadInputStream(poolId, value.getInputStream(), contentType, value);
+
+      contentManager.writeBody(poolId, inputStream);
       
       
       // deny anon everything
@@ -397,7 +442,10 @@ public class CreateContentPoolServlet extends SlingAllMethodsServlet {
           Content.MIMETYPE_FIELD, (Object) contentType, SLING_RESOURCE_TYPE_PROPERTY,
           POOLED_CONTENT_RT));
       contentManager.update(alternativeContent);
-      contentManager.writeBody(alternativeContent.getPath(), value.getInputStream(), previewSize);
+
+      InputStream inputStream = filterUploadInputStream(alternativeContent.getPath(), value.getInputStream(), contentType, value);
+      contentManager.writeBody(alternativeContent.getPath(), inputStream, previewSize);
+
       ActivityUtils.postActivity(eventAdmin, au.getId(), poolId, "Content", "default",
           "pooled content", "CREATED_ALT_FILE",
           ImmutableMap.<String, Object> of("altPath", poolId + "/" + pageId));
@@ -405,7 +453,9 @@ public class CreateContentPoolServlet extends SlingAllMethodsServlet {
       Content content = contentManager.get(poolId);
       content.setProperty(StorageClientUtils.getAltField(Content.MIMETYPE_FIELD, alternativeStream), contentType);
       contentManager.update(content);
-      contentManager.writeBody(poolId, value.getInputStream(),alternativeStream);
+
+      InputStream inputStream = filterUploadInputStream(poolId, value.getInputStream(), contentType, value);
+      contentManager.writeBody(poolId, inputStream, alternativeStream);
       ActivityUtils.postActivity(eventAdmin, au.getId(), poolId, "Content", "default", "pooled content", "UPDATED_FILE", null);
     }
     return contentManager.get(poolId);
