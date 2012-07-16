@@ -43,8 +43,8 @@ class MediaNode {
         cm.update(obj, true);
 
         cm.update(new Content(mediaNodePath + "/replicationStatus",
-                              new HashMap<String, Object>()),
-                  true);
+                new HashMap<String, Object>()),
+            true);
       } else {
         return null;
       }
@@ -57,8 +57,7 @@ class MediaNode {
   public void recordVersion(Version version) throws AccessDeniedException, StorageClientException {
     Content replicationStatus = getReplicationStatus(version);
 
-    replicationStatus.setProperty("metadataVersion",
-                                  version.metadataVersion());
+    replicationStatus.setProperty("metadataVersion", version.metadataVersion());
 
     contentManager.update(replicationStatus);
   }

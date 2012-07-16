@@ -67,10 +67,12 @@ public class MediaCoordinator implements Runnable {
   private int workerCount;
   private int pollFrequency;
 
+
   public MediaCoordinator(ConnectionFactory connectionFactory, String queueName,
-                          Repository sparseRepository, MediaTempFileStore mediaTempStore,
-                          MediaService mediaService, int maxRetries,
+      Repository sparseRepository, MediaTempFileStore mediaTempStore,
+      MediaService mediaService, int maxRetries,
       int retryMs, int workerCount, int pollFrequency) {
+
     this.connectionFactory = connectionFactory;
     this.queueName = queueName;
     this.sparseRepository = sparseRepository;
@@ -111,14 +113,13 @@ public class MediaCoordinator implements Runnable {
   }
 
 
-  public boolean isAcceptedMediaType(String mimeType)
-  {
+  public boolean isAcceptedMediaType(String mimeType) {
     String extension = MediaUtils.mimeTypeToExtension(mimeType);
 
     LOGGER.info("Media mime type and extension: {} AND {}", mimeType, extension);
 
     return (mimeType != null && extension != null &&
-            mediaService.acceptsFileType(mimeType, extension));
+        mediaService.acceptsFileType(mimeType, extension));
   }
 
 
@@ -160,7 +161,7 @@ public class MediaCoordinator implements Runnable {
           adminSession.logout();
         } catch (Exception e) {
           LOGGER.warn("Failed to logout of administrative session {} ",
-                      e.getMessage());
+              e.getMessage());
         }
       }
     }
@@ -168,6 +169,7 @@ public class MediaCoordinator implements Runnable {
 
 
   public void recordTempVersion(String poolId, String tempVersion) {
+
     org.sakaiproject.nakamura.api.lite.Session adminSession = null;
 
     try {
@@ -194,7 +196,7 @@ public class MediaCoordinator implements Runnable {
           adminSession.logout();
         } catch (Exception e) {
           LOGGER.warn("Failed to logout of administrative session {} ",
-                      e.getMessage());
+              e.getMessage());
         }
       }
     }
@@ -296,7 +298,7 @@ public class MediaCoordinator implements Runnable {
 
         for (Version version : vm.getVersionsMetadata(path)) {
           LOGGER.info("Processing version {} of object {}",
-                      version, path);
+              version, path);
 
           LOGGER.info("Version particulars: {} and {}", version.getMimeType(), version.getExtension());
 
@@ -308,13 +310,13 @@ public class MediaCoordinator implements Runnable {
 
           if (!mediaNode.isBodyUploaded(version)) {
             LOGGER.info("Uploading body for version {} of object {}",
-                        version, path);
+                version, path);
 
             File mediaFile = mediaTempStore.getFile(path, version.getTempStoreLocation());
 
             if (mediaFile == null) {
               LOGGER.error("Couldn't find temp file for path {}, location {}",
-                           path, version.getTempStoreLocation());
+                  path, version.getTempStoreLocation());
               System.out.println("Missing " + path + " " + version.getTempStoreLocation());
               return;
             }
@@ -324,10 +326,10 @@ public class MediaCoordinator implements Runnable {
               is = new FileInputStream(mediaFile);
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
               String mediaId = mediaService.createMedia(is,
-                                                        version.getTitle(),
-                                                        version.getDescription(),
-                                                        version.getExtension(),
-                                                        version.getTags());
+                  version.getTitle(),
+                  version.getDescription(),
+                  version.getExtension(),
+                  version.getTags());
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
 
               mediaNode.storeMediaId(version, mediaId);
@@ -348,14 +350,14 @@ public class MediaCoordinator implements Runnable {
 
           if (!mediaNode.isMetadataUpToDate(version)) {
             LOGGER.info("Updating metadata for version {} of object {}",
-                        version, path);
+                version, path);
 
             try {
               TelemetryCounter.incrementValue("media", "Coordinator", "updates-started");
               mediaService.updateMedia(mediaNode.getMediaId(version),
-                                       version.getTitle(),
-                                       version.getDescription(),
-                                       version.getTags());
+                  version.getTitle(),
+                  version.getDescription(),
+                  version.getTags());
               TelemetryCounter.incrementValue("media", "Coordinator", "updates-finished");
 
               mediaNode.recordVersion(version);
@@ -370,11 +372,11 @@ public class MediaCoordinator implements Runnable {
 
     } catch (StorageClientException e) {
       LOGGER.info("StorageClientException when syncing media: {}",
-                  path);
+          path);
       e.printStackTrace();
     } catch (AccessDeniedException e) {
       LOGGER.info("AccessDeniedException when syncing media: {}",
-                  path);
+          path);
       e.printStackTrace();
     }
   }
@@ -405,11 +407,11 @@ public class MediaCoordinator implements Runnable {
 
     } catch (StorageClientException e) {
       LOGGER.warn("StorageClientException while processing {}: {}",
-                  pid, e);
+          pid, e);
       e.printStackTrace();
     } catch (AccessDeniedException e) {
       LOGGER.warn("AccessDeniedException while processing {}: {}",
-                  pid, e);
+          pid, e);
       e.printStackTrace();
     } finally {
       try {
@@ -418,7 +420,7 @@ public class MediaCoordinator implements Runnable {
         }
       } catch (Exception e) {
         LOGGER.warn("Failed to logout of administrative session {} ",
-                    e.getMessage());
+            e.getMessage());
       }
     }
   }
@@ -443,15 +445,14 @@ public class MediaCoordinator implements Runnable {
         }
       } catch (JMSException e) {
         LOGGER.warn("Got a JMSException while clearing duplicates: {}",
-                    e);
+            e);
         e.printStackTrace();
       }
     }
   }
 
 
-  private class FailedJob
-  {
+  private class FailedJob {
     public String jobId;
     public long time;
 
@@ -516,7 +517,7 @@ public class MediaCoordinator implements Runnable {
             ExecutorService worker = workers[Math.abs(pid.hashCode() % workerCount)];
 
             LOGGER.info("Running pid '{}' on worker: {}", pid,
-                        Math.abs(pid.hashCode() % workerCount));
+                Math.abs(pid.hashCode() % workerCount));
 
             worker.execute(new Runnable() {
                 public void run() {
@@ -527,14 +528,14 @@ public class MediaCoordinator implements Runnable {
 
                     completed.add(jobId);
                     LOGGER.info("Worker completed processing {}",
-                                pid);
+                        pid);
 
                   } catch (Exception e) {
                     LOGGER.warn("Failed while processing PID '{}'", pid);
                     e.printStackTrace();
 
                     LOGGER.warn("This job will be queued for retry in {} ms",
-                                retryMs);
+                        retryMs);
 
                     failed.add(new FailedJob(jobId, System.currentTimeMillis()));
                   }
@@ -542,8 +543,8 @@ public class MediaCoordinator implements Runnable {
               });
 
             LOGGER.info("Media waiting to process: {}; " +
-                        "Media in progress: {}",
-                        incoming.size(), inProgress.size());
+                "Media in progress: {}",
+                incoming.size(), inProgress.size());
           }
 
           // Remove objects marked as completed from the "in progress"
@@ -555,8 +556,8 @@ public class MediaCoordinator implements Runnable {
 
             if (completedMsg != null) {
               LOGGER.info("Completed processing: {} (pid: {})",
-                          jobId,
-                          completedMsg.getStringProperty("pid"));
+                  jobId,
+                  completedMsg.getStringProperty("pid"));
 
               completedMsg.acknowledge();
               inProgress.remove(jobId);
@@ -582,7 +583,7 @@ public class MediaCoordinator implements Runnable {
 
                     if (maxRetries >= 0 && (retriesSoFar + 1) > maxRetries) {
                       LOGGER.error("Giving up on {} after {} failed retry attempts.",
-                                   pid, retriesSoFar);
+                          pid, retriesSoFar);
                       TelemetryCounter.incrementValue("media", "Coordinator", "failures");
 
                       retryCounts.remove(pid);
@@ -614,7 +615,7 @@ public class MediaCoordinator implements Runnable {
           LOGGER.error("JMS exception while waiting for message: {}", e);
           e.printStackTrace();
           LOGGER.error("Waiting {} ms before trying again",
-                       pollFrequency);
+              pollFrequency);
         } catch (Exception e) {
           LOGGER.error("Got exception in MediaCoordinator main loop: {}", e);
           e.printStackTrace();

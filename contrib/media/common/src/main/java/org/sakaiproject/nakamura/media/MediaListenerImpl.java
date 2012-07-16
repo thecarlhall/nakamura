@@ -204,7 +204,7 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
   // --------------- FileUploadHandler interface ------------------------------
   @Override
   public void handleFile(Map<String, Object> results, String poolId,
-                         InputStream inputStream, String userId, boolean isNew) throws IOException {
+      InputStream inputStream, String userId, boolean isNew) throws IOException {
 
     mediaCoordinator.maybeMarkAsMedia(poolId);
 
@@ -216,7 +216,6 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
   @Override
   public InputStream filterInputStream(String path, InputStream inputStream, String contentType, RequestParameter value) {
-    LOGGER.info("Filtering input stream?");
 
     if (mediaCoordinator.isAcceptedMediaType(contentType)) {
       // We're going to handle this file, but we want to prevent it from being

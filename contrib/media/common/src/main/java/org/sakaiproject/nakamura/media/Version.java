@@ -23,10 +23,10 @@ class Version {
 
 
   public Version(String pid, String versionId,
-                 String title, String description, String extension, String mimeType,
-                 String tempStoreLocation,
-                 String[] tags,
-                 ContentManager cm) {
+      String title, String description, String extension, String mimeType,
+      String tempStoreLocation,
+      String[] tags,
+      ContentManager cm) {
     contentManager = cm;
     this.pid = pid;
     this.versionId = versionId;

@@ -81,12 +81,12 @@ public class MediaTempFileStore {
 
     if (file == null) {
       LOGGER.info("Couldn't find a file associated with version '{}' of path '{}'",
-                  versionId, path);
+          versionId, path);
       return;
     }
 
     LOGGER.info("Removing temp file associated with version '{}' of path '{}'",
-                versionId, path);
+        versionId, path);
 
     file.delete();
 

@@ -56,14 +56,14 @@ class VersionManager {
       }
 
       result.add(new Version(pid,
-                             (String)current.getProperty("_id"),
-                             (String)last.getProperty("sakai:pooled-content-file-name"),
-                             (String)last.getProperty("sakai:description"),
-                             (String)current.getProperty("media:extension"),
-                             (String)current.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE),
-                             (String)current.getProperty("media:tempStoreLocation"),
-                             tags,
-                             contentManager));
+              (String)current.getProperty("_id"),
+              (String)last.getProperty("sakai:pooled-content-file-name"),
+              (String)last.getProperty("sakai:description"),
+              (String)current.getProperty("media:extension"),
+              (String)current.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE),
+              (String)current.getProperty("media:tempStoreLocation"),
+              tags,
+              contentManager));
     }
 
     Collections.reverse(result);
