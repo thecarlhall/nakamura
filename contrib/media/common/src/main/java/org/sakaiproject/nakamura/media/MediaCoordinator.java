@@ -397,8 +397,6 @@ public class MediaCoordinator implements Runnable {
           TelemetryCounter.incrementValue("media", "Coordinator", "skips");
           return;
         }
-      } else {
-        TelemetryCounter.incrementValue("media", "Coordinator", "deletes");
       }
 
       syncMedia(pid, obj, contentManager);

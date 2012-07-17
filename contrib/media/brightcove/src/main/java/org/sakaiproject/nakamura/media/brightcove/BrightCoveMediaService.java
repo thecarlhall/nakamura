@@ -171,6 +171,7 @@ public class BrightCoveMediaService implements MediaService {
       throw new ComponentException(String.format(REQ_MSG_TMPL, "writeTokens"));
     }
 
+    writeTokenPool.clear();
     for (String writeToken : writeTokens) {
       writeTokenPool.add(writeToken);
     }
@@ -197,6 +198,7 @@ public class BrightCoveMediaService implements MediaService {
     postUrl = String.format("%s/post", baseUrl);
 
     // ---------- optional properties ------------------------------------------
+    supportedVideoExtensions.clear();
     for (String ext : PropertiesUtil.toStringArray(props.get(VIDEO_EXTENSIONS), new String[] {}))  {
       supportedVideoExtensions.add(ext.toLowerCase());
     }
