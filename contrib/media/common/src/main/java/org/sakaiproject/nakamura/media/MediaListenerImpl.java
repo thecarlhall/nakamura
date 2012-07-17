@@ -113,7 +113,7 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
   @Activate
   @Modified
   protected void activate(Map<?, ?> props) {
-    LOGGER.info("Activating Media bundle");
+    LOGGER.debug("Activating Media bundle");
 
     connectionFactory = connectionFactoryService.getDefaultPooledConnectionFactory();
 
@@ -155,7 +155,7 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
   // --------------- MediaListener interface -----------------------------------
   @Override
   public void contentUpdated(String pid) {
-    LOGGER.info("Content updated: {}", pid);
+    LOGGER.debug("Content updated: {}", pid);
 
     try {
       Connection conn = connectionFactory.createConnection();
@@ -187,7 +187,7 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
    */
   @Override
   public void handleEvent(Event event) {
-    LOGGER.info("Got event: {}", event);
+    LOGGER.debug("Got event: {}", event);
 
     String path = (String) event.getProperty("path");
     String op = (String) event.getProperty("op");
@@ -222,7 +222,7 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
       // permanently stored in the repository since we're just going to upload
       // it to the remote media service anyway.
 
-      LOGGER.info("Returning empty InputStream");
+      LOGGER.debug("Returning empty InputStream");
 
       try {
         String tempVersion = mediaTempStore.store(inputStream, path);

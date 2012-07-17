@@ -223,9 +223,9 @@ public class BrightCoveMediaService implements MediaService {
       String writeToken;
 
       try {
-        LOG.info("Acquiring write token");
+        LOG.debug("Acquiring write token");
         writeToken = writeTokenPool.take();
-        LOG.info("Acquired token '{}'", writeToken);
+        LOG.debug("Acquired token '{}'", writeToken);
       } catch (InterruptedException e) {
         throw new MediaServiceException("Got InterruptedException while acquiring write token", e);
       }
@@ -233,9 +233,9 @@ public class BrightCoveMediaService implements MediaService {
       try {
         return handle(writeToken);
       } finally {
-        LOG.info("Returning token '{}' to pool", writeToken);
+        LOG.debug("Returning token '{}' to pool", writeToken);
         writeTokenPool.add(writeToken);
-        LOG.info("Token '{}' returned", writeToken);
+        LOG.debug("Token '{}' returned", writeToken);
       }
     }
   }
@@ -252,7 +252,7 @@ public class BrightCoveMediaService implements MediaService {
   public String createMedia(InputStream mediaFile, String title, String description,
       String extension, String[] tags) throws MediaServiceException {
     String response = sendMedia(title, description, extension, tags, mediaFile, null);
-    LOG.info(response);
+    LOG.debug(response);
     return response;
   }
 
@@ -266,7 +266,7 @@ public class BrightCoveMediaService implements MediaService {
   public String updateMedia(String id, String title, String description, String[] tags)
     throws MediaServiceException {
     String response = sendMedia(title, description, null, tags, null, id);
-    LOG.info(response);
+    LOG.debug(response);
     return response;
   }
 
@@ -346,7 +346,7 @@ public class BrightCoveMediaService implements MediaService {
           JSONObject response = new JSONObject(post.getResponseBodyAsString());
           final String status = response.getString("result");
 
-          LOG.info("Status from Brightcove: {}", status);
+          LOG.debug("Status from Brightcove: {}", status);
 
           result = new MediaStatus() {
               public boolean isReady() {
@@ -521,7 +521,7 @@ public class BrightCoveMediaService implements MediaService {
 
           String msg = String.format("Sent: %s, Posted media information [%s]: %s", new Object[] {
                 json.toString(), returnCode, response });
-          LOG.info(msg);
+          LOG.debug(msg);
 
           JSONObject responseJSON = new JSONObject(response);
 
