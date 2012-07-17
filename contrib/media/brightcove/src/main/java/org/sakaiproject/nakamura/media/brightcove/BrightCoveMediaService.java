@@ -117,17 +117,17 @@ public class BrightCoveMediaService implements MediaService {
   private static final String REQ_MSG_TMPL = "'%s' required to communicate with BrightCove";
 
   private static final String OBJECT_EL_TMPL = "<script language=\"JavaScript\" type=\"text/javascript\" src=\"%s\"></script>" +
-      "<object id=\"myExperience%s\" class=\"%s\">" +
-      "  <param name=\"bgcolor\" value=\"%s\" />" +
-      "  <param name=\"width\" value=\"%s\" />" +
-      "  <param name=\"height\" value=\"%s\" />" +
-      "  <param name=\"playerID\" value=\"%s\" />" +
-      "  <param name=\"playerKey\" value=\"%s\" />" +
-      "  <param name=\"isVid\" value=\"%s\" />" +
-      "  <param name=\"dynamicStreaming\" value=\"%s\" />" +
-      "  <param name=\"wmode\" value=\"%s\" />" +
-      "  <param name=\"@videoPlayer\" value=\"%s\" />" +
-      "</object>";
+    "<object id=\"myExperience%s\" class=\"%s\">" +
+    "  <param name=\"bgcolor\" value=\"%s\" />" +
+    "  <param name=\"width\" value=\"%s\" />" +
+    "  <param name=\"height\" value=\"%s\" />" +
+    "  <param name=\"playerID\" value=\"%s\" />" +
+    "  <param name=\"playerKey\" value=\"%s\" />" +
+    "  <param name=\"isVid\" value=\"%s\" />" +
+    "  <param name=\"dynamicStreaming\" value=\"%s\" />" +
+    "  <param name=\"wmode\" value=\"%s\" />" +
+    "  <param name=\"@videoPlayer\" value=\"%s\" />" +
+    "</object>";
 
 
   String readToken;
@@ -264,7 +264,7 @@ public class BrightCoveMediaService implements MediaService {
    */
   @Override
   public String updateMedia(String id, String title, String description, String[] tags)
-      throws MediaServiceException {
+    throws MediaServiceException {
     String response = sendMedia(title, description, null, tags, null, id);
     LOG.info(response);
     return response;
@@ -285,8 +285,8 @@ public class BrightCoveMediaService implements MediaService {
           JSONObject json = new JSONObject()
             .put("method", "delete_video")
             .put("params", new JSONObject()
-              .put("token", writeToken)
-              .put("video_id", id));
+                .put("token", writeToken)
+                .put("video_id", id));
           // Define the url to the api
           post = new PostMethod(postUrl);
           Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
@@ -333,8 +333,8 @@ public class BrightCoveMediaService implements MediaService {
           JSONObject json = new JSONObject()
             .put("method", "get_upload_status")
             .put("params", new JSONObject()
-                 .put("token", writeToken)
-                 .put("video_id", id));
+                .put("token", writeToken)
+                .put("video_id", id));
           // Define the url to the api
           post = new PostMethod(postUrl);
           Part[] parts = { new StringPart("JSON-RPC", json.toString()) };
@@ -443,7 +443,7 @@ public class BrightCoveMediaService implements MediaService {
   }
 
   private String sendMedia(final String title, final String description, final String extension, final String[] tags,
-                           final InputStream mediaFile, final String id) throws MediaServiceException {
+      final InputStream mediaFile, final String id) throws MediaServiceException {
     if (id == null && mediaFile == null) {
       throw new IllegalArgumentException("Must supply 'id' or 'mediaFile'");
     }
@@ -471,11 +471,11 @@ public class BrightCoveMediaService implements MediaService {
           JSONObject json = new JSONObject()
             .put("method", method)
             .put("params", new JSONObject()
-                 .put("token", writeToken)
-                 .put("create_multiple_renditions", true)
-                 .put("preserve_source_rendition", true)
-                 .put("encode_to", "MP4")
-                 .put("video", media));
+                .put("token", writeToken)
+                .put("create_multiple_renditions", true)
+                .put("preserve_source_rendition", true)
+                .put("encode_to", "MP4")
+                .put("video", media));
 
           Part[] parts;
           if (mediaFile != null) {
@@ -483,28 +483,28 @@ public class BrightCoveMediaService implements MediaService {
             parts = new Part[] {
               new StringPart("JSON-RPC", json.toString()),
               new FilePart("fileData",
-                           new PartSource () {
-                             public InputStream createInputStream() {
-                               return fileInput;
-                             }
+                  new PartSource () {
+                    public InputStream createInputStream() {
+                      return fileInput;
+                    }
 
-                             public String getFileName() {
-                               if (extension != null) {
-                                 return title + "." + extension;
-                               } else {
-                                 return title;
-                               }
-                             }
+                    public String getFileName() {
+                      if (extension != null) {
+                        return title + "." + extension;
+                      } else {
+                        return title;
+                      }
+                    }
 
-                             public long getLength() {
-                               try {
-                                 return fileInput.getChannel().size();
-                               } catch (IOException e) {
-                                 LOG.error("Failed to calculate size for file '{}'", id);
-                                 throw new RuntimeException("getLength failed for file: " + id, e); 
-                               }
-                             }
-                           })
+                    public long getLength() {
+                      try {
+                        return fileInput.getChannel().size();
+                      } catch (IOException e) {
+                        LOG.error("Failed to calculate size for file '{}'", id);
+                        throw new RuntimeException("getLength failed for file: " + id, e); 
+                      }
+                    }
+                  })
             };
           } else {
             parts = new Part[] { new StringPart("JSON-RPC", json.toString()) };
@@ -520,7 +520,7 @@ public class BrightCoveMediaService implements MediaService {
           String response = post.getResponseBodyAsString();
 
           String msg = String.format("Sent: %s, Posted media information [%s]: %s", new Object[] {
-              json.toString(), returnCode, response });
+                json.toString(), returnCode, response });
           LOG.info(msg);
 
           JSONObject responseJSON = new JSONObject(response);

@@ -478,8 +478,7 @@ public class MediaCoordinatorTest {
 
 
   @AfterClass
-  public static void destroy() throws Exception
-  {
+  public static void destroy() throws Exception {
     broker.stop();
   }
 }

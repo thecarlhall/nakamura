@@ -20,8 +20,7 @@ class MediaUtils
     mimeTypeToExtensionMap = parseMimeTypes();
   }
 
-  private static Map<String,String> parseMimeTypes()
-  {
+  private static Map<String,String> parseMimeTypes() {
     InputStream in = MediaUtils.class.getResourceAsStream("/mime.types");
 
     if (in == null) {
@@ -53,14 +52,12 @@ class MediaUtils
   }
 
 
-  public static String mimeTypeToExtension(String mimeType)
-  {
+  public static String mimeTypeToExtension(String mimeType) {
     return mimeTypeToExtensionMap.get(mimeType);
   }
 
 
-  public static Message message(Session jmsSession, String ... props) throws JMSException
-  {
+  public static Message message(Session jmsSession, String ... props) throws JMSException {
     MapMessage msg = jmsSession.createMapMessage();
 
     for (int i = 0; i < props.length; i += 2) {
