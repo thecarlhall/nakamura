@@ -52,8 +52,9 @@ public class MediaTempFileStore {
     dir.mkdirs();
 
     long version = System.currentTimeMillis();
+    long rand = Math.round(Math.random() * 1000);
 
-    File f = new File(dir, String.format("%020d.tmp", version));
+    File f = new File(dir, String.format("%020d%d.tmp", version, rand));
     f.createNewFile();
 
     return f;

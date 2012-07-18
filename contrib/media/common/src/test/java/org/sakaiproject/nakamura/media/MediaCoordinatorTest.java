@@ -460,7 +460,6 @@ public class MediaCoordinatorTest {
 
     for (int i = 0; i < (MAX_WAIT_MS / POLL_MS); i++) {
       if (semaphore.tryAcquire(POLL_MS, TimeUnit.MILLISECONDS)) {
-        System.out.println("Hooray");
         return;
       }
     }
