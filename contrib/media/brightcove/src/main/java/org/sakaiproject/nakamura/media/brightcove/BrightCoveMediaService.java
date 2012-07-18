@@ -393,6 +393,30 @@ public class BrightCoveMediaService implements MediaService {
   /**
    * {@inheritDoc}
    *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#getPlayerJSUrls(java.lang.String)
+   */
+  @Override
+  public String[] getPlayerJSUrls(String id) {
+    return new String[] {
+      "http://admin.brightcove.com/js/BrightcoveExperiences.js"
+    };
+  }
+
+
+  /**
+   * {@inheritDoc}
+   *
+   * @see org.sakaiproject.nakamura.api.media.MediaService#getPlayerInitJS(java.lang.String)
+   */
+  @Override
+  public String getPlayerInitJS(String id) {
+    return "brightcove.createExperiences();";
+  }
+
+
+  /**
+   * {@inheritDoc}
+   *
    * @see org.sakaiproject.nakamura.api.media.MediaService#getMimeType()
    */
   @Override

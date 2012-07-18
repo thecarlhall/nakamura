@@ -74,6 +74,22 @@ public interface MediaService {
 
 
   /**
+   * Return a list of URLs of the JavaScript files that this player needs to have loaded
+   * @param id The ID of the video in the media service
+   * @return A list of URLs
+   */
+  String[] getPlayerJSUrls(String id);
+
+
+  /**
+   * Return a fragment of JavaScript that will begin a video playing
+   * @param id The ID of the video in the media service
+   * @return A JavaScript string
+   */
+  String getPlayerInitJS(String id);
+
+
+  /**
    * The mime type that will be set for content objects handled by this service.
    * @return A string like "application/x-media-[servicename]"
    */

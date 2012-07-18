@@ -139,6 +139,14 @@ public class MediaCoordinatorTest {
       return "[the player]";
     }
 
+    public String[] getPlayerJSUrls(String id) {
+      return new String[] {};
+    }
+
+    public String getPlayerInitJS(String id) {
+      return "";
+    }
+
     public String getMimeType() {
       return "application/x-media-testsuite";
     }

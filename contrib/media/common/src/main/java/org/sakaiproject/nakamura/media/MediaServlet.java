@@ -19,6 +19,7 @@
 package org.sakaiproject.nakamura.media;
 
 import java.io.IOException;
+import java.util.Arrays;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -93,7 +94,9 @@ public class MediaServlet extends HttpServlet {
 
         if (status.isReady()) {
           responseJSON.put("status", "ready");
+          responseJSON.put("scripts", Arrays.asList(mediaService.getPlayerJSUrls(mediaId)));
           responseJSON.put("player", mediaService.getPlayerFragment(mediaId));
+          responseJSON.put("init", mediaService.getPlayerInitJS(mediaId));
         } else if (status.isProcessing()) {
           responseJSON.put("status", "processing");
         } else if (status.isError()) {
