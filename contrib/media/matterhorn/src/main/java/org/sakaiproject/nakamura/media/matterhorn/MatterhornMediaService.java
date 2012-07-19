@@ -83,4 +83,16 @@ public class MatterhornMediaService implements MediaService {
     
   }
 
+  @Override
+  public String[] getPlayerJSUrls(String id) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public String getPlayerInitJS(String id) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
 }
