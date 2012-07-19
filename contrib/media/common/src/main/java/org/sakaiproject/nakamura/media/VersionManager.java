@@ -41,6 +41,12 @@ class VersionManager {
   }
 
 
+  public Version getLatestVersionOf(String pid) throws StorageClientException, AccessDeniedException {
+    List<Version> versions = getVersionsMetadata(pid);
+    return versions.get(versions.size() - 1);
+  }
+
+
   // Get the versions metadata for 'pid' from the oldest version to newest.
   public List<Version> getVersionsMetadata(String pid) throws StorageClientException, AccessDeniedException {
     List<Content> versions = new ArrayList<Content>();

@@ -83,7 +83,8 @@ public class MediaServlet extends HttpServlet {
       JSONObject responseJSON = new JSONObject();
 
       MediaNode mediaNode = MediaNode.get(pid, cm, false);
-      String mediaId = (mediaNode == null) ? null : mediaNode.getMediaId(vm.getVersionsMetadata(pid).get(0));
+
+      String mediaId = (mediaNode == null) ? null : mediaNode.getMediaId(vm.getLatestVersionOf(pid));
 
       if (mediaNode == null || mediaId == null) {
         // The media coordinator hasn't picked up this job yet.
