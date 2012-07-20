@@ -61,10 +61,6 @@ import org.slf4j.LoggerFactory;
 @Service
 public class BrightCoveMediaService implements MediaService {
 
-  static final String SCRIPT_SRC_DEFAULT = "http://admin.brightcove.com/js/BrightcoveExperiences.js";
-  @Property(value = SCRIPT_SRC_DEFAULT)
-  public static final String SCRIPT_SRC = "script.src";
-
   static final String OBJECT_CLASS_DEFAULT = "BrightcoveExperience";
   @Property(value = OBJECT_CLASS_DEFAULT)
   public static final String OBJECT_CLASS = "myExperience.class";
@@ -116,8 +112,12 @@ public class BrightCoveMediaService implements MediaService {
 
   private static final String REQ_MSG_TMPL = "'%s' required to communicate with BrightCove";
 
-  private static final String OBJECT_EL_TMPL = "<script language=\"JavaScript\" type=\"text/javascript\" src=\"%s\"></script>" +
-    "<object id=\"myExperience%s\" class=\"%s\">" +
+  private static final String[] PLAYER_SCRIPTS = new String[] {
+    "http://admin.brightcove.com/js/BrightcoveExperiences.js",
+    "http://admin.brightcove.com/js/APIModules_all.js"
+  };
+
+  private static final String OBJECT_EL_TMPL = "<object id=\"myExperience%s\" class=\"%s\">" +
     "  <param name=\"bgcolor\" value=\"%s\" />" +
     "  <param name=\"width\" value=\"%s\" />" +
     "  <param name=\"height\" value=\"%s\" />" +
@@ -143,7 +143,6 @@ public class BrightCoveMediaService implements MediaService {
   String objectClass;
   String playerID;
   String playerKey;
-  String scriptSrc;
   String width;
   String wMode;
 
@@ -208,7 +207,6 @@ public class BrightCoveMediaService implements MediaService {
     height = PropertiesUtil.toString(props.get(HEIGHT), HEIGHT_DEFAULT);
     isVid = Boolean.toString(PropertiesUtil.toBoolean(props.get(IS_VID), IS_VID_DEFAULT));
     objectClass = PropertiesUtil.toString(props.get(OBJECT_CLASS), OBJECT_CLASS_DEFAULT);
-    scriptSrc = PropertiesUtil.toString(props.get(SCRIPT_SRC), SCRIPT_SRC_DEFAULT);
     width = PropertiesUtil.toString(props.get(WIDTH), WIDTH_DEFAULT);
     wMode = PropertiesUtil.toString(props.get(W_MODE), W_MODE_DEFAULT);
   }
@@ -383,7 +381,7 @@ public class BrightCoveMediaService implements MediaService {
    */
   @Override
   public String getPlayerFragment(String id) {
-    return String.format(OBJECT_EL_TMPL, scriptSrc, id, objectClass, bgcolor,
+    return String.format(OBJECT_EL_TMPL, id, objectClass, bgcolor,
         width, height, playerID, playerKey, isVid, dynamicStreaming, wMode, id);
   }
 
@@ -395,9 +393,7 @@ public class BrightCoveMediaService implements MediaService {
    */
   @Override
   public String[] getPlayerJSUrls(String id) {
-    return new String[] {
-      scriptSrc
-    };
+    return PLAYER_SCRIPTS;
   }
 
 
