@@ -99,6 +99,19 @@ class MediaNode {
   }
 
 
+  public boolean isReadyToPlay(Version version) throws AccessDeniedException, StorageClientException {
+    Content replicationStatus = getReplicationStatus(version);
+    return replicationStatus.getProperty("readyToPlay") != null;
+  }
+
+
+  public void setReadyToPlay(Version version) throws AccessDeniedException, StorageClientException {
+    Content replicationStatus = getReplicationStatus(version);
+    replicationStatus.setProperty("readyToPlay", "Y");
+    contentManager.update(replicationStatus);
+  }
+
+
   public void storeMediaId(Version version, String mediaId) throws AccessDeniedException, StorageClientException {
     Content replicationStatus = getReplicationStatus(version);
 
@@ -109,6 +122,7 @@ class MediaNode {
 
     contentManager.update(replicationStatus);
   }
+
 
   private Content getReplicationStatus(Version version) throws StorageClientException, AccessDeniedException {
     String mypath = path + "/replicationStatus/" + version.getVersionId();

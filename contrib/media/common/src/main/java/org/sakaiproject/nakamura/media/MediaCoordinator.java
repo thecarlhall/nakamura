@@ -55,6 +55,7 @@ import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 import org.sakaiproject.nakamura.api.files.FilesConstants;
 
 import org.sakaiproject.nakamura.api.media.MediaService;
+import org.sakaiproject.nakamura.api.media.MediaStatus;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.sakaiproject.nakamura.api.media.ErrorHandler;
 import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
@@ -381,7 +382,22 @@ public class MediaCoordinator implements Runnable {
 
             } catch (MediaServiceException e) {
               throw new RuntimeException("Got MediaServiceException during metadata update", e);
+            }
+          }
 
+          if (mediaNode.isBodyUploaded(version) && !mediaNode.isReadyToPlay(version)) {
+            // Check if the media has been made available for playing since we last looked
+            LOGGER.info("Checking whether version {} is ready to play", version);
+
+            String mediaId = mediaNode.getMediaId(version);
+            try {
+              MediaStatus status = mediaService.getStatus(mediaId);
+
+              if (status.isReady()) {
+                mediaNode.setReadyToPlay(version);
+              }
+            } catch (MediaServiceException e) {
+              throw new RuntimeException("Got MediaServiceException during metadata update", e);
             }
           }
         }

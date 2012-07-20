@@ -328,8 +328,6 @@ public class BrightCoveMediaService implements MediaService {
         MediaStatus result;
 
         try {
-          // TODO don't check for this every time. Should have a latency window and only check
-          // for certain statuses
           JSONObject json = new JSONObject()
             .put("method", "get_upload_status")
             .put("params", new JSONObject()

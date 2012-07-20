@@ -61,7 +61,7 @@ import org.slf4j.LoggerFactory;
 @Component(immediate = true, metatype = true)
 @Service({ MediaListener.class, EventHandler.class, FileUploadHandler.class, FileUploadFilter.class })
 @Properties({
-  @Property(name = "event.topics", value = {"org/sakaiproject/nakamura/lite/content/UPDATED", "org/sakaiproject/nakamura/lite/content/DELETE"})
+  @Property(name = "event.topics", value = {"org/sakaiproject/nakamura/lite/content/UPDATED", "org/sakaiproject/nakamura/lite/content/DELETE", "org/sakaiproject/nakamura/media/UPDATED"})
 })
 public class MediaListenerImpl implements MediaListener, EventHandler, FileUploadHandler, FileUploadFilter {
   static final int MAX_RETRIES_DEFAULT = 5;

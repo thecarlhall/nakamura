@@ -20,6 +20,8 @@ package org.sakaiproject.nakamura.media;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Dictionary;
+import java.util.Hashtable;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -27,6 +29,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.sling.commons.json.JSONObject;
 import org.apache.sling.commons.json.JSONException;
+
+import org.osgi.service.event.EventAdmin;
+import org.osgi.service.event.Event;
 
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.Session;
@@ -63,6 +68,9 @@ public class MediaServlet extends HttpServlet {
   private Repository repository;
 
   @Reference
+  protected EventAdmin eventAdmin;
+
+  @Reference
   MediaService mediaService;
 
   @Override
@@ -84,16 +92,37 @@ public class MediaServlet extends HttpServlet {
 
       MediaNode mediaNode = MediaNode.get(pid, cm, false);
 
-      String mediaId = (mediaNode == null) ? null : mediaNode.getMediaId(vm.getLatestVersionOf(pid));
+      Version version = vm.getLatestVersionOf(pid);
+      String mediaId = (mediaNode == null) ? null : mediaNode.getMediaId(version);
 
       if (mediaNode == null || mediaId == null) {
         // The media coordinator hasn't picked up this job yet.
         responseJSON.put("status", "processing");
       } else {
 
-        MediaStatus status = mediaService.getStatus(mediaId);
+        boolean isReadyToPlay = mediaNode.isReadyToPlay(version);
+        MediaStatus status = null;
 
-        if (status.isReady()) {
+        if (!isReadyToPlay) {
+          status = mediaService.getStatus(mediaId);
+        }
+
+        if (isReadyToPlay || status.isReady()) {
+
+          if (!isReadyToPlay) {
+            // The media node hasn't recorded the fact that this video is now
+            // playable.  Fire an event to prompt it to update to avoid needing
+            // to hit the media service the next time someone asks for this
+            // video.
+
+            Dictionary<String, Object> props = new Hashtable<String, Object>();
+            props.put("path", pid);
+            props.put("op", "update");
+            props.put("resourceType", "sakai/pooled-content");
+
+            eventAdmin.postEvent(new Event("org/sakaiproject/nakamura/media/UPDATED", props));
+          }
+
           responseJSON.put("status", "ready");
           responseJSON.put("scripts", Arrays.asList(mediaService.getPlayerJSUrls(mediaId)));
           responseJSON.put("player", mediaService.getPlayerFragment(mediaId));
