@@ -398,7 +398,7 @@ public class BrightCoveMediaService implements MediaService {
   @Override
   public String[] getPlayerJSUrls(String id) {
     return new String[] {
-      "http://admin.brightcove.com/js/BrightcoveExperiences.js"
+      scriptSrc
     };
   }
 
