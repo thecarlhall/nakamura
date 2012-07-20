@@ -75,8 +75,18 @@ class VersionManager {
 
       String[] tags = (String[])last.getProperty("sakai:tags");
 
-      if (tags == null) {
-        tags = new String[0];
+      List<String> tagList = new ArrayList<String>();
+
+      if (tags != null) {
+        for (String tag : tags) {
+          tagList.add(tag);
+        }
+      }
+
+      String owner = (String)last.getProperty("sakai:pool-content-created-for");
+
+      if (owner != null) {
+        tagList.add("user-" + owner);
       }
 
       result.add(new Version(pid,
@@ -86,7 +96,7 @@ class VersionManager {
               (String)current.getProperty("media:extension"),
               (String)current.getProperty(FilesConstants.POOLED_CONTENT_MIMETYPE),
               (String)current.getProperty("media:tempStoreLocation"),
-              tags,
+              tagList.toArray(new String[0]),
               contentManager));
     }
 
