@@ -19,7 +19,6 @@
 package org.sakaiproject.nakamura.media;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -339,11 +338,9 @@ public class MediaCoordinator implements Runnable {
               return;
             }
 
-            FileInputStream is = null;
             try {
-              is = new FileInputStream(mediaFile);
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
-              String mediaId = mediaService.createMedia(is,
+              String mediaId = mediaService.createMedia(mediaFile,
                   version.getTitle(),
                   version.getDescription(),
                   version.getExtension(),
@@ -352,17 +349,10 @@ public class MediaCoordinator implements Runnable {
 
               mediaNode.storeMediaId(version, mediaId);
 
-              is.close();
-              is = null;
-
               mediaTempStore.completed(path, version.getTempStoreLocation());
 
             } catch (MediaServiceException e) {
               throw new RuntimeException("Got MediaServiceException during body upload", e);
-            } finally {
-              if (is != null) {
-                is.close();
-              }
             }
           }
 

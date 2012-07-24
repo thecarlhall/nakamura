@@ -243,11 +243,11 @@ public class BrightCoveMediaService implements MediaService {
   /**
    * {@inheritDoc}
    *
-   * @see org.sakaiproject.nakamura.api.media.MediaService#createMedia(java.io.InputStream,
+   * @see org.sakaiproject.nakamura.api.media.MediaService#createMedia(java.io.File,
    *      java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
-  public String createMedia(InputStream mediaFile, String title, String description,
+  public String createMedia(File mediaFile, String title, String description,
       String extension, String[] tags) throws MediaServiceException {
     String response = sendMedia(title, description, extension, tags, mediaFile, null);
     LOG.debug(response);
@@ -430,38 +430,8 @@ public class BrightCoveMediaService implements MediaService {
   }
 
 
-  private FileInputStream asFileInputStream(InputStream is) throws MediaServiceException {
-    if (is instanceof FileInputStream) {
-      // Easy.
-      return (FileInputStream) is;
-    }
-
-    try {
-      final File tmpfile = File.createTempFile("oae_media", null);
-
-      FileOutputStream out = new FileOutputStream(tmpfile);
-      IOUtils.copy(is, out);
-      out.close();
-      is.close();
-
-      return new FileInputStream (tmpfile) {
-        public void close() throws IOException {
-          try {
-            super.close();
-          } finally {
-            tmpfile.delete();
-          }
-        }
-      };
-    } catch (FileNotFoundException e) {
-      throw new MediaServiceException("Failed to create temporary file", e); 
-    } catch (IOException e) {
-      throw new MediaServiceException("Failed to create temporary file", e); 
-    }
-  }
-
   private String sendMedia(final String title, final String description, final String extension, final String[] tags,
-      final InputStream mediaFile, final String id) throws MediaServiceException {
+      final File mediaFile, final String id) throws MediaServiceException {
     if (id == null && mediaFile == null) {
       throw new IllegalArgumentException("Must supply 'id' or 'mediaFile'");
     }
@@ -497,13 +467,16 @@ public class BrightCoveMediaService implements MediaService {
 
           Part[] parts;
           if (mediaFile != null) {
-            final FileInputStream fileInput = asFileInputStream(mediaFile);
             parts = new Part[] {
               new StringPart("JSON-RPC", json.toString()),
               new FilePart("fileData",
                   new PartSource () {
                     public InputStream createInputStream() {
-                      return fileInput;
+                      try {
+                        return new FileInputStream(mediaFile);
+                      } catch (FileNotFoundException e) {
+                        throw new RuntimeException("Couldn't find media file: " + mediaFile);
+                      }
                     }
 
                     public String getFileName() {
@@ -515,12 +488,7 @@ public class BrightCoveMediaService implements MediaService {
                     }
 
                     public long getLength() {
-                      try {
-                        return fileInput.getChannel().size();
-                      } catch (IOException e) {
-                        LOG.error("Failed to calculate size for file '{}'", id);
-                        throw new RuntimeException("getLength failed for file: " + id, e); 
-                      }
+                      return mediaFile.length();
                     }
                   })
             };

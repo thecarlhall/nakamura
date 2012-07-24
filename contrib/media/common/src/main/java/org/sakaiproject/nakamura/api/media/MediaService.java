@@ -18,8 +18,8 @@
  */
 package org.sakaiproject.nakamura.api.media;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 
 public interface MediaService {
   /**
@@ -33,7 +33,7 @@ public interface MediaService {
    * @return
    * @throws MediaServiceException
    */
-  String createMedia(InputStream media, String title, String description, String extension, String[] tags)
+  String createMedia(File media, String title, String description, String extension, String[] tags)
       throws MediaServiceException;
 
   /**

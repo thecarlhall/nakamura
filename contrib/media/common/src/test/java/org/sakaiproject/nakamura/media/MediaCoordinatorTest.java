@@ -19,7 +19,7 @@
 package org.sakaiproject.nakamura.media;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.File;
 import java.io.ByteArrayInputStream;
 
 import java.lang.reflect.Field;
@@ -84,7 +84,7 @@ public class MediaCoordinatorTest {
 
     volatile public int failCount = 0;
 
-    public String createMedia(InputStream media, String title, String description, String extension, String[] tags)
+    public String createMedia(File media, String title, String description, String extension, String[] tags)
       throws MediaServiceException {
 
       if (failOnNextCreate) {
