@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -58,9 +59,14 @@ import org.apache.commons.httpclient.methods.multipart.StringPart;
 import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.ConfigurationPolicy;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Activate;
+import org.apache.felix.scr.annotations.Modified;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
+import org.apache.sling.commons.osgi.PropertiesUtil;
+import org.osgi.service.component.ComponentException;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.sakaiproject.nakamura.api.media.MediaStatus;
@@ -81,9 +87,62 @@ public class MatterhornMediaService implements MediaService {
 
   private static final Logger LOG = LoggerFactory.getLogger(MatterhornMediaService.class);
 
-  private String matterhornUser = "matterhorn_system_account";
-  private String matterhornPassword = "CHANGE_ME";
-  private String matterhornUrl = "http://localhost:7080";
+  static final String BASE_URL_DEFAULT = "http://localhost:7080";
+  @Property(value = BASE_URL_DEFAULT)
+  public static final String BASE_URL = "baseUrl";
+
+  private static final String REQ_MSG_TMPL = "'%s' required to communicate with Matterhorn";
+
+  static final String MATTERHORN_USER_DEFAULT = "matterhorn_system_account";
+  @Property(value = MATTERHORN_USER_DEFAULT)
+  public static final String MATTERHORN_USER = "matterhornUser";
+
+  static final String MATTERHORN_PASSWORD_DEFAULT = "CHANGE_ME";
+  @Property(value = MATTERHORN_PASSWORD_DEFAULT)
+  public static final String MATTERHORN_PASSWORD = "matterhornPassword";
+
+
+  static final String WIDTH_DEFAULT = "500";
+  @Property(value = WIDTH_DEFAULT)
+  public static final String WIDTH = "width";
+
+  static final String HEIGHT_DEFAULT = "470";
+  @Property(value = HEIGHT_DEFAULT)
+  public static final String HEIGHT = "height";
+
+  private static final String PLAYER_TMPL = "<iframe src=\"%s/engage/ui/embed.html?id=%s\" " +
+    "style=\"border:0px #FFFFFF none;\" name=\"Opencast Matterhorn - Media Player\" " +
+    "scrolling=\"no\" frameborder=\"0\" marginheight=\"0px\" marginwidth=\"0px\" " +
+    "width=\"%s\" height=\"%s\"></iframe>";
+
+
+  String height;
+  String width;
+  String matterhornUser;
+  String matterhornPassword;
+  String baseUrl;
+   
+
+  @Activate
+  @Modified
+  protected void activate(Map<?, ?> props) {
+    // ---------- required properties ------------------------------------------
+    Map<String, String> requiredProperties = new HashMap<String, String>();
+    for (String prop : new String[] { HEIGHT, WIDTH, MATTERHORN_USER, MATTERHORN_PASSWORD, BASE_URL }) {
+      String value = PropertiesUtil.toString(props.get(prop), null);
+      if (StringUtils.isBlank(value)) {
+        throw new ComponentException(String.format(REQ_MSG_TMPL, prop));
+      }
+
+      requiredProperties.put(prop, value);
+    }
+
+    height = requiredProperties.get(HEIGHT);
+    width = requiredProperties.get(WIDTH);
+    matterhornUser = requiredProperties.get(MATTERHORN_USER);
+    matterhornPassword = requiredProperties.get(MATTERHORN_PASSWORD);
+    baseUrl = requiredProperties.get(BASE_URL);
+  }
 
 
 
@@ -186,11 +245,11 @@ public class MatterhornMediaService implements MediaService {
 
 
   private PostMethod digestAuthedPostMethod(HttpClient client, String uri) throws IOException, MalformedChallengeException, AuthenticationException {
-    PostMethod authRequest = new PostMethod(matterhornUrl + uri);
+    PostMethod authRequest = new PostMethod(baseUrl + uri);
     String auth = preAuthenticateRequest(client, authRequest);
 
     if (auth != null) {
-      PostMethod request = new PostMethod(matterhornUrl + uri);
+      PostMethod request = new PostMethod(baseUrl + uri);
       request.addRequestHeader(new Header("Authorization", auth));
       request.setDoAuthentication(false);
 
@@ -202,11 +261,11 @@ public class MatterhornMediaService implements MediaService {
 
 
   private GetMethod digestAuthedGetMethod(HttpClient client, String uri) throws IOException, MalformedChallengeException, AuthenticationException {
-    GetMethod authRequest = new GetMethod(matterhornUrl + uri);
+    GetMethod authRequest = new GetMethod(baseUrl + uri);
     String auth = preAuthenticateRequest(client, authRequest);
 
     if (auth != null) {
-      GetMethod request = new GetMethod(matterhornUrl + uri);
+      GetMethod request = new GetMethod(baseUrl + uri);
       request.addRequestHeader(new Header("Authorization", auth));
       request.setDoAuthentication(false);
 
@@ -467,31 +526,48 @@ public class MatterhornMediaService implements MediaService {
 
   @Override
   public String getPlayerFragment(String id) {
-    return "IMPLEMENTME";
+    try {
+      JSONObject ids = new JSONObject(id);
+
+      return String.format(PLAYER_TMPL,
+          baseUrl, ids.getString("mediaPackageId"), width, height);
+    } catch (JSONException e) {
+      LOG.info("Error while getting JSON fragment for id '{}': {}", id, e);
+      return "";
+    }
   }
+
 
   @Override
   public MediaStatus getStatus(String id) throws MediaServiceException, IOException {
-    // TODO Auto-generated method stub
-    return null;
+    return new MediaStatus() {
+      public boolean isReady() {
+        return true;
+      }
+
+      public boolean isProcessing() {
+        return false;
+      }
+
+      public boolean isError() {
+        return false;
+      }
+    };
   }
 
   @Override
   public void deleteMedia(String id) throws MediaServiceException {
     // TODO Auto-generated method stub
-    
   }
 
   @Override
   public String[] getPlayerJSUrls(String id) {
-    // TODO Auto-generated method stub
-    return null;
+    return new String[] {};
   }
 
   @Override
   public String getPlayerInitJS(String id) {
-    // TODO Auto-generated method stub
-    return null;
+    return "";
   }
 
 }
