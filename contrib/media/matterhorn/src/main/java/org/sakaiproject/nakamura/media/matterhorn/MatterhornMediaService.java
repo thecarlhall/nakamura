@@ -75,6 +75,7 @@ import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 
@@ -418,12 +419,27 @@ public class MatterhornMediaService implements MediaService {
   // For some reason empty 'tags' fields cause the player's JavaScript to choke.
   // Removing them entirely doesn't fix it, so setting them back to the defaults
   // here.
-  //
-  // I know, I know: I should have written something to walk the XML tree
-  // instead of post-processing the string.  But I didn't, so there.  Maybe later.
-  private String fixTagsHack(String xml)
+  private String extractMediaPackage(Document workflow) throws XPathExpressionException, MediaServiceException
   {
-    return xml.replaceAll("<tags ?/>", "<tags><tag>engage</tag><tag>publish</tag></tags>");
+    XPath xpath = XPathFactory.newInstance().newXPath();
+
+    NodeList tags = (NodeList)xpath.evaluate("//tags", workflow, XPathConstants.NODESET);
+
+    for (int i = 0; i < tags.getLength(); i++) {
+      Node elt = tags.item(i);
+
+      if (elt.getChildNodes().getLength() == 0) {
+        for (String tagname : new String[] { "engage", "player" }) {
+          Element tag = workflow.createElement("tag");
+          tag.setTextContent(tagname);
+          elt.appendChild(tag);
+        }
+      }
+    }
+
+    Element mediaPackageElt = (Element)xpath.evaluate("//*[local-name() = 'mediapackage']", workflow, XPathConstants.NODE);
+
+    return docToString(mediaPackageElt);
   }
 
 
@@ -444,9 +460,8 @@ public class MatterhornMediaService implements MediaService {
 
       // Extract the media package
       Document workflow = parseXML(get.getResponseBodyAsString());
-      XPath xpath = XPathFactory.newInstance().newXPath();
-      Element mediaPackageElt = (Element)xpath.evaluate("//*[local-name() = 'mediapackage']", workflow, XPathConstants.NODE);
-      String mediaPackageXML = fixTagsHack(docToString(mediaPackageElt));
+      String mediaPackageXML = extractMediaPackage(workflow);
+
 
       for (String toUpdate : new String[] { "episode", "search" }) {
         post = digestAuthedPostMethod(client, "/" + toUpdate + "/add");
