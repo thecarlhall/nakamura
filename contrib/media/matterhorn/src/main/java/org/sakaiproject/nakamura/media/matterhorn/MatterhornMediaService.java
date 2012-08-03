@@ -497,8 +497,6 @@ public class MatterhornMediaService implements MediaService {
 
     try {
       JSONObject ids = new JSONObject(id);
-
-
       HttpClient client = new HttpClient();
 
       // Get the Dublin Core metadata file
@@ -555,19 +553,47 @@ public class MatterhornMediaService implements MediaService {
 
   @Override
   public MediaStatus getStatus(String id) throws MediaServiceException, IOException {
-    return new MediaStatus() {
-      public boolean isReady() {
-        return true;
+
+    GetMethod get = null;
+
+    try {
+      JSONObject ids = new JSONObject(id);
+
+      String workflowUrl = String.format("/workflow/instance/%s.json",
+          ids.getString("workflowId"));
+
+      HttpClient client = new HttpClient();
+      get = digestAuthedGetMethod(client, workflowUrl);
+      int returnCode = client.executeMethod(get);
+
+      String s = null;
+      if ((returnCode / 100) == 2) {
+        JSONObject status = new JSONObject(get.getResponseBodyAsString());
+        s = status.getJSONObject("workflow").getString("state");
       }
 
-      public boolean isProcessing() {
-        return false;
-      }
+      final String state = s;
 
-      public boolean isError() {
-        return false;
+      return new MediaStatus() {
+        public boolean isReady() {
+          return "SUCCEEDED".equals(state);
+        }
+
+        public boolean isProcessing() {
+          return "RUNNING".equals(state);
+        }
+
+        public boolean isError() {
+          return (!"RUNNING".equals(state) && !"SUCCEEDED".equals(state));
+        }
+      };
+    } catch (JSONException e) {
+      throw new MediaServiceException("Failed to parse media ID: " + e);
+    } finally {
+      if (get != null) {
+        get.releaseConnection();
       }
-    };
+    }
   }
 
   @Override
