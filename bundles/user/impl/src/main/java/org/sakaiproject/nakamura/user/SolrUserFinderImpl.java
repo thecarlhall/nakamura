@@ -4,10 +4,13 @@ import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.sakaiproject.nakamura.api.search.SearchUtil;
+import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.solr.SolrServerService;
 import org.sakaiproject.nakamura.api.user.UserFinder;
 import org.slf4j.Logger;
@@ -35,9 +38,9 @@ public class SolrUserFinderImpl implements UserFinder {
   public Set<String> findUsersByName(String name) throws Exception {
     Set<String> userIds = new HashSet<String>();
     SolrServer solrServer = solrSearchService.getServer();
-    String queryString = "resourceType:authorizable AND type:u AND name:" + name;
+    String queryString = "resourceType:authorizable AND type:u AND name:" + SearchUtil.escapeString(name, Query.SOLR);
     SolrQuery solrQuery = new SolrQuery(queryString);
-    QueryResponse queryResponse = solrServer.query(solrQuery);
+    QueryResponse queryResponse = solrServer.query(solrQuery, SolrRequest.METHOD.POST);
     SolrDocumentList results = queryResponse.getResults();
     for (SolrDocument solrDocument : results) {
       if (solrDocument.containsKey("id")) {

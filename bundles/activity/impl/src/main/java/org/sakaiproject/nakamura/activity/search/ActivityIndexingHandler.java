@@ -67,6 +67,8 @@ public class ActivityIndexingHandler implements IndexingHandler {
       ActivityConstants.ACTIVITY_ITEM_RESOURCE_TYPE,
       ActivityConstants.ACTIVITY_SOURCE_ITEM_RESOURCE_TYPE);
 
+  private static final String PROP_ACTIVITY_SOURCE = "activitysource";
+
   @Reference
   Repository repository;
   
@@ -113,7 +115,8 @@ public class ActivityIndexingHandler implements IndexingHandler {
             doc.addField(prop, content.getProperty(prop));
           }
           doc.addField(_DOC_SOURCE_OBJECT, content);
-          
+          doc.addField(PROP_ACTIVITY_SOURCE, content.getProperty(ActivityConstants.PARAM_SOURCE));
+          doc.addField(FIELD_SUPPRESS_READERS, FIELD_SUPPRESS_READERS);
           String[] routes = findRoutes(path);
           if (routes != null) {
             doc.addField("routes", routes);

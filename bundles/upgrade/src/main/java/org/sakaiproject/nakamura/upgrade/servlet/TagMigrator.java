@@ -26,6 +26,7 @@ import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.jcr.resource.JcrResourceConstants;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
@@ -140,7 +141,7 @@ public class TagMigrator {
     query.setRows(ROWS_PER_SEARCH);
     query.setStart(start);
     // go direct to solr server so we can get all documents more easily
-    QueryResponse solrResponse = this.solrSearchService.getServer().query(query);
+    QueryResponse solrResponse = this.solrSearchService.getServer().query(query, SolrRequest.METHOD.POST);
     LOGGER.info("Got " + solrResponse.getResults().getNumFound() + " tagged documents from solr index; " +
         "this batch starts at " + solrResponse.getResults().getStart());
     return solrResponse.getResults();

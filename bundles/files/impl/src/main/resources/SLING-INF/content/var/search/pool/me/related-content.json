@@ -1,5 +1,5 @@
 {
-  "sakai:query-template": 'resourceType:sakai/pooled-content AND (manager:(${managers}) OR viewer:(${viewers})) AND (filename:(${fileNames}) OR tag:(${tags}))',
+  "sakai:query-template": 'resourceType:sakai\\/pooled-content AND (manager:(${managers}) OR viewer:(${viewers})) AND (filename:(${fileNames}) OR tag:(${tags}))',
   "sakai:query-template-options": {
       "sort": "score desc"
   },

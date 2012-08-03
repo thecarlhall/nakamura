@@ -49,7 +49,7 @@
   <!-- WARNING: this <indexDefaults> section only provides defaults for index writers
        in general. See also the <mainIndex> section after that when changing parameters
        for Solr's main Lucene index. -->
-  <indexDefaults>
+  <indexConfig>
    <!-- Values here affect all index writers and act as a default unless overridden. -->
     <useCompoundFile>false</useCompoundFile>
 
@@ -112,9 +112,7 @@
      Expert:
     Controls how often Lucene loads terms into memory -->
     <!--<termIndexInterval>256</termIndexInterval>-->
-  </indexDefaults>
 
-  <mainIndex>
     <!-- options specific to the main on-disk lucene index -->
     <useCompoundFile>false</useCompoundFile>
     <ramBufferSizeMB>32</ramBufferSizeMB>
@@ -172,9 +170,9 @@
     <!--  To aid in advanced debugging, you may turn on IndexWriter debug logging.
       Setting to true will set the file that the underlying Lucene IndexWriter
       will write its debug infostream to.  -->
-     <infoStream file="INFOSTREAM.txt">false</infoStream> 
+     <infoStream file="INFOSTREAM.txt">false</infoStream>
 
-  </mainIndex>
+  </indexConfig>
 
   <!--	Enables JMX if and only if an existing MBeanServer is found, use this
     if you want to configure JMX through JVM parameters. Remove this to disable

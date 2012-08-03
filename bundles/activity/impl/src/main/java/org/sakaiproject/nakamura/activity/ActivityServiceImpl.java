@@ -86,19 +86,13 @@ public class ActivityServiceImpl implements ActivityService {
     if (!contentManager.exists(path)) {
       contentManager.update(new Content(path, ImmutableMap.<String, Object> of(
           SLING_RESOURCE_TYPE_PROPERTY, ACTIVITY_STORE_RESOURCE_TYPE)));
-      // set ACLs so that everyone can add activities; anonymous = none.
+      // inherit ACL from the target node, but let logged-in users write activities
       session.getAccessControlManager().setAcl(
           Security.ZONE_CONTENT,
           path,
           new AclModification[] {
-              new AclModification(AclModification.denyKey(User.ANON_USER),
-                  Permissions.ALL.getPermission(), Operation.OP_REPLACE),
               new AclModification(AclModification.grantKey(Group.EVERYONE),
-                  Permissions.CAN_READ.getPermission(), Operation.OP_REPLACE),
-              new AclModification(AclModification.grantKey(Group.EVERYONE),
-                  Permissions.CAN_WRITE.getPermission(), Operation.OP_REPLACE),
-              new AclModification(AclModification.grantKey(userId),
-                  Permissions.ALL.getPermission(), Operation.OP_REPLACE) });
+                  Permissions.CAN_WRITE.getPermission(), Operation.OP_AND)});
     }
     // create activity within activityStore
     String activityPath = StorageClientUtils.newPath(path, ActivityUtils.createId());
@@ -120,7 +114,7 @@ public class ActivityServiceImpl implements ActivityService {
     activtyNode = contentManager.get(activityPath);
     activtyNode.setProperty(PARAM_ACTOR_ID, userId);
     activtyNode.setProperty(ActivityConstants.PARAM_SOURCE, targetLocation.getPath());
-    
+
     Session adminSession = repository.loginAdministrative();
     List<String> routesStr = new LinkedList<String>();
     List<String> readers = new LinkedList<String>();

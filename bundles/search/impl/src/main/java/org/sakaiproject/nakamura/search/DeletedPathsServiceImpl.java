@@ -34,7 +34,6 @@ import org.sakaiproject.nakamura.api.memory.CacheManagerService;
 import org.sakaiproject.nakamura.api.memory.CacheScope;
 import org.sakaiproject.nakamura.api.search.DeletedPathsService;
 import org.sakaiproject.nakamura.api.search.SearchUtil;
-import org.sakaiproject.nakamura.api.search.solr.Query;
 
 /**
  * Manage a cache of deleted paths as signaled by content deletion events. The cache is
@@ -90,8 +89,7 @@ public class DeletedPathsServiceImpl implements EventHandler, DeletedPathsServic
 
     // add the new path to the last position
     int pathCount = PropertiesUtil.toInteger(cache.get("pathCount@" + myId), 0);
-    cache.put("path[" + pathCount + "]@" + myId,
-        SearchUtil.escapeString(path, Query.SOLR));
+    cache.put("path[" + pathCount + "]@" + myId, path);
     cache.put("pathCount@" + myId, String.valueOf(pathCount + 1));
 
     // clean out any paths that start with the path we've just added
@@ -129,6 +127,10 @@ public class DeletedPathsServiceImpl implements EventHandler, DeletedPathsServic
    */
   @Override
   public List<String> getDeletedPaths() {
+    return getEscapedDeletedPaths(null);
+  }
+
+  public List<String> getEscapedDeletedPaths(String queryLanguage) {
     List<String> deletedPaths = new ArrayList<String>();
     Cache<String> cache = getDeletedPathCache();
 
@@ -140,7 +142,11 @@ public class DeletedPathsServiceImpl implements EventHandler, DeletedPathsServic
         String path = (String)cache.get("path[" + idx + "]@" + serverId);
 
         if (path != null) {
-          deletedPaths.add(SearchUtil.escapeString(path, Query.SOLR));
+          if (queryLanguage != null) {
+            deletedPaths.add(SearchUtil.escapeString(path, queryLanguage));
+          } else {
+            deletedPaths.add(path);
+          }
         }
       }
     }

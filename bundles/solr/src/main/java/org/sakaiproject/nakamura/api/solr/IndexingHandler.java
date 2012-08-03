@@ -53,6 +53,11 @@ public interface IndexingHandler {
 	 */
 	public static final String FIELD_READERS = "readers";
 
+  /**
+   * If this field is present, the FIELD_READERS field will NOT be populated.
+   */
+  public static final String FIELD_SUPPRESS_READERS = "_suppressReaders";
+
 	/**
 	 * Standard, field, contains the Resource Type of the item.
 	 */

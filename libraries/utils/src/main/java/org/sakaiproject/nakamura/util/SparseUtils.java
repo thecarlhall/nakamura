@@ -34,10 +34,12 @@ public class SparseUtils {
    * @param session
    */
   public static void logoutQuietly(Session session) {
-    try {
-      session.logout();
-    } catch (Exception e) {
-      LOGGER.warn("Error logging out of session, but swallowing exception.", e);
+    if (session != null) {
+      try {
+        session.logout();
+      } catch (Exception e) {
+        LOGGER.warn("Error logging out of session, but swallowing exception.", e);
+      }
     }
   }
   

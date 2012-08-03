@@ -17,7 +17,7 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.impl.BinaryResponseParser;
-import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.impl.LBHttpSolrServer;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.InvalidSyntaxException;
@@ -159,7 +159,7 @@ public class MultiMasterRemoteSolrClient implements SolrClient {
 		String url = Utils.toString(properties.get(PROP_SOLR_URL),
 				DEFAULT_SOLR_URLS);
 
-		CommonsHttpSolrServer remoteServer = new CommonsHttpSolrServer(url);
+		HttpSolrServer remoteServer = new HttpSolrServer(url);
 		remoteServer.setSoTimeout(Utils.toInt(
 				properties.get(PROP_SO_TIMEOUT), 1000)); // socket
 		// read
@@ -206,8 +206,6 @@ public class MultiMasterRemoteSolrClient implements SolrClient {
 				properties.get(PROP_QUERY_CONNECTION_TIMEOUT), 100));
 		lbServer.setAliveCheckInterval(Utils.toInt(
 				properties.get(PROP_QUERY_ALIVE_CHECK_INTERVAL), 100));
-		lbServer.setConnectionManagerTimeout(Utils.toInt(
-				properties.get(PROP_QUERY_CONNECTION_MANAGER_TIMEOUT), 100));
 		return lbServer;
 	}
 

@@ -17,8 +17,17 @@
  */
 package org.sakaiproject.nakamura.message.search;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import org.apache.solr.common.SolrInputDocument;
-import static org.junit.Assert.*;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -30,8 +39,11 @@ import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.message.MessageConstants;
+import org.sakaiproject.nakamura.api.resource.DateParser;
 import org.sakaiproject.nakamura.api.solr.IndexingHandler;
 import org.sakaiproject.nakamura.api.solr.RepositorySession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Calendar;
 import java.util.Collection;
@@ -39,20 +51,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
  * Test the Message Indexing Handler
  */
 @RunWith(MockitoJUnitRunner.class)
 public class MessageIndexingHandlerTest {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MessageIndexingHandlerTest.class);
+
   private final static String TEMP_PATH = "/DffdkDl/tmp_id12345678/content";
-  
+
   @Mock
   protected RepositorySession repositorySession;
 
@@ -65,6 +73,40 @@ public class MessageIndexingHandlerTest {
   @Mock
   private AuthorizableManager authorizableManager;
 
+  private DateParser dateParser;
+
+  private Map<String, Object> messageProps;
+
+  @Before
+  public void setUp() {
+    dateParser = new DateParser();
+    String[] dateFormats = new String[]{ "EEE MMM dd yyyy HH:mm:ss 'GMT'Z", "ISO8601", "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+    "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd", "dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy" };
+    for (String dateFormat : dateFormats) {
+      try {
+        dateParser.register(dateFormat);
+      } catch (Throwable t) {
+        LOGGER.warn("activate: Ignoring format {} because it is invalid: {}", dateFormat, t);
+      }
+    }
+
+    messageProps = new HashMap<String, Object>();
+    messageProps.put("sling:resourceType", MessageConstants.SAKAI_MESSAGE_RT);
+    messageProps.put("sakai:messagestore", "test-messagestore");
+    messageProps.put("sakai:messagebox", "test-messagebox");
+    messageProps.put("sakai:type", "test-type");
+    messageProps.put("sakai:category", "test-category");
+    messageProps.put("sakai:from", "test-from");
+    messageProps.put("sakai:to", "test-to");
+    messageProps.put("sakai:read", "test-read");
+    messageProps.put("sakai:marker", "test-marker");
+    messageProps.put("sakai:sendstate", "test-sendstate");
+    messageProps.put("sakai:initialpost", "test-initialpost");
+    messageProps.put(MessageConstants.PROP_SAKAI_SUBJECT, "test-title");
+    messageProps.put(MessageConstants.PROP_SAKAI_BODY, "test-content");
+    messageProps.put("notindexed", "notindexed");
+  }
+
   /**
    * Verify that trying to index content within a temporary path is gracefully ignored.
    */
@@ -72,10 +114,11 @@ public class MessageIndexingHandlerTest {
   public void testIgnoreTempContent() {
     Event event = createEventWithTempPath();
     MessageIndexingHandler handler = new MessageIndexingHandler();
+    handler.dateParser = this.dateParser;
     Collection<SolrInputDocument> documents = handler.getDocuments(repositorySession, event);
     assertTrue("Expected an empty collection of solr input documents.", documents.isEmpty());
   }
-  
+
   private Event createEventWithTempPath() {
     Map<String, Object> props = new HashMap<String, Object>();
     props.put(IndexingHandler.FIELD_PATH, TEMP_PATH);
@@ -83,27 +126,39 @@ public class MessageIndexingHandlerTest {
   }
 
   @Test
-  public void testIndexMessage() throws Exception {
-    Map<String, Object> props = new HashMap<String, Object>();
-    props.put(MessageConstants.PROP_SAKAI_CREATED, Calendar.getInstance());
-    props.put("sling:resourceType", MessageConstants.SAKAI_MESSAGE_RT);
-	
-    props.put("sakai:messagestore", "test-messagestore");
-    props.put("sakai:messagebox", "test-messagebox");
-    props.put("sakai:type", "test-type");
-    props.put("sakai:category", "test-category");
-    props.put("sakai:from", "test-from");
-    props.put("sakai:to", "test-to");
-    props.put("sakai:read", "test-read");
-    props.put("sakai:marker", "test-marker");
-    props.put("sakai:sendstate", "test-sendstate");
-    props.put("sakai:initialpost", "test-initialpost");
-    props.put(MessageConstants.PROP_SAKAI_SUBJECT, "test-title");
-    props.put(MessageConstants.PROP_SAKAI_BODY, "test-content");
-    props.put("notindexed", "notindexed");
+  public void testCalendarDateIndexMessage() throws Exception {
+    Calendar testCal = Calendar.getInstance();
+    Map<String, Object> calendarTestProps = new HashMap<String, Object>(messageProps);
+    calendarTestProps.put(MessageConstants.PROP_SAKAI_CREATED, testCal);
+    SolrInputDocument doc = handleMessageIndexing(calendarTestProps);
+    assertEquals(testCal.getTimeInMillis(), doc.getField(Content.CREATED_FIELD).getValue());
+  }
 
+  // test the date string that OAE is seeing in sakai:created message prop
+  @Test
+  public void testFirstDateStringIndexMessage() throws Exception {
+    Map<String, Object> firstDateStringProps = new HashMap<String, Object>(messageProps);
+                                                              //  "EEE MMM dd yyyy HH:mm:ss 'GMT'Z"
+    firstDateStringProps.put(MessageConstants.PROP_SAKAI_CREATED, "Wed Apr 04 2012 18:14:32 GMT-0700");
+    SolrInputDocument doc = handleMessageIndexing(firstDateStringProps);
+    Calendar testCal = dateParser.parse("Wed Apr 04 2012 18:14:32 GMT-0700");
+    assertEquals(testCal.getTimeInMillis(), doc.getField(Content.CREATED_FIELD).getValue());
+  }
+
+ //test the date string that UC Berkeley is seeing in sakai:created message prop
+  @Test
+  public void testSecondDateStringIndexMessage() throws Exception {
+    Map<String, Object> secondDateStringProps = new HashMap<String, Object>(messageProps);
+    //  seen at UCBerkeley in discussion messages                 "yyyy-MM-dd'T'HH:mm:ss.SSSZ -
+    secondDateStringProps.put(MessageConstants.PROP_SAKAI_CREATED, "2012-04-25T18:14:32-0700");
+    SolrInputDocument doc = handleMessageIndexing(secondDateStringProps);
+    Calendar testCal = dateParser.parse("2012-04-25T18:14:32-0700");
+    assertEquals(testCal.getTimeInMillis(), doc.getField(Content.CREATED_FIELD).getValue());
+  }
+
+  private SolrInputDocument handleMessageIndexing(Map<String, Object> props) throws Exception {
     String messagePath = "a:user1/messagePath";
-    
+
     Content content = new Content(messagePath, props);
     Authorizable sender = mock(Authorizable.class);
 
@@ -117,7 +172,7 @@ public class MessageIndexingHandlerTest {
     when(user1.isGroup()).thenReturn(Boolean.FALSE);
     when(user1.getProperty(eq("firstName"))).thenReturn("user");
     when(user1.getProperty(eq("lastName"))).thenReturn("one");
-    
+
     when(authorizableManager.findAuthorizable(anyString())).thenReturn(sender);
     when(repositorySession.adaptTo(Session.class)).thenReturn(session);
     when(session.getAuthorizableManager()).thenReturn(authorizableManager);
@@ -125,6 +180,7 @@ public class MessageIndexingHandlerTest {
     when(contentManager.get(messagePath)).thenReturn(content);
 
     MessageIndexingHandler handler = new MessageIndexingHandler();
+    handler.dateParser = this.dateParser;
     Event event = new Event("topic", buildEventProperties(messagePath));
 
     Collection<SolrInputDocument> documents = handler.getDocuments(repositorySession, event);
@@ -133,7 +189,7 @@ public class MessageIndexingHandlerTest {
     assertTrue(!documents.isEmpty());
 
     Iterator<SolrInputDocument> docIt = documents.iterator();
-    
+
     SolrInputDocument doc = docIt.next();
 
     //test basic message properties
@@ -152,7 +208,7 @@ public class MessageIndexingHandlerTest {
 
     //ensure unexpected value is skipped
     assertNull(doc.getField("notindexed"));
-    
+
     //test sender name is set
     assertEquals("test", doc.getField("firstName").getValue());
     assertEquals("user", doc.getField("lastName").getValue());
@@ -171,6 +227,7 @@ public class MessageIndexingHandlerTest {
     assertEquals("user1", authDoc.getField("returnpath").getValue());
 
     assertTrue(!docIt.hasNext());
+    return doc;
   }
 
   /**

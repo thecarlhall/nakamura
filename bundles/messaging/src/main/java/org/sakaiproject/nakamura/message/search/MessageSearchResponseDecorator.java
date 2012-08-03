@@ -87,7 +87,7 @@ public class MessageSearchResponseDecorator implements SearchResponseDecorator {
       String queryString = "path:" + ClientUtils.escapeQueryChars(store);
       final Map<String, Object> queryOptions;
       queryOptions = new ImmutableMap.Builder<String, Object>().
-          put(CommonParams.FQ, "resourceType:sakai/message AND type:internal AND messagebox:inbox AND read:false").
+          put(CommonParams.FQ, "resourceType:sakai\\/message AND type:internal AND messagebox:inbox AND read:false").
           build();
       Query query = new Query(queryString, queryOptions);
       SolrSearchResultSet resultSet = searchServiceFactory.getSearchResultSet(

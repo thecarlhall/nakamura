@@ -436,7 +436,8 @@ import javax.servlet.http.HttpServletResponse;
       }
       
       //Checking for non-managers
-      if (!accessControlManager.can(thisUser, Security.ZONE_CONTENT, pooledContent.getPath(), Permissions.CAN_WRITE)) {
+      if (!accessControlManager.can(thisUser, Security.ZONE_CONTENT, pooledContent.getPath(), Permissions.CAN_WRITE)
+          || !accessControlManager.can(thisUser, Security.ZONE_CONTENT, pooledContent.getPath(), Permissions.CAN_WRITE_ACL)) {
         if (!addManagers.isEmpty()) {
           response.sendError(SC_FORBIDDEN, "Non-managers may not add managers to content.");
           return;
@@ -469,12 +470,13 @@ import javax.servlet.http.HttpServletResponse;
             }
           }
         }
-
-        // the request has passed all the rules that govern non-manager users
-        // so we'll grant an administrative session
-        session = session.getRepository().loginAdministrative();
-        releaseSession = true;
       }
+      
+      // the request has passed all the rules that govern user permissions
+      // so we'll grant an administrative session
+      session = session.getRepository().loginAdministrative();
+      releaseSession = true;
+      
       List<AclModification> aclModifications = Lists.newArrayList();
 
       // apply the removals before the adds, because the permission grants should take
@@ -519,7 +521,7 @@ import javax.servlet.http.HttpServletResponse;
       updateContentAccess(session, pooledContent, aclModifications);
 
       this.authorizableCountChanger.notify(UserConstants.CONTENT_ITEMS_PROP, addViewers, addEditors, addManagers,
-          removeViewers, removeEditors, removeManagers);
+          removeViewers, removeEditors, removeManagers, Arrays.asList(thisUser.getId()));
 
       response.setStatus(SC_OK);
 
@@ -569,7 +571,7 @@ import javax.servlet.http.HttpServletResponse;
     LOGGER.debug("Set Managers to {}",Arrays.toString(managerSet.toArray(new String[managerSet.size()])));
     LOGGER.debug("Set Editors to {}",Arrays.toString(editorSet.toArray(new String[editorSet.size()])));
     LOGGER.debug("Set Viewers to {}",Arrays.toString(viewerSet.toArray(new String[managerSet.size()])));
-    session.getContentManager().update(content);
+    session.getContentManager().update(content, false);
   }
 
   private void updateContentAccess(Session session, Content content, List<AclModification> aclModifications) throws StorageClientException, AccessDeniedException {

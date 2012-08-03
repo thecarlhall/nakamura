@@ -1,0 +1,137 @@
+{
+  "sling:resourceType":"sakai/pooled-content",    // the resource type, Sling provides lots of magic based on this value
+
+  // sparse internals
+  "_path":"mNsskmQOec",                           // the path; sparse internal; extensively used
+  "_id":"QaqREdgMEeGw4mBDqeXUMQ+",                // sparse internal id
+  "_mimeType":"text/plain",                       // sparse internal, used in UI code
+  "_length":609,                                  // sparse internal
+  "_created":1343408293801,                       // sparse internal; date content was created, used extensively in UI
+  "_createdBy":"admin",                           // sparse internal
+  "_lastModified":1343408295551,                  // sparse internal, used extensively in UI
+  "_lastModifiedBy":"admin",                      // string ID of user who last edited
+  "_bodyCreated":1343408293914,                   // sparse internal - date created
+  "_bodyCreatedBy":"admin",                       // user that created the content (always admin)
+  "_bodyLastModified":1343408293914,              // sparse internal, used in content preview UI
+  "_bodyLastModifiedBy":"admin",                  // sparse internal; user who last modified this content
+  "_bodyLocation":"2012/6/E_/1Q/zH/E_1QzHQECcSQpwiJ0epBOPAGZI4",  // sparse internal
+  "_blockId":"QPC28NgMEeGw4mBDqeXUMQ+",           // sparse internal
+  "_previousBlockId":"QPC28NgMEeGw4mBDqeXUMQ+",   // sparse internal
+  "_previousVersion":"QOh5kNgMEeGw4mBDqeXUMQ+",   // sparse internal
+  "_versionHistoryId":"QaqRENgMEeGw4mBDqeXUMQ+",  // sparse internal
+
+  // sakai metadata
+  "sakai:fileextension":"txt",                    // the file extension
+  "sakai:description":"my description",           // the description
+  "sakai:pool-content-created-for":"tester2",     // owner of the content
+  "sakai:pooled-content-file-name":"title",       // filename
+  "sakai:copyright":"creativecommons",            // copyright, fk to UI code sakai.config.Copyright.types
+  "sakai:needsprocessing":"true",                 // whether the preview processor needs to work on this or not
+
+  // permissions
+  "sakai:permissions":"public",                   // fk to UI code that produces human-readable permission sets, see sakai.api.content.js
+  "sakai:pooled-content-viewer":[                 // array of those who can view
+    "everyone",
+    "anonymous"
+  ],
+  "sakai:pooled-content-editor":[                 // array of those who can edit
+  ],
+  "sakai:pooled-content-manager":[                // array of those who can manage (edit & delete)
+    "tester2"
+  ],
+
+  // comments
+  "commentCount":0,                               // count of total comments on this item
+  "sakai:showcomments":"true",                    // show comments or not
+  "sakai:allowcomments":"true",                   // allow comments or not (boolean string)
+
+  // tags
+  "sakai:tags":[                                  // array of tags, fk to /tags/ node
+    "tag1"
+  ],
+
+  // sakaidoc fields
+  "sakai:schemaversion": "2",                     // sakaidocs: version of sakai doc schema
+  // structure0 maps the subpages of the sakaidoc and what widgets appear on each page
+  "structure0":"{\"page1\":{\"_ref\":\"id4621872\",\"_order\":0,\"_title\":\"sakaidoc\",\"main\":{\"_ref\":\"id4621872\",\"_order\":0,\"_title\":\"sakaidoc\"}}}",
+  // id4621872 is a page within the sakaidoc, created as an unstructured node (not a pooled content item) underneath the parent item
+  "id4621872":{
+    "_created":1343421139199,
+    "_id":"KXBYAdgqEeGw4mBDqeXUMQ+",
+    "_lastModifiedBy":"tester2",
+    "_lastModified":1343421139199,
+    "_previousVersion":"KVyo8NgqEeGw4mBDqeXUMQ+",
+    "_createdBy":"tester2",
+    "_path":"mN3owULaa/id4621872",
+    "_versionHistoryId":"KXBYANgqEeGw4mBDqeXUMQ+",
+    "rows":{
+      "_created":1343421139219,
+      "_id":"KV-2MNgqEeGw4mBDqeXUMQ+",
+      "_lastModifiedBy":"tester2",
+      "_lastModified":1343421139219,
+      "_createdBy":"tester2",
+      "_path":"mN3owULaa/id4621872/rows",
+      "__array__0__":{
+        "id":"id79510606",
+        "_created":1343421139274,
+        "_id":"KWgaodgqEeGw4mBDqeXUMQ+",
+        "_lastModifiedBy":"tester2",
+        "_lastModified":1343421139289,
+        "_createdBy":"tester2",
+        "_path":"mN3owULaa/id4621872/rows/__array__0__",
+        "columns":{
+          "_created":1343421139279,
+          "_id":"KWjd8NgqEeGw4mBDqeXUMQ+",
+          "_lastModifiedBy":"tester2",
+          "_lastModified":1343421139279,
+          "_createdBy":"tester2",
+          "_path":"mN3owULaa/id4621872/rows/__array__0__/columns",
+          "__array__0__":{
+            "_created":1343421139283,
+            "_id":"KWl6MNgqEeGw4mBDqeXUMQ+",
+            "_lastModifiedBy":"tester2",
+            "_lastModified":1343421139283,
+            "width":1,
+            "_createdBy":"tester2",
+            "elements":"",
+            "_path":"mN3owULaa/id4621872/rows/__array__0__/columns/__array__0__"
+          }
+        }
+      }
+    }
+  },
+
+  // activity
+  "activity":{                                    // fk to activity object, list of activities delivered FROM this item
+    "sling:resourceType":"sakai/activityStore",
+    "_created":1343408294760,
+    "_id":"QXrOgNgMEeGw4mBDqeXUMQ+",
+    "_lastModifiedBy":"admin",
+    "_lastModified":1343408294760,
+    "_createdBy":"admin",
+    "_path":"mNsskmQOec/activity",
+    "2012-07-27-09-ca0a7c3f0f2d825e4a5388fab0f7ab4ac1c32eeb":{
+      "sakai:activity-source":"mNsskmQOec",
+      "sakai:activity-type":"pooled content",
+      "_lastModifiedBy":"admin",
+      "sakai:activity-actor":"tester2",
+      "_createdBy":"admin",
+      "_path":"mNsskmQOec/activity/2012-07-27-09-ca0a7c3f0f2d825e4a5388fab0f7ab4ac1c32eeb",
+      "sling:resourceType":"sakai/activity",
+      "_created":1343408294972,
+      "_id":"QZsnwNgMEeGw4mBDqeXUMQ+",
+      "sakai:activity-appid":"Content",
+      "_lastModified":1343408295182,
+      "sakai:activity-templateid":"default",
+      "sakai:activityMessage":"CREATED_FILE"
+    }
+  },
+  "activityFeed":{                               // list of activities delivered TO this item
+    "_created":1343408294924,
+    "_id":"QZPUwNgMEeGw4mBDqeXUMQ+",
+    "_lastModifiedBy":"admin",
+    "_lastModified":1343408294924,
+    "_createdBy":"admin",
+    "_path":"mNsskmQOec/activityFeed"
+  }
+}

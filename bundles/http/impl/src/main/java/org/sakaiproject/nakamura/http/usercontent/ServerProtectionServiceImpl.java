@@ -106,7 +106,7 @@ public class ServerProtectionServiceImpl implements ServerProtectionService {
   private static final String HMAC_SHA512 = "HmacSHA512";
   private static final String HMAC_PARAM = ":hmac";
   private static final String[] DEFAULT_TRUSTED_HOSTS = { "localhost:8080 = http://localhost:8082" };
-  private static final String[] DEFAULT_TRUSTED_PATHS = { "/dev", "/devwidgets", "/system", "/logout", "/var" };
+  private static final String[] DEFAULT_TRUSTED_PATHS = { "/dev", "/devwidgets", "/system", "/logout", "/var", "/tests" };
   private static final String[] DEFAULT_TRUSTED_EXACT_PATHS = { };
   private static final String DEFAULT_TRUSTED_SECRET_VALUE = "Change this in production to fully secure your server";
   private static final String[] DEFAULT_WHITELIST_POST_PATHS = {"/system/console"};
@@ -114,7 +114,7 @@ public class ServerProtectionServiceImpl implements ServerProtectionService {
 
   @Property(boolValue=false)
   private static final String DISABLE_XSS_PROTECTION_FOR_UI_DEV = "disable.protection.for.dev.mode";
-  @Property(value = { "/dev", "/devwidgets", "/system", "/logout", "/var" })
+  @Property(value = { "/dev", "/devwidgets", "/system", "/logout", "/var", "/tests" })
   private static final String TRUSTED_PATHS_CONF = "trusted.paths";
   @Property(value = { })
   private static final String TRUSTED_EXACT_PATHS_CONF = "trusted.exact.paths";

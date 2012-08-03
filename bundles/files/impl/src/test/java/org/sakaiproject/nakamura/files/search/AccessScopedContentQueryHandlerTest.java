@@ -134,14 +134,14 @@ public class AccessScopedContentQueryHandlerTest {
     mockRequestForUserId(request, "mrvisser-user");
     mockForRole(parameterMap, SearchableRole.manager);
     // parameters are pre-escaped from the request. Ensure the handler does not re-escape the parameters
-    mockForMime(parameterMap, "sakai/x\\-collection");
+    mockForMime(parameterMap, "sakai\\/x\\-collection");
     mockForQuery(parameterMap, "blah\\-query");
     
     meQueryHandler.loadUserProperties(request, parameterMap);
     
     String q = parameterMap.get(TEMPLATE_PROPS._q.toString());
     
-    Assert.assertEquals("((manager:(mrvisser\\-group OR mrvisser\\-user)) AND (content:(blah\\-query) OR filename:(blah\\-query) OR tag:(blah\\-query) OR description:(blah\\-query) OR ngram:(blah\\-query) OR edgengram:(blah\\-query) OR widgetdata:(blah\\-query)) AND mimeType:sakai/x\\-collection)", q);
+    Assert.assertEquals("((manager:(mrvisser\\-group OR mrvisser\\-user)) AND (content:(blah\\-query) OR filename:(blah\\-query) OR tag:(blah\\-query) OR description:(blah\\-query) OR ngram:(blah\\-query) OR edgengram:(blah\\-query) OR widgetdata:(blah\\-query)) AND mimeType:sakai\\/x\\-collection)", q);
     Assert.assertEquals(parameterMap.get(REQUEST_PARAMETERS.userid.toString()), "mrvisser-user");
     Assert.assertEquals(parameterMap.get(REQUEST_PARAMETERS.role.toString()), "manager");
   }

@@ -42,7 +42,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.impl.BinaryResponseParser;
-import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.NakamuraSolrConfig;
 import org.apache.solr.core.SolrConfig;
@@ -259,7 +259,7 @@ public class MultiMasterSolrClient implements SolrClient {
 		String url = Utils.toString(properties.get(PROP_SOLR_URL),
 				"http://localhost:8983/solr");
 
-		CommonsHttpSolrServer remoteServer = new CommonsHttpSolrServer(url);
+		HttpSolrServer remoteServer = new HttpSolrServer(url);
 		remoteServer.setSoTimeout(Utils.toInt(
 				properties.get(PROP_SO_TIMEOUT), 1000)); // socket
 		// read

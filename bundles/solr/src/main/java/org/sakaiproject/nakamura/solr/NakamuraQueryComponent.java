@@ -15,12 +15,15 @@
  */
 package org.sakaiproject.nakamura.solr;
 
+import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.util.Bits;
 import org.apache.solr.handler.component.QueryComponent;
 import org.apache.solr.handler.component.ResponseBuilder;
 
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.common.params.SolrParams;
-import org.apache.solr.common.util.ConcurrentLRUCache;
+import org.apache.solr.util.ConcurrentLRUCache;
 
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -187,16 +190,16 @@ public class NakamuraQueryComponent extends QueryComponent {
 
   private ConstantScoreQuery buildFilterForPrincipals(final String[] principals) {
     Filter f = new Filter() {
-      public DocIdSet getDocIdSet(IndexReader.AtomicReaderContext context) {
+      public DocIdSet getDocIdSet(AtomicReaderContext context, Bits acceptDocs) {
         long start = System.currentTimeMillis();
 
-        IndexReader rdr = context.reader;
+        AtomicReader rdr = context.reader();
         OpenBitSet bits = new OpenBitSet(rdr.maxDoc());
 
         for (String principal : principals) {
           try {
             DocsEnum td = rdr.termDocsEnum(null, "readers",
-                new BytesRef(principal.trim()));
+                new BytesRef(principal.trim()), false);
 
             if (td == null) {
               continue;

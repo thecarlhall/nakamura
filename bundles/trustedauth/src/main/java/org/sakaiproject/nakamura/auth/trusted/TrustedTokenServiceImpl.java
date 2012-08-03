@@ -410,15 +410,15 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
     String remoteAddress = request.getRemoteAddr();
     if (trustedProxyServerAddrSet.contains(remoteAddress)) {
       if (trustedHeaderName.length() > 0) {
-        userId = request.getHeader(trustedHeaderName);
+        userId = StringUtils.trimToNull(request.getHeader(trustedHeaderName));
         if (userId != null) {
           LOG.debug(
               "Injecting Trusted Token from request: Header [{}] indicated user was [{}] ",
-              0, userId);
+              trustedHeaderName, userId);
         }
       }
       if (userId == null && trustedParameterName.length() > 0) {
-        userId = request.getParameter(trustedParameterName);
+        userId = StringUtils.trimToNull(request.getParameter(trustedParameterName));
         if (userId != null) {
           LOG.debug(
               "Injecting Trusted Token from request: Parameter [{}] indicated user was [{}] ",
@@ -429,7 +429,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
     if (userId == null) {
       Principal p = request.getUserPrincipal();
       if (p != null) {
-        userId = p.getName();
+        userId = StringUtils.trimToNull(p.getName());
         if (userId != null) {
           LOG.debug(
               "Injecting Trusted Token from request: User Principal indicated user was [{}] ",
@@ -438,7 +438,7 @@ public final class TrustedTokenServiceImpl implements TrustedTokenService {
       }
     }
     if (userId == null) {
-      userId = request.getRemoteUser();
+      userId = StringUtils.trimToNull(request.getRemoteUser());
       if ( userId != null ) {
         LOG.debug("Injecting Trusted Token from request: Remote User indicated user was [{}] ", userId);
       }

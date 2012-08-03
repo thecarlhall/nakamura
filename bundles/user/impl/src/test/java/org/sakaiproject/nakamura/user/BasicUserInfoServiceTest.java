@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -76,7 +77,7 @@ public class BasicUserInfoServiceTest {
     SolrServer solrServer = Mockito.mock(SolrServer.class);
     Mockito.when(sss.getServer()).thenReturn(solrServer);
     QueryResponse response = Mockito.mock(QueryResponse.class);
-    Mockito.when(solrServer.query(Mockito.any(SolrParams.class))).thenReturn(response);
+    Mockito.when(solrServer.query(Mockito.any(SolrParams.class), Mockito.eq(SolrRequest.METHOD.POST))).thenReturn(response);
     SolrDocumentList results = Mockito.mock(SolrDocumentList.class);
     Mockito.when(response.getResults()).thenReturn(results);
     Mockito.when(results.getNumFound()).thenReturn(10L);

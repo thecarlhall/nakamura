@@ -25,6 +25,13 @@ public interface SolrSearchResultProcessor {
 
   String DEFAULT_PROCESSOR_PROP = "sakai.solr.search.processor.default";
 
+  /**
+   * @deprecated
+   * @param request
+   * @param query
+   * @return
+   * @throws SolrSearchException
+   */
   SolrSearchResultSet getSearchResultSet(SlingHttpServletRequest request, Query query)
       throws SolrSearchException;
 

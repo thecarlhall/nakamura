@@ -212,4 +212,15 @@ public class SolrSearchUtil {
       throw new IllegalStateException(e);
     }
   }
+
+  public static SolrSearchParameters getParametersFromRequest (final SlingHttpServletRequest request) {
+    final SolrSearchParameters params = new SolrSearchParameters();
+
+    params.setPage(SolrSearchUtil.longRequestParameter(request, PARAMS_PAGE, 0));
+    params.setRecordsPerPage(SolrSearchUtil.longRequestParameter(request, PARAMS_ITEMS_PER_PAGE, DEFAULT_PAGED_ITEMS));
+    params.setPath(request.getResource().getPath());
+
+    return params;
+  }
+
 }

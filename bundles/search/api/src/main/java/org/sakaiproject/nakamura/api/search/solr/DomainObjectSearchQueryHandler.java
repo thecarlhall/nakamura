@@ -202,6 +202,7 @@ public abstract class DomainObjectSearchQueryHandler
   }
 
   /**
+   * @deprecated
    * Translate servlet request parameters into a properly escaped map.
    * TODO Refactor out of SolrSearchServlet for re-use.
    */
@@ -249,6 +250,7 @@ public abstract class DomainObjectSearchQueryHandler
   }
 
   /**
+   * @deprecated
    * Preserves backwards compatibility with the old search template approach
    * until it can be discarded.
    */
@@ -258,6 +260,7 @@ public abstract class DomainObjectSearchQueryHandler
   }
 
   /**
+   * @deprecated
    * Preserves backwards compatibility with the old search template approach
    * until it can be discarded.
    */
@@ -267,6 +270,13 @@ public abstract class DomainObjectSearchQueryHandler
     Map<String, String> parametersMap = loadParametersMap(request);
     configureQuery(parametersMap, query);
     return searchServiceFactory.getSearchResultSet(request, query);
+  }
+
+  public Query getQuery(Map<String, String> config) {
+    Query query = new Query(configureQString(config));
+    LOGGER.debug("Input Query configuration = {}", query);
+    configureQuery(config, query);
+    return query;
   }
 
   /**

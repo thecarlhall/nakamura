@@ -1,7 +1,7 @@
 {
   "sakai:query-template": "description:[* TO *]^4 OR tag:[* TO *]^4 OR hasPreview:true^4 OR filename:[* TO *]",
   "sakai:query-template-options": {
-    "fq": "resourceType:sakai/pooled-content",
+    "fq": "resourceType:sakai\\/pooled-content",
     "items": "${items}"
   },
   "sakai:query-template-defaults": {

@@ -29,6 +29,7 @@ import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.servlets.HttpConstants;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentContext;
+import org.perf4j.aop.Profiled;
 import org.sakaiproject.nakamura.api.http.cache.CacheConfig;
 import org.sakaiproject.nakamura.api.http.cache.StaticContentResponseCache;
 import org.sakaiproject.nakamura.api.memory.Cache;
@@ -44,6 +45,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
+
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -255,8 +257,9 @@ public class StaticContentResponseCacheImpl implements Filter, StaticContentResp
     CachedResponse cachedResponse = getCachedResponse(request);
 
     if (cachedResponse != null && cachedResponse.isValid()) {
-      TelemetryCounter.incrementValue("http", "StaticContentResponseCacheImpl-hit", getCacheKey(request));
-      cachedResponse.replay(response);
+      String key = getCacheKey(request);
+      TelemetryCounter.incrementValue("http", "StaticContentResponseCacheImpl-hit", key);
+      hitEntry(key, response, cachedResponse);
       return true;
     }
 
@@ -289,12 +292,23 @@ public class StaticContentResponseCacheImpl implements Filter, StaticContentResp
     try {
       if (responseOperation.canCache()) {
         String key = getCacheKey(request);
-        cache.put(key, new CachedResponse(responseOperation, cacheConfig.getMaxAge()));
+        saveEntry(key, new CachedResponse(responseOperation, cacheConfig.getMaxAge()));
         TelemetryCounter.incrementValue("http", "StaticContentResponseCacheImpl-save", key);
       }
     } catch (IOException e) {
       LOGGER.info("Failed to save response in cache ", e);
     }
+  }
+  
+  @Profiled(tag="http:StaticContentResponseCacheImpl:hit:{$0}")
+  private void hitEntry(String key, HttpServletResponse response, CachedResponse cachedResponse)
+      throws IOException {
+    cachedResponse.replay(response);
+  }
+  
+  @Profiled(tag="http:StaticContentResponseCacheImpl:save:{$0}")
+  private void saveEntry(String key, CachedResponse value) {
+    cache.put(key, value);
   }
 
 }

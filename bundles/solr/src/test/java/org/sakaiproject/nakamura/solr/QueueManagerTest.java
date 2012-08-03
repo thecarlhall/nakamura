@@ -1,5 +1,6 @@
 package org.sakaiproject.nakamura.solr;
 
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
@@ -223,7 +224,7 @@ public class QueueManagerTest {
     ModifiableSolrParams params = new ModifiableSolrParams();
     params.set("q","*:*");
 
-    QueryResponse response = server.query(params);
+    QueryResponse response = server.query(params, SolrRequest.METHOD.POST);
 
     int size = response.getResults().size();
     assertEquals (10, size);

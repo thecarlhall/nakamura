@@ -144,7 +144,7 @@ public class RelatedContentSearchPropertyProvider implements SolrSearchPropertyP
     final Set<String> viewers = new HashSet<String>(managers);
 
     final StringBuilder sourceQuery = new StringBuilder(
-        "resourceType:sakai/pooled-content AND (manager:(");
+        "resourceType:sakai\\/pooled-content AND (manager:(");
     sourceQuery.append(Joiner.on(" OR ").join(managers));
     sourceQuery.append(") OR viewer:(");
     sourceQuery.append(Joiner.on(" OR ").join(viewers));

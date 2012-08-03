@@ -62,7 +62,7 @@ import javax.jcr.RepositoryException;
 @Component(immediate = true, metatype = true)
 @Properties(value = { @Property(name = "service.vendor", value = "The Sakai Foundation"),
     @Property(name = SolrSearchConstants.REG_BATCH_PROCESSOR_NAMES, value = "LiteFiles") })
-@Service(value = SolrSearchBatchResultProcessor.class)
+@Service(value = { SolrSearchBatchResultProcessor.class, LiteFileSearchBatchResultProcessor.class })
 public class LiteFileSearchBatchResultProcessor implements SolrSearchBatchResultProcessor {
 
   public static final Logger LOGGER = LoggerFactory
@@ -76,11 +76,6 @@ public class LiteFileSearchBatchResultProcessor implements SolrSearchBatchResult
   
   @Reference
   private Repository repository;
-
-  public LiteFileSearchBatchResultProcessor(SolrSearchServiceFactory searchServiceFactory, ProfileService profileService) {
-    this.searchServiceFactory = searchServiceFactory;
-    this.profileService = profileService;
-  }
 
   public LiteFileSearchBatchResultProcessor() {
   }

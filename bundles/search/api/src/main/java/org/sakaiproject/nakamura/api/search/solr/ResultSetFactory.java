@@ -18,11 +18,24 @@
 package org.sakaiproject.nakamura.api.search.solr;
 
 import org.apache.sling.api.SlingHttpServletRequest;
+import org.sakaiproject.nakamura.api.lite.Session;
+import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 
 /**
  * Interface for query processors that generate a result set.
  */
 public interface ResultSetFactory {
+  /**
+   * @deprecated
+   * @param request
+   * @param query
+   * @param asAnon
+   * @return
+   * @throws SolrSearchException
+   */
   SolrSearchResultSet processQuery(SlingHttpServletRequest request, Query query,
       boolean asAnon) throws SolrSearchException;
+
+  SolrSearchResultSet processQuery(Session session, Authorizable authorizable, Query query, SolrSearchParameters params)
+     throws SolrSearchException;
 }

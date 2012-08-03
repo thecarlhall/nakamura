@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -41,7 +42,7 @@ import com.google.common.collect.Lists;
 public class ContentCounter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ContentCounter.class);
-  private static final String QUERY_TMPL = "(resourceType:sakai/pooled-content OR category:collection) AND ((manager:(%1$s) OR viewer:(%1$s) OR editor:(%1$s))";
+  private static final String QUERY_TMPL = "(resourceType:sakai\\/pooled-content OR category:collection) AND ((manager:(%1$s) OR viewer:(%1$s) OR editor:(%1$s))";
   private static final String USER_TMPL = " OR (showalways:true AND (manager:(%1$s) OR viewer:(%1$s) OR editor:(%1$s)))";
 
   public int countExact(Authorizable au, AuthorizableManager authorizableManager,
@@ -99,7 +100,7 @@ public class ContentCounter {
     SolrQuery solrQuery = new SolrQuery(queryString).setRows(0);
 
     try {
-      QueryResponse response = solrServer.query(solrQuery);
+      QueryResponse response = solrServer.query(solrQuery, SolrRequest.METHOD.POST);
       return (int) response.getResults().getNumFound();
     } catch (SolrServerException e) {
       LOGGER.warn(e.getMessage(), e);

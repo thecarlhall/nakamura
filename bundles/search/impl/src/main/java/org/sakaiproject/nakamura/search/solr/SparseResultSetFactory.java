@@ -45,11 +45,15 @@ import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.StorageConstants;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
+import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
+import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.content.ContentManager;
 import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.search.solr.ResultSetFactory;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchException;
+import org.sakaiproject.nakamura.api.search.solr.SolrSearchParameters;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultSet;
 
 import java.util.Collection;
@@ -58,6 +62,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
+import org.sakaiproject.nakamura.api.search.solr.SolrSearchUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,18 +99,35 @@ public class SparseResultSetFactory implements ResultSetFactory {
     verySlowQueryThreshold = PropertiesUtil.toLong(props.get(VERY_SLOW_QUERY_TIME), 100L);
   }
 
+  public SolrSearchResultSet processQuery(SlingHttpServletRequest request, Query query, boolean asAnon)
+     throws SolrSearchException {
+    try {
+      final Session session = StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(Session.class));
+      final AuthorizableManager authzMgr = session.getAuthorizableManager();
+      final Authorizable authorizable = authzMgr.findAuthorizable(asAnon ? User.ANON_USER : request.getRemoteUser());
+
+      return processQuery(session, authorizable, query, SolrSearchUtil.getParametersFromRequest(request));
+    } catch (AccessDeniedException e) {
+      LOGGER.error("Access denied for {}", request.getRemoteUser());
+      throw new SolrSearchException(403, "access denied");
+    } catch (StorageClientException e) {
+      LOGGER.error("Error processing query", e);
+      throw new SolrSearchException(500, "internal error");
+    }
+  }
+
   /**
    * Process properties to query sparse content directly.
    *
-   * @param request
+   * @param session
+   * @param authorizable
    * @param query
-   * @param asAnon
    * @return
    * @throws StorageClientException
    * @throws AccessDeniedException
    */
-  public SolrSearchResultSet processQuery(SlingHttpServletRequest request, Query query,
-      boolean asAnon) throws SolrSearchException {
+  public SolrSearchResultSet processQuery(Session session, Authorizable authorizable, Query query,
+     SolrSearchParameters params) throws SolrSearchException {
     try {
     // use solr parsing to get the terms from the query string
     QueryParser parser = new QueryParser(Version.LUCENE_40, "id",
@@ -150,8 +173,6 @@ public class SparseResultSetFactory implements ResultSetFactory {
        props.put(StorageConstants.CUSTOM_STATEMENT_SET, name);
     }
 
-    Session session = StorageClientUtils.adaptToSession(request.getResourceResolver()
-        .adaptTo(javax.jcr.Session.class));
     ContentManager cm = session.getContentManager();
     long tquery = System.currentTimeMillis();
     Iterable<Content> items = cm.find(props);

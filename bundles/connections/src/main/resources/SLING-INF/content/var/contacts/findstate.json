@@ -1,6 +1,6 @@
 {
-//  "sakai:query-template": "sakai\\:contactstorepath:${_connectionstore} AND sling\\:resourceType:sakai/contact AND sakai\\:state:(${state})",
-  "sakai:query-template": "contactstorepath:${_connectionstore} AND resourceType:sakai/contact AND state:(${state})",
+//  "sakai:query-template": "sakai\\:contactstorepath:${_connectionstore} AND sling\\:resourceType:sakai\\/contact AND sakai\\:state:(${state})",
+  "sakai:query-template": "contactstorepath:${_connectionstore} AND resourceType:sakai\\/contact AND state:(${state})",
   "sakai:query-template-options": {
       "sort": "${sortOn} ${sortOrder}"
   },

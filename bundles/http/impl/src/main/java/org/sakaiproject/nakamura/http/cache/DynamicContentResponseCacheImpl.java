@@ -26,6 +26,7 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentContext;
+import org.perf4j.aop.Profiled;
 import org.sakaiproject.nakamura.api.http.cache.DynamicContentResponseCache;
 import org.sakaiproject.nakamura.api.memory.Cache;
 import org.sakaiproject.nakamura.api.memory.CacheManagerService;
@@ -36,6 +37,7 @@ import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Dictionary;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -90,7 +92,7 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
     String etag = cache.get(key);
     if (etag == null) {
       etag = buildETag(request);
-      cache.put(key, etag);
+      saveEntry(cacheCategory, key, etag);
       TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-save", cacheCategory);
     }
     setHeaders(response, etag);
@@ -103,12 +105,12 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
     }
     String key = buildCacheKey(cacheCategory, userID);
     if (cache.containsKey(key)) {
-      cache.remove(key);
+      invalidateEntry(cacheCategory, key);
       TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-invalidation", cacheCategory);
     }
     String wildcardKey = buildCacheKey("*", userID);
     if (cache.containsKey(wildcardKey)) {
-      cache.remove(wildcardKey);
+      invalidateEntry("*", wildcardKey);
       TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-invalidation", "*");
     }
   }
@@ -122,7 +124,7 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
     String clientEtag = request.getHeader("If-None-Match");
     String serverEtag = cache.get(buildCacheKey(cacheCategory, request.getRemoteUser()));
     if (clientEtag != null && clientEtag.equals(serverEtag)) {
-      response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+      hitEntry(cacheCategory, response);
       setHeaders(response, serverEtag);
       TelemetryCounter.incrementValue("http", "DynamicContentResponseCache-hit", cacheCategory);
       return true;
@@ -151,6 +153,21 @@ public class DynamicContentResponseCacheImpl implements DynamicContentResponseCa
 
   String buildCacheKey(String cacheCategory, String userID) {
     return userID + ':' + cacheCategory;
+  }
+  
+  @Profiled(tag="http:DynamicContentResponseCache:save:{$0}", el=true)
+  private void saveEntry(String cacheCategory, String key, String value) {
+    cache.put(key, value);
+  }
+  
+  @Profiled(tag="http:DynamicResponseCache:invalidation:{$0}", el=true)
+  private void invalidateEntry(String cacheCategory, String key) {
+    cache.remove(key);
+  }
+  
+  @Profiled(tag="http:DynamicResponseCache:hit:{$0}")
+  private void hitEntry(String cacheCategory, HttpServletResponse response) {
+    response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
   }
 
   private boolean isDisabled(HttpServletRequest request) {

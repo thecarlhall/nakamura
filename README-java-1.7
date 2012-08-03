@@ -1,0 +1,16 @@
+To build and run Nakamura under the Sun Java 1.7 JVM it is necessary to disable
+the 1.7 type verifier in order to work with Maven dependencies compiled for 1.5
+and 1.6. This is particularly needed for several Felix and Jackrabbit
+dependencies.
+
+Compiling
+---------
+Export MAVEN_OPTS including the flag -XX:-UseSplitVerifier
+
+   export MAVEN_OPTS="-XX:-UseSplitVerifier $MAVEN_OPTS"
+
+Executing
+---------
+Export JAVA_OPTS including the flag -XX:-UseSplitVerifier
+
+   export JAVA_OPTS="-XX:-UseSplitVerifier $JAVA_OPTS"

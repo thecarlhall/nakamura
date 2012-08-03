@@ -34,6 +34,8 @@ import org.sakaiproject.nakamura.api.cluster.ClusterTrackingService;
 import org.sakaiproject.nakamura.api.memory.Cache;
 import org.sakaiproject.nakamura.api.memory.CacheManagerService;
 import org.sakaiproject.nakamura.api.memory.CacheScope;
+import org.sakaiproject.nakamura.api.search.SearchUtil;
+import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.memory.MapCacheImpl;
 
 import com.google.common.collect.ImmutableMap;
@@ -89,8 +91,8 @@ public class DeletedPathsServiceImplTest {
   }
 
   private void testAddPathsHelper(String eventTopic) throws Exception {
-    List<String> paths = Lists.newArrayList("/first/second", "/first/third",
-        "/first/fourth");
+    List<String> paths = Lists.newArrayList("/first/second-thing", "/first/third:thing",
+        "/first/fourth{type}");
     List<String> addedPaths = Lists.newArrayList();
     for (String path : paths) {
       addedPaths.add(path);
@@ -112,9 +114,9 @@ public class DeletedPathsServiceImplTest {
 
   @Test
   public void testDeleteParent() throws Exception {
-    List<String> throwAwayPaths = Lists.newArrayList("/first/second", "/first/third",
-        "/first/fourth");
-    List<String> keeperPaths = Lists.newArrayList("/other", "/thing", "/first");
+    List<String> throwAwayPaths = Lists.newArrayList("/[first]/second", "/[first]/third",
+        "/[first]/~fourth");
+    List<String> keeperPaths = Lists.newArrayList("/other&", "/thing!", "/[first]");
     List<String> addedPaths = Lists.newArrayList();
     // load up some paths
     for (String path : throwAwayPaths) {
@@ -133,5 +135,29 @@ public class DeletedPathsServiceImplTest {
     }
 
     assertEquals(keeperPaths, service.getDeletedPaths());
+  }
+
+  @Test
+  public void testEscapedPaths() throws Exception {
+    List<String> paths = Lists.newArrayList("/first/second", "/first/third",
+        "/first/fourth");
+    List<String> addedPaths = Lists.newArrayList();
+    for (String path : paths) {
+      addedPaths.add(path);
+      service.handleEvent(new Event("org/sakaiproject/nakamura/lite/content/DELETE",
+          ImmutableMap.of("path", path)));
+      List<String> deletedPaths = service.getEscapedDeletedPaths(Query.SOLR);
+  
+      // make sure the lists are the same
+      assertEquals(escapePaths(addedPaths), deletedPaths);
+    }
+  }
+
+  private List<String> escapePaths(List<String> paths) {
+    List<String> escapedPaths = Lists.newArrayList();
+    for (String path : paths) {
+      escapedPaths.add(SearchUtil.escapeString(path, Query.SOLR));
+    }
+    return escapedPaths;
   }
 }

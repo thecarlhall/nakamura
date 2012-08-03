@@ -118,7 +118,7 @@ public class ByTagSearchPropertyProviderTest {
     Map<String, String> props = Maps.newHashMap();
     propProvider.loadUserProperties(request, props);
     assertTrue(props.containsKey(PROP_RESOURCE_TYPE));
-    assertEquals("sakai/pooled-content", props.get(PROP_RESOURCE_TYPE));
+    assertEquals("sakai\\/pooled-content", props.get(PROP_RESOURCE_TYPE));
     assertEquals("", props.get(PROP_TYPE));
   }
 
@@ -136,7 +136,7 @@ public class ByTagSearchPropertyProviderTest {
     props.clear();
     propProvider.loadUserProperties(request, props);
     assertTrue(props.containsKey(PROP_RESOURCE_TYPE));
-    assertEquals("sakai/pooled-content", props.get(PROP_RESOURCE_TYPE));
+    assertEquals("sakai\\/pooled-content", props.get(PROP_RESOURCE_TYPE));
     assertEquals("", props.get(PROP_TYPE));
 
     props.clear();

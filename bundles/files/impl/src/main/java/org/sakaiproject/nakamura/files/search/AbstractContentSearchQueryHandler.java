@@ -89,9 +89,9 @@ public abstract class AbstractContentSearchQueryHandler extends DomainObjectSear
      * for that match as well.
      */
     if (hasGeneralQuery(parametersMap)) {
-      return "resourceType:(sakai/pooled-content OR sakai/widget-data)";
+      return "resourceType:(sakai\\/pooled-content OR sakai\\/widget-data)";
     } else {
-      return "resourceType:sakai/pooled-content";
+      return "resourceType:sakai\\/pooled-content";
     }
   }
   
@@ -132,7 +132,7 @@ public abstract class AbstractContentSearchQueryHandler extends DomainObjectSear
     configureQuery(parametersMap, query);
     return searchServiceFactory.getSearchResultSet(request, query);
   }
-  
+
   /**
    * {@inheritDoc}
    * @see org.sakaiproject.nakamura.api.search.solr.DomainObjectSearchQueryHandler#writeResult(org.sakaiproject.nakamura.api.lite.Session, java.util.Map, org.apache.sling.commons.json.io.JSONWriter, org.sakaiproject.nakamura.api.search.solr.Result)
@@ -146,9 +146,7 @@ public abstract class AbstractContentSearchQueryHandler extends DomainObjectSear
       content = session.getContentManager().get(path);
       if (content != null) {
         jsonWriter.object();
-        // This search defaults to traversing the full tree of hierarchical content,
-        // equivalent to a selector of "infinity".
-        int traversalDepth = -1;
+        int traversalDepth = 0;
         if (parametersMap.containsKey(REQUEST_PARAMETERS_PROPS._traversalDepth.toString())) {
           String traversalDepthValue = parametersMap.get(REQUEST_PARAMETERS_PROPS._traversalDepth.toString());
           try {

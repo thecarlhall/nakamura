@@ -20,6 +20,7 @@ package org.sakaiproject.nakamura.user.counts;
 import org.apache.sling.commons.scheduler.Job;
 import org.apache.sling.commons.scheduler.JobContext;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -32,6 +33,8 @@ import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
+import org.sakaiproject.nakamura.api.search.SearchUtil;
+import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.solr.SolrServerService;
 import org.sakaiproject.nakamura.api.user.counts.CountProvider;
 import org.slf4j.Logger;
@@ -77,7 +80,7 @@ public class CountsRefreshJob implements Job {
       SolrQuery solrQuery = new SolrQuery(queryString).setStart(0).setRows(batchSize);
       QueryResponse response;
       try {
-        response = solrServer.query(solrQuery);
+        response = solrServer.query(solrQuery, SolrRequest.METHOD.POST);
         SolrDocumentList results = response.getResults();
         long numResults = results.getNumFound();
         if (LOGGER.isDebugEnabled()) {

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Licensed to the Sakai Foundation (SF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~ http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.sakaiproject.nakamura</groupId>
+  <artifactId>solr-example-resources</artifactId>
+  <version>4.0.0-ALPHA</version>
+  <name>JAR wrapper of org.apache.solr/example</name>
+  <description>
+    Checks out Solr/Lucene, and then creates a JAR with the "solr/example" files, including
+    default starter configurations.
+  </description>
+  <packaging>jar</packaging>
+  <properties>
+    <solr.scm.url>scm:svn:http://svn.apache.org/repos/asf/lucene/dev</solr.scm.url>
+    <solr.srcdir>${project.build.directory}/solr-src</solr.srcdir>
+    <solr.revision>lucene_solr_4_0_0_ALPHA</solr.revision>
+  </properties>
+  <build>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-ssh</artifactId>
+        <version>2.2</version>
+      </extension>
+    </extensions>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-scm-plugin</artifactId>
+        <version>1.7</version>
+        <executions>
+          <execution>
+            <id>checkout-solr</id>
+            <goals><goal>export</goal></goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <!--
+                All we need from the Solr/Lucene source tree is the contents of
+                "solr/examples". Although plugin documentation might suggest
+                combining scmVersion, scmVersionType, and includes clauses to achieve
+                that goal, "includes" is implemented by checking out the entire project
+                and then deleting what's not wanted from the working directory.
+                Pointing directly at the Subversion URL is more efficient.
+              -->
+              <connectionUrl>${solr.scm.url}/tags/${solr.revision}/solr/example</connectionUrl>
+              <exportDirectory>${solr.srcdir}</exportDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>2.4</version>
+        <configuration>
+          <classesDirectory>${solr.srcdir}</classesDirectory>
+          <archive>
+            <manifestEntries>
+              <SCM-URL>${solr.scm.url}</SCM-URL>
+              <SCM-Revision>${solr.revision}</SCM-Revision>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <distributionManagement>
+    <downloadUrl>http://source.sakaiproject.org/maven2/</downloadUrl>
+    <snapshotRepository>
+        <uniqueVersion>false</uniqueVersion>
+        <id>sakai-maven-snapshots-scp</id>
+        <name>Sakai snapshot Repo</name>
+        <url>scp://source.sakaiproject.org/var/www/html/maven2-snapshots
+        </url>
+        <layout>default</layout>
+    </snapshotRepository>
+    <repository>
+        <uniqueVersion>false</uniqueVersion>
+        <id>sakai-maven2-scp</id>
+        <name>Sakai maven2 repository</name>
+        <url>scp://source.sakaiproject.org/var/www/html/maven2</url>
+        <layout>default</layout>
+    </repository>
+  </distributionManagement>
+</project>

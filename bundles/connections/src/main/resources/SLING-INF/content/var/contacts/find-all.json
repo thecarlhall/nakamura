@@ -1,5 +1,5 @@
 {
-  "sakai:query-template": 'path:${_connectionstore} AND resourceType:sakai/contact',
+  "sakai:query-template": 'path:${_connectionstore} AND resourceType:sakai\\/contact',
   "sakai:query-template-options": {
       "sort": "${sortOn} ${sortOrder}"
   },

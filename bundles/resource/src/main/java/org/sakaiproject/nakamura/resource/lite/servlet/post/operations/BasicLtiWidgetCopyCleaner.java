@@ -66,12 +66,15 @@ public class BasicLtiWidgetCopyCleaner extends AbstractBasicLtiCleaner {
     try {
       adminSession = repository.loginAdministrative();
       ContentManager adminContentManager = adminSession.getContentManager();
-      List<ActionRecord> copies = StorageClientUtils.copyTree(adminContentManager, ltiKeyFromPath, ltiKeyToPath, true);
-      keysWereCopied = (copies != null && !copies.isEmpty());
       
-      // make sure the copied ltiKeys node is still locked down
-      if (keysWereCopied) {
-        lockDownKeys(adminSession, widgetToPath, session.getUserId());
+      if (adminContentManager.exists(ltiKeyFromPath)) {
+        List<ActionRecord> copies = StorageClientUtils.copyTree(adminContentManager, ltiKeyFromPath, ltiKeyToPath, true);
+        keysWereCopied = (copies != null && !copies.isEmpty());
+        
+        // make sure the copied ltiKeys node is still locked down
+        if (keysWereCopied) {
+          lockDownKeys(adminSession, widgetToPath, session.getUserId());
+        }
       }
     } catch (IOException e) {
       throw new StorageClientException("Exception occurred when copying BasicLTI keys to destination location.", e);

@@ -53,7 +53,7 @@ public class CommentSearchPropertyProvider implements SolrSearchPropertyProvider
       Resource pooledResource = resourceResolver.getResource(resourcePath);
       if (pooledResource != null) {
         Content pooledContent = pooledResource.adaptTo(Content.class);
-        String safePath = ClientUtils.escapeQueryChars(pooledContent.getPath()) + "/*";
+        String safePath = ClientUtils.escapeQueryChars(pooledContent.getPath());
         propertiesMap.put("path", safePath);
       }
     }

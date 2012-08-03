@@ -2,7 +2,7 @@
   "sling:resourceType": "sakai/solr-search",
   "sakai:query-template": "(general:(${q}) OR ngram:(${q}) OR edgengram:(${q})${_fullProfileOr}) ${_tags}",
   "sakai:query-template-options": {
-      "fq": "resourceType:(authorizable OR profile OR sakai/pooled-content OR sakai/widget-data)",
+      "fq": "resourceType:(authorizable OR profile OR sakai\\/pooled-content OR sakai\\/widget-data)",
       "group": true,
       "group.field": "returnpath",
       "sort": "${sortOn} ${sortOrder}",

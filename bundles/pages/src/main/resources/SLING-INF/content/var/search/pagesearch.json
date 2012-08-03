@@ -1,6 +1,6 @@
 {
   "sling:resourceType": "sakai/sparse-search",
-  "sakai:query-template": "path:${_path} AND resourceType:sakai/page ${_filter}",
+  "sakai:query-template": "path:${_path} AND resourceType:sakai\\/page ${_filter}",
   "sakai:query-template-options": {
       "sort": "${sortOn} ${sortOrder}"
   },

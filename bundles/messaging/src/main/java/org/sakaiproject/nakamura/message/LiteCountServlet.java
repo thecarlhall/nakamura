@@ -122,11 +122,11 @@ public class LiteCountServlet extends SlingSafeMethodsServlet {
       // We do the query on the user's messageStore.
       String messageStorePath = ClientUtils.escapeQueryChars(messagingService.getFullPathToStore(request.getRemoteUser(), session));
       // q=(messagestore:a\:208861/message/
-      // &fq=resourceType:sakai/message AND type:internal AND messagebox:"inbox"
+      // &fq=resourceType:sakai\\/message AND type:internal AND messagebox:"inbox"
       // AND read:"false")&group=true&group.field=category&group.limit=0&fl=category
       String queryString = "messagestore:" + messageStorePath;
 
-      StringBuilder filterQuery = new StringBuilder("resourceType:sakai/message AND type:internal");
+      StringBuilder filterQuery = new StringBuilder("resourceType:sakai\\/message AND type:internal");
 
       // Get the filters
       if (request.getRequestParameter("filters") != null

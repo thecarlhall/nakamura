@@ -17,6 +17,27 @@
  */
 package org.sakaiproject.nakamura.events;
 
+import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
+import org.apache.sling.commons.osgi.PropertiesUtil;
+import org.osgi.service.component.ComponentContext;
+import org.osgi.service.event.Event;
+import org.osgi.service.event.EventConstants;
+import org.osgi.service.event.EventHandler;
+import org.perf4j.aop.Profiled;
+import org.sakaiproject.nakamura.api.activemq.ConnectionFactoryService;
+import org.sakaiproject.nakamura.api.cluster.ClusterTrackingService;
+import org.sakaiproject.nakamura.api.events.EventDeliveryConstants;
+import org.sakaiproject.nakamura.api.events.EventDeliveryConstants.EventAcknowledgeMode;
+import org.sakaiproject.nakamura.api.events.EventDeliveryConstants.EventDeliveryMode;
+import org.sakaiproject.nakamura.api.events.EventDeliveryConstants.EventMessageMode;
+import org.sakaiproject.nakamura.util.osgi.EventUtils;
+import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Dictionary;
 import java.util.HashSet;
 import java.util.List;
@@ -30,26 +51,6 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
-
-import org.apache.felix.scr.annotations.Component;
-import org.apache.felix.scr.annotations.Property;
-import org.apache.felix.scr.annotations.Reference;
-import org.apache.felix.scr.annotations.Service;
-import org.apache.sling.commons.osgi.PropertiesUtil;
-import org.osgi.service.component.ComponentContext;
-import org.osgi.service.event.Event;
-import org.osgi.service.event.EventConstants;
-import org.osgi.service.event.EventHandler;
-import org.sakaiproject.nakamura.api.activemq.ConnectionFactoryService;
-import org.sakaiproject.nakamura.api.cluster.ClusterTrackingService;
-import org.sakaiproject.nakamura.api.events.EventDeliveryConstants;
-import org.sakaiproject.nakamura.api.events.EventDeliveryConstants.EventAcknowledgeMode;
-import org.sakaiproject.nakamura.api.events.EventDeliveryConstants.EventDeliveryMode;
-import org.sakaiproject.nakamura.api.events.EventDeliveryConstants.EventMessageMode;
-import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
-import org.sakaiproject.nakamura.util.osgi.EventUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Bridge to send OSGi events onto a JMS topic.
@@ -158,13 +159,24 @@ public class OsgiJmsBridge implements EventHandler {
       // Ignore Log messages in jms.
       return;
     }
-    Connection conn = null;
+    
+    handleValidEvent(event);
+  }
 
+  /** 
+   * Handles an event that is known not to be ignored.
+   * 
+   * @param event
+   * @see #handleEvent(Event)
+   */
+  @Profiled(tag="event:JMSBridge:{$0.topic}", el=true)
+  private void handleValidEvent(Event event) {
+    Connection conn = null;
+    
     LOGGER.debug("Processing event {}", event);
     TelemetryCounter.incrementValue("event", "JMSBridge", event.getTopic());
     Session clientSession = null;
     try {
-
       conn = connFactoryService.getDefaultPooledConnectionFactory().createConnection();
       // conn.setClientID(connectionClientId);
       // post to JMS

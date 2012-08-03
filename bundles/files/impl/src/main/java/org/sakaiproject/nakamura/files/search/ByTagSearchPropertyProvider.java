@@ -55,7 +55,7 @@ import java.util.Set;
 public class ByTagSearchPropertyProvider implements SolrSearchPropertyProvider {
   protected static final String PROP_RESOURCE_TYPE = "_resourceType";
   protected static final String PROP_TYPE = "_type";
-  protected static final String DEFAULT_FILTER_QUERY = "(authorizable OR sakai/pooled-content)";
+  protected static final String DEFAULT_FILTER_QUERY = "(authorizable OR sakai\\/pooled-content)";
 
   /**
    * {@inheritDoc}
@@ -88,7 +88,7 @@ public class ByTagSearchPropertyProvider implements SolrSearchPropertyProvider {
           type = "type:g";
         }
       } else if (types.contains("c")) {
-        resourceType = "sakai/pooled-content";
+        resourceType = "sakai\\/pooled-content";
       }
     }
 

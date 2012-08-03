@@ -27,9 +27,12 @@ import org.apache.felix.scr.annotations.ReferencePolicy;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.commons.osgi.PropertiesUtil;
+import org.sakaiproject.nakamura.api.lite.Session;
+import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.search.solr.ResultSetFactory;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchException;
+import org.sakaiproject.nakamura.api.search.solr.SolrSearchParameters;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultSet;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
 import org.slf4j.Logger;
@@ -63,6 +66,14 @@ public class SolrSearchServiceFactoryImpl implements SolrSearchServiceFactory {
     }
   }
 
+  /**
+   * @deprecated
+   * @param request
+   * @param query
+   * @param asAnon
+   * @return
+   * @throws SolrSearchException
+   */
   public SolrSearchResultSet getSearchResultSet(SlingHttpServletRequest request,
       Query query, boolean asAnon) throws SolrSearchException {
     SolrSearchResultSet rs = null;
@@ -73,8 +84,25 @@ public class SolrSearchServiceFactoryImpl implements SolrSearchServiceFactory {
     return rs;
   }
 
+  /**
+   * @deprecated
+   * @param request
+   * @param query
+   * @return
+   * @throws SolrSearchException
+   */
   public SolrSearchResultSet getSearchResultSet(SlingHttpServletRequest request,
       Query query) throws SolrSearchException {
     return getSearchResultSet(request, query, false);
+  }
+
+  public SolrSearchResultSet getSearchResultSet (final Session session, final Authorizable authorizable,
+     final Query query, final SolrSearchParameters params) throws SolrSearchException {
+    SolrSearchResultSet rs = null;
+    ResultSetFactory factory = resultSetFactories.get(Query.SOLR);
+    if (factory != null) {
+      rs = factory.processQuery(session, authorizable, query, params);
+    }
+    return rs;
   }
 }

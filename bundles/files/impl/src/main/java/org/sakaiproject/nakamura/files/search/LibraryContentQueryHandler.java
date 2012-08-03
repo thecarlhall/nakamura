@@ -32,6 +32,7 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.search.SearchConstants;
 import org.sakaiproject.nakamura.api.search.solr.MissingParameterException;
+import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchPropertyProvider;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultProcessor;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
@@ -107,6 +108,35 @@ public class LibraryContentQueryHandler extends AbstractContentSearchQueryHandle
     
     // finally, build the query string with the above parameters
     propertiesMap.put(TEMPLATE_PROPS._q.toString(), configureQString(propertiesMap));
+  }
+
+  @Override
+  public Query getQuery(Map<String, String> config) {
+    // determine the user to use for the search
+    String user = config.get("userid");
+    if (user == null || User.ANON_USER.equals(user)) {
+      throw new MissingParameterException("Cannot search with anonymous user. " +
+          "Must authenticate, or specify 'userid' parameter.");
+    }
+
+    // determine the number of levels deep to look
+    int levels = 0;
+    try {
+      if (config.get(REQUEST_PARAMETERS.levels.toString()) != null) {
+        String levelsStr = config.get(REQUEST_PARAMETERS.levels.toString());
+        levels = Math.min(Integer.parseInt(levelsStr),
+            PRINCIPAL_MAX_DEPTH);
+      }
+    } catch (NumberFormatException nfe) {
+      throw new IllegalArgumentException("The levels parameter must be parseable to an integer.", nfe);
+    }
+
+    // need to set these parameters to ensure they are not query-escaped
+    // TODO: Maybe the parameters should only be query-escaped at the time that they are put into the lucene query (i.e., in buildCustomQString())
+    config.put(REQUEST_PARAMETERS.userid.toString(), user);
+    config.put(REQUEST_PARAMETERS.levels.toString(), String.valueOf(levels));
+
+    return super.getQuery(config);
   }
 
   @Override

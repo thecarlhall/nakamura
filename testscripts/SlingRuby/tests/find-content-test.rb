@@ -25,7 +25,7 @@ class TC_FindContentTest < Test::Unit::TestCase
     assert_equal('201', res.code, "Should be able to create tag: #{res}\n#{res.body}")
     # Create pooled content which matches on description.
     @id_description = "descriptionmatch#{m}"
-    res = @fm.upload_pooled_file(@id_description, "A beautiful #{@qs}", 'text/plain')
+    res = @fm.upload_pooled_file(@id_description, "That beautiful #{@qs}", 'text/plain')
     assert_equal("201",res.code,res.body)
     # Create widget data which matches.
     @id_widget = "widgetmatch#{m}"

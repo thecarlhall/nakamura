@@ -35,11 +35,14 @@ import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.search.SearchConstants;
 import org.sakaiproject.nakamura.api.search.solr.MissingParameterException;
+import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchPropertyProvider;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultProcessor;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
 import org.sakaiproject.nakamura.api.user.AuthorizableUtil;
 import org.sakaiproject.nakamura.util.SparseUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -65,6 +68,8 @@ import java.util.Map;
   })
 public class AccessScopedContentQueryHandler extends AbstractContentSearchQueryHandler {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(AbstractContentSearchQueryHandler.class);
+
   private final static String ROLE_TEMPLATE = "(%s:(%s))";
   
   private final static Joiner JOINER_OR = Joiner.on(" OR ");
@@ -84,6 +89,7 @@ public class AccessScopedContentQueryHandler extends AbstractContentSearchQueryH
   }
   
   /**
+   * @deprecated
    * {@inheritDoc}
    * @see org.sakaiproject.nakamura.api.search.solr.SolrSearchPropertyProvider#loadUserProperties(org.apache.sling.api.SlingHttpServletRequest, java.util.Map)
    */
@@ -115,6 +121,39 @@ public class AccessScopedContentQueryHandler extends AbstractContentSearchQueryH
 
   }
 
+  @Override
+  public Query getQuery(Map<String, String> config) {
+
+    // verify that we can determine a userid
+    //  1) start with the remote user
+    String userid = config.get("_userId");
+    //  2) revert to userid param
+    if (config.containsKey("userid")) {
+      userid = config.get("userid");
+    }
+    //  3) finally, use Anonymous if no userid is present
+    if (userid == null) {
+      userid = User.ANON_USER;
+    }
+
+    // verify there is a valid role specified
+    String roleStr = config.get(REQUEST_PARAMETERS.role.toString());
+    if (roleStr != null) {
+      try {
+        SearchableRole.valueOf(roleStr);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Provided role parameter is not a valid role: "+roleStr, e);
+      }
+    } else {
+      throw new MissingParameterException("Required parameter 'role' was not found.");
+    }
+
+    // need to ensure non-escaped parameters get set for userid
+    config.put(REQUEST_PARAMETERS.userid.toString(), userid);
+
+    return super.getQuery(config);
+  }
+
   /**
    * {@inheritDoc}
    * @see org.sakaiproject.nakamura.api.search.solr.DomainObjectSearchQueryHandler#configureQString(java.util.Map)
@@ -139,7 +178,7 @@ public class AccessScopedContentQueryHandler extends AbstractContentSearchQueryH
    * Apply the 'search by role' filter to the lucene query string.
    * 
    * @param parametersMap
-   * @param queryString
+   * @param filters
    */
   protected void buildSearchByRoleQuery(Map<String, String> parametersMap,
       List<String> filters) {

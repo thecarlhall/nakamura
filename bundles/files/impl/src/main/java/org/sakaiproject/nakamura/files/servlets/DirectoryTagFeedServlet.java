@@ -114,6 +114,9 @@ public class DirectoryTagFeedServlet extends SlingSafeMethodsServlet {
   @Reference
   private ProfileService profileService;
 
+  @Reference
+  protected LiteFileSearchBatchResultProcessor liteFileSearchBatchResultProcessor;
+
   /**
    * {@inheritDoc}
    *
@@ -208,11 +211,10 @@ public class DirectoryTagFeedServlet extends SlingSafeMethodsServlet {
     String sortRandom = "random_" + String.valueOf(random) + " asc";
     final String queryString = sb.toString();
     Query solrQuery = new Query(queryString, ImmutableMap.of("sort", (Object) sortRandom));
-    final SolrSearchBatchResultProcessor rp = new LiteFileSearchBatchResultProcessor(
-        solrSearchServiceFactory, profileService);
-    final SolrSearchResultSet srs = rp.getSearchResultSet(request, solrQuery);
+
+    final SolrSearchResultSet srs = liteFileSearchBatchResultProcessor.getSearchResultSet(request, solrQuery);
     if (srs.getResultSetIterator().hasNext()) {
-      rp.writeResults(request, write, selectOneResult(srs.getResultSetIterator()));
+      liteFileSearchBatchResultProcessor.writeResults(request, write, selectOneResult(srs.getResultSetIterator()));
     } else {
       // write an empty result
       write.object().endObject();

@@ -62,8 +62,10 @@ public class BasicLtiWidgetMoveCleaner extends AbstractBasicLtiCleaner {
     try {
       adminSession = repository.loginAdministrative();
       ContentManager adminContentManager = adminSession.getContentManager();
-      List<ActionRecord> moves = adminContentManager.move(ltiKeyFromPath, ltiKeyToPath, true);
-      keysWereMoved = (moves != null && !moves.isEmpty());
+      if (adminContentManager.exists(ltiKeyFromPath)) {
+        List<ActionRecord> moves = adminContentManager.move(ltiKeyFromPath, ltiKeyToPath, true);
+        keysWereMoved = (moves != null && !moves.isEmpty());
+      }
     } finally {
       if (adminSession != null) {
         adminSession.logout();

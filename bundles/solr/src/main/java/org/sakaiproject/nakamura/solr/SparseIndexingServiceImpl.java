@@ -17,11 +17,10 @@
  */
 package org.sakaiproject.nakamura.solr;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.commons.collections.map.LRUMap;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
@@ -48,13 +47,14 @@ import org.sakaiproject.nakamura.api.solr.RepositorySession;
 import org.sakaiproject.nakamura.api.solr.ResourceIndexingService;
 import org.sakaiproject.nakamura.api.solr.TopicIndexer;
 import org.sakaiproject.nakamura.solr.handlers.DefaultSparseHandler;
+import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Component(immediate = true, metatype = true)
 @Service(value = ResourceIndexingService.class)
@@ -74,6 +74,7 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
   private String[] topics;
 
   private Map<String, IndexingHandler> indexers = Maps.newConcurrentMap();
+
   private IndexingHandler defaultHandler;
   @SuppressWarnings("unchecked")
   private Map<String, String> ignoreCache = new LRUMap(500);
@@ -114,6 +115,7 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
         List<SolrInputDocument> outputDocs = Lists.newArrayList();
         if ( docs != null ) {
 	        for (SolrInputDocument doc : docs) {
+	          boolean docAdded = false;
 	          for (String name : doc.getFieldNames()) {
 	            // loop through the fields of the returned docs to make sure they contain
 	            // atleast 1 field that is not a system property. this is not to filter out
@@ -123,11 +125,15 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
 	              try {
 	                addDefaultFields(doc, repositorySession);
 	                outputDocs.add(doc);
+	                docAdded = true;
 	              } catch (StorageClientException e) {
 	                LOGGER.warn("Failed to index {} cause: {} ", event.getProperty(FIELD_PATH), e.getMessage());
 	              }
 	              break;
 	            }
+	          }
+	          if (!docAdded) {
+	            TelemetryCounter.incrementValue("solr", "SparseIndexingServiceImpl", "docHasOnlySysProps");
 	          }
 	        }
         }
@@ -145,10 +151,23 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
     Object o = doc.getFieldValue(_DOC_SOURCE_OBJECT);
     if ( o instanceof Content ) {
       Content content = (Content) o;
-      String[] principals = getReadingPrincipals(repositorySession, Security.ZONE_CONTENT, content.getPath());
-      for (String principal : principals) {
-        doc.addField(FIELD_READERS, principal);
+      boolean writeReaders = true;
+      Object suppressReadersValue = doc.getFieldValue(FIELD_SUPPRESS_READERS);
+      if (suppressReadersValue instanceof String) {
+        if (FIELD_SUPPRESS_READERS.equals(suppressReadersValue)) {
+          writeReaders = false;
+          doc.removeField(FIELD_SUPPRESS_READERS);
+        }
       }
+      if (writeReaders) {
+        String[] principals = getReadingPrincipals(repositorySession, Security.ZONE_CONTENT, content.getPath());
+        for (String principal : principals) {
+          doc.addField(FIELD_READERS, principal);
+        }
+      }else {
+        doc.removeField(FIELD_READERS);
+      }
+
       if ( content.hasProperty(SLING_RESOURCE_TYPE)) {
         doc.setField(FIELD_RESOURCE_TYPE, content.getProperty(SLING_RESOURCE_TYPE));
       }
@@ -167,6 +186,7 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
       }
       doc.removeField(_DOC_SOURCE_OBJECT);
     } else {
+      TelemetryCounter.incrementValue("solr", "SparseIndexingServiceImpl", "docMissingSource");
       LOGGER.error("Note to Developer: Indexer must add the _source fields so that the default fields can be set, please correct, SolrDoc was {} ",doc);
       throw new StorageClientException(_DOC_SOURCE_OBJECT+" fields was missing from Solr Document, please correct the handler implementation");
 
@@ -195,6 +215,7 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
           return getHandler(repositorySession, path);
         } else {
           // If there is no content system to walk, then we're done.
+          TelemetryCounter.incrementValue("solr", "SparseIndexingServiceImpl", "useDefaultHandler");
           return defaultHandler;
         }
       }
@@ -223,6 +244,7 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
                       resourceType, handler, path, indexers });
                   return handler;
                 } else {
+                  TelemetryCounter.incrementValue("solr", "SparseIndexingServiceImpl-ignoredPath", path);
                   LOGGER.debug("Ignored {} no handler for {} ", path, resourceType);
                   ignoreCache.put(path, path);
                 }
@@ -242,6 +264,7 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
       }
       path = Utils.getParentPath(path);
     }
+    TelemetryCounter.incrementValue("solr", "SparseIndexingServiceImpl", "useDefaultHandler");
     return defaultHandler;
   }
 
@@ -277,7 +300,7 @@ public class SparseIndexingServiceImpl implements IndexingHandler,
   public void addHandler(String key, IndexingHandler handler) {
     LOGGER.debug("Added New Indexer as {} at {} ",  key,
         handler);
-    indexers.put( key, handler);
+    indexers.put(key, handler);
   }
 
   public void removeHandler(String key, IndexingHandler handler) {

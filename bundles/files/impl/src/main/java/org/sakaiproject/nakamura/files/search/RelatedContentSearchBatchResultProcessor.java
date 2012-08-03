@@ -98,12 +98,12 @@ public class RelatedContentSearchBatchResultProcessor extends
 
       // query to find ALL content that is not mine, boost some fields that have values
       final StringBuilder sourceQuery = new StringBuilder(
-          "(resourceType:sakai/pooled-content AND (manager:((everyone OR anonymous) AND NOT ");
+          "(resourceType:sakai\\/pooled-content AND (manager:((everyone OR anonymous) AND NOT ");
       sourceQuery.append(user);
       sourceQuery.append(") OR viewer:((everyone OR anonymous) AND NOT ");
       sourceQuery.append(user);
       sourceQuery
-          .append("))) OR (resourceType:sakai/pooled-content AND (manager:((everyone OR anonymous) AND NOT ");
+          .append("))) OR (resourceType:sakai\\/pooled-content AND (manager:((everyone OR anonymous) AND NOT ");
       sourceQuery.append(user);
       sourceQuery.append(") OR viewer:((everyone OR anonymous) AND NOT ");
       sourceQuery.append(user);

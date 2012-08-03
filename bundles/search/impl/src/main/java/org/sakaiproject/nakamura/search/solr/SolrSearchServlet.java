@@ -34,6 +34,7 @@ import static org.sakaiproject.nakamura.api.search.solr.SolrSearchConstants.TOTA
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -52,24 +53,32 @@ import org.sakaiproject.nakamura.api.doc.ServiceDocumentation;
 import org.sakaiproject.nakamura.api.doc.ServiceMethod;
 import org.sakaiproject.nakamura.api.doc.ServiceParameter;
 import org.sakaiproject.nakamura.api.doc.ServiceResponse;
+import org.sakaiproject.nakamura.api.lite.Session;
+import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
+import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.search.SearchResponseDecorator;
 import org.sakaiproject.nakamura.api.search.SearchResultProcessor;
 import org.sakaiproject.nakamura.api.search.SearchUtil;
+import org.sakaiproject.nakamura.api.search.solr.DomainObjectSearchQueryHandler;
 import org.sakaiproject.nakamura.api.search.solr.MissingParameterException;
 import org.sakaiproject.nakamura.api.search.solr.Query;
 import org.sakaiproject.nakamura.api.search.solr.Result;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchBatchResultProcessor;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchException;
+import org.sakaiproject.nakamura.api.search.solr.SolrSearchParameters;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchPropertyProvider;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultProcessor;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchResultSet;
+import org.sakaiproject.nakamura.api.search.solr.SolrSearchServiceFactory;
 import org.sakaiproject.nakamura.api.search.solr.SolrSearchUtil;
 import org.sakaiproject.nakamura.api.templates.TemplateService;
 import org.sakaiproject.nakamura.util.ExtendedJSONWriter;
 import org.sakaiproject.nakamura.util.JcrUtils;
 import org.sakaiproject.nakamura.util.LitePersonalUtils;
 import org.sakaiproject.nakamura.util.ServletUtils;
-import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +90,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
 import javax.jcr.Node;
 import javax.jcr.PropertyIterator;
 import javax.jcr.RepositoryException;
@@ -153,6 +163,9 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
   @Reference
   private SearchResponseDecoratorTracker searchResponseDecoratorTracker;
 
+  @Reference
+  private SolrSearchServiceFactory searchServiceFactory;
+
 
   // Default processors
   /**
@@ -176,6 +189,16 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
   @Reference
   private transient TemplateService templateService;
 
+  /**
+   * Most entries in the search parameters map come from HTTP request parameters.
+   * These are filled in from other properties of the request.
+   */
+  public enum REQUEST_PARAMETERS_PROPS {
+    _requestPath,
+    _traversalDepth,
+    _userId
+  }
+
   @Override
   protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
       throws ServletException, IOException {
@@ -189,37 +212,6 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
       }
       Node node = resource.adaptTo(Node.class);
       if (node != null && node.hasProperty(SAKAI_QUERY_TEMPLATE)) {
-        // KERN-1147 Respond better when all parameters haven't been provided for a query
-        Query query;
-        try {
-          query = processQuery(request, node);
-        } catch (MissingParameterException e) {
-          response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-          return;
-        } catch (IllegalArgumentException e) {
-          response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-          return;
-        }
-
-        long nitems = SolrSearchUtil.longRequestParameter(request, PARAMS_ITEMS_PER_PAGE,
-            DEFAULT_PAGED_ITEMS);
-        long page = SolrSearchUtil.longRequestParameter(request, PARAMS_PAGE, 0);
-
-        // allow number of items to be specified in sakai:query-template-options
-        if (query.getOptions().containsKey(PARAMS_ITEMS_PER_PAGE)) {
-          nitems = Long.valueOf(String.valueOf(query.getOptions().get(PARAMS_ITEMS_PER_PAGE)));
-        } else {
-          // add this to the options so that all queries are constrained to a limited
-          // number of returns per page.
-          query.getOptions().put(PARAMS_ITEMS_PER_PAGE, Long.toString(nitems));
-        }
-
-        if (!query.getOptions().containsKey(PARAMS_PAGE)) {
-          // add this to the options so that all queries are constrained to a limited
-          // number of returns per page.
-          query.getOptions().put(PARAMS_PAGE, Long.toString(page));
-        }
-
         boolean useBatch = false;
         // Get the
         SolrSearchBatchResultProcessor searchBatchProcessor = defaultSearchBatchProcessor;
@@ -241,18 +233,84 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
           }
         }
 
-        SolrSearchResultSet rs;
-        try {
-          // Prepare the result set.
-          // This allows a processor to do other queries and manipulate the results.
-          if (useBatch) {
-            rs = searchBatchProcessor.getSearchResultSet(request, query);
-          } else {
-            rs = searchProcessor.getSearchResultSet(request, query);
+        Query query = null;
+        SolrSearchResultSet rs = null;
+        boolean useQueryHandler = DomainObjectSearchQueryHandler.class.isAssignableFrom(searchProcessor.getClass());
+
+        if (useQueryHandler) {
+          try {
+            final Session session = StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class));
+            final AuthorizableManager authzMgr = session.getAuthorizableManager();
+            final Authorizable authorizable = authzMgr.findAuthorizable(request.getRemoteUser());
+            final SolrSearchParameters params = SolrSearchUtil.getParametersFromRequest(request);
+
+            DomainObjectSearchQueryHandler queryHandler = (DomainObjectSearchQueryHandler) searchProcessor;
+
+            PropertyIterator defaultValues = null;
+            if (node.hasNode(SAKAI_QUERY_TEMPLATE_DEFAULTS)) {
+              Node defaults = node.getNode(SAKAI_QUERY_TEMPLATE_DEFAULTS);
+              defaultValues = defaults.getProperties();
+            }
+
+            Map<String, String> parameterMap = loadProperties(request, null, defaultValues, Query.SOLR);
+            query = queryHandler.getQuery(parameterMap);
+
+            rs = searchServiceFactory.getSearchResultSet(session, authorizable, query, params);
+          } catch (AccessDeniedException e) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+            return;
+          } catch (SolrSearchException e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            return;
+          } catch (StorageClientException e) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+            return;
           }
-        } catch (SolrSearchException e) {
-          response.sendError(e.getCode(), e.getMessage());
-          return;
+        } else {
+          // KERN-1147 Respond better when all parameters haven't been provided for a query
+          try {
+            query = processQuery(request, node);
+          } catch (MissingParameterException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            return;
+          } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            return;
+          }
+        }
+
+        long nitems = SolrSearchUtil.longRequestParameter(request, PARAMS_ITEMS_PER_PAGE,
+            DEFAULT_PAGED_ITEMS);
+        long page = SolrSearchUtil.longRequestParameter(request, PARAMS_PAGE, 0);
+
+        // allow number of items to be specified in sakai:query-template-options
+        if (query.getOptions().containsKey(PARAMS_ITEMS_PER_PAGE)) {
+          nitems = Long.valueOf(String.valueOf(query.getOptions().get(PARAMS_ITEMS_PER_PAGE)));
+        } else {
+          // add this to the options so that all queries are constrained to a limited
+          // number of returns per page.
+          query.getOptions().put(PARAMS_ITEMS_PER_PAGE, Long.toString(nitems));
+        }
+
+        if (!query.getOptions().containsKey(PARAMS_PAGE)) {
+          // add this to the options so that all queries are constrained to a limited
+          // number of returns per page.
+          query.getOptions().put(PARAMS_PAGE, Long.toString(page));
+        }
+
+        if (!useQueryHandler) {
+          try {
+            // Prepare the result set.
+            // This allows a processor to do other queries and manipulate the results.
+            if (useBatch) {
+              rs = searchBatchProcessor.getSearchResultSet(request, query);
+            } else {
+              rs = searchProcessor.getSearchResultSet(request, query);
+            }
+          } catch (SolrSearchException e) {
+            response.sendError(e.getCode(), e.getMessage());
+            return;
+          }
         }
 
         response.setContentType("application/json");
@@ -321,9 +379,8 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
    *
    * @param request
    *          the request.
-   * @param queryTemplate
+   * @param queryNode
    *          the query template.
-   * @param propertyProviderName
    * @return A processed query template
    * @throws MissingParameterException
    */
@@ -458,7 +515,9 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
    * defaults but the property provider to have the final say in what value is set.
    *
    * @param request
-   * @param propertyProviderName
+   * @param propertyProviderNames
+   * @param defaultProps
+   * @param queryType
    * @return
    * @throws RepositoryException
    */
@@ -471,7 +530,16 @@ public class SolrSearchServlet extends SlingSafeMethodsServlet {
     String userPrivatePath = ClientUtils.escapeQueryChars(LitePersonalUtils
         .getPrivatePath(userId));
     propertiesMap.put("_userPrivatePath", userPrivatePath);
-    propertiesMap.put("_userId", ClientUtils.escapeQueryChars(userId));
+    propertiesMap.put("_userId", userId);
+
+    // Remember the requested path, since it sometimes determines the type of query or results handling.
+    propertiesMap.put(REQUEST_PARAMETERS_PROPS._requestPath.toString(), request.getRequestURI());
+
+    // If a recursion level was specified for hierarchical results, pass it along.
+    Integer traversalDepth = SearchUtil.getTraversalDepthSelector(request);
+    if (traversalDepth != null) {
+      propertiesMap.put(REQUEST_PARAMETERS_PROPS._traversalDepth.toString(), traversalDepth.toString());
+    }
 
     // 1. load in properties from the query template node so defaults can be set
     if (defaultProps != null) {

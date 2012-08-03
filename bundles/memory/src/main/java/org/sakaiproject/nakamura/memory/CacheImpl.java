@@ -18,10 +18,12 @@
 package org.sakaiproject.nakamura.memory;
 
 import com.google.common.collect.Sets;
+
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Element;
 import net.sf.ehcache.config.CacheConfiguration;
 
+import org.perf4j.aop.Profiled;
 import org.sakaiproject.nakamura.api.memory.Cache;
 import org.sakaiproject.nakamura.api.memory.CacheScope;
 import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
@@ -103,24 +105,34 @@ public class CacheImpl<V> implements Cache<V> {
    *
    * @see org.sakaiproject.nakamura.api.memory.Cache#get(java.lang.String)
    */
+  @SuppressWarnings("unchecked")
   public V get(String key) {
     Element e = cache.get(key);
+    stats(e);
     if (e == null) {
       return null;
     }
-    return stats(e.getObjectValue());
+    return (V) e.getObjectValue();
   }
 
-  @SuppressWarnings("unchecked")
-  private V stats(Object objectValue) {
-    if (objectValue == null) {
-      TelemetryCounter.incrementValue("memory", "Cache", "misses");
+  private void stats(Element e) {
+    if (e == null) {
+      logMiss();
     } else {
-      TelemetryCounter.incrementValue("memory", "Cache", "hits");
+      logHit();
     }
-    return (V) objectValue;
   }
-
+  
+  @Profiled(tag="memory:Cache:misses")
+  private void logMiss() {
+    TelemetryCounter.incrementValue("memory", "Cache", "misses");
+  }
+  
+  @Profiled(tag="memory:Cache:hits")
+  private void logHit() {
+    TelemetryCounter.incrementValue("memory", "Cache", "hits");
+  }
+  
   /**
    * {@inherit-doc}
    *

@@ -71,7 +71,7 @@ public class LibraryContentQueryHandlerTest {
 
     mockRequestForUserId(request, "mrvisser");
     mockQuery(params, "blah\\-query");
-    mockMime(params, "sakai/x\\-collection");
+    mockMime(params, "sakai\\/x\\-collection");
     mockRequestForLevels(request, "0");
     
     AuthorizableManager am = Mockito.mock(AuthorizableManager.class);
@@ -91,7 +91,7 @@ public class LibraryContentQueryHandlerTest {
     // verify the integrity of the resulting query string.
     Assert.assertEquals("(" +
     		"(content:(blah\\-query) OR filename:(blah\\-query) OR tag:(blah\\-query) OR description:(blah\\-query) OR ngram:(blah\\-query) OR edgengram:(blah\\-query) OR widgetdata:(blah\\-query)) AND " +
-    		"mimeType:sakai/x\\-collection AND " +
+    		"mimeType:sakai\\/x\\-collection AND " +
     		"((manager:(mrvisser) OR editor:(mrvisser) OR viewer:(mrvisser)) OR (showalways:true AND (manager:(mrvisser OR mrvisser\\-group) OR editor:(mrvisser OR mrvisser\\-group) OR viewer:(mrvisser OR mrvisser\\-group)))))",
     		q);
   }

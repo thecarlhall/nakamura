@@ -33,6 +33,7 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -177,7 +178,7 @@ public class QueryOutputServiceImpl implements QueryOutputService {
     long numFound = -1;
 
     try {
-      QueryResponse queryResp = solrServerService.getServer().query(solrQuery);
+      QueryResponse queryResp = solrServerService.getServer().query(solrQuery, SolrRequest.METHOD.POST);
       numFound = queryResp.getResults().getNumFound();
     } catch (SolrServerException e) {
       LOGGER.warn(e.getMessage(), e);
@@ -265,7 +266,7 @@ public class QueryOutputServiceImpl implements QueryOutputService {
 
     collectOptions(req, q);
 
-    queryResponse = server.query(q);
+    queryResponse = server.query(q, SolrRequest.METHOD.POST);
     return queryResponse;
   }
 

@@ -1,5 +1,5 @@
 {
-  "sakai:query-template": "+path:${_requeststore} +resourceType:sakai/joinrequest +requestState:pending",
+  "sakai:query-template": "+path:${_requeststore} +resourceType:sakai\\/joinrequest +requestState:pending",
   "sakai:query-template-options": {
       "sort": "${sortOn} ${sortOrder}"
   },
