@@ -164,14 +164,11 @@ public class MediaCoordinator implements Runnable {
         cm.update(obj);
       }
     } catch (ClientPoolException e) {
-      LOGGER.info("ClientPoolException when handling file: {}", e);
-      e.printStackTrace();
+      LOGGER.warn("ClientPoolException when handling file: {}", e);
     } catch (StorageClientException e) {
-      LOGGER.info("StorageClientException when handling file: {}", e);
-      e.printStackTrace();
+      LOGGER.warn("StorageClientException when handling file: {}", e);
     } catch (AccessDeniedException e) {
-      LOGGER.info("AccessDeniedException when handling file: {}", e);
-      e.printStackTrace();
+      LOGGER.warn("AccessDeniedException when handling file: {}", e);
     } finally {
       if (adminSession != null) {
         try {
@@ -199,14 +196,11 @@ public class MediaCoordinator implements Runnable {
       cm.update(obj);
 
     } catch (ClientPoolException e) {
-      LOGGER.info("ClientPoolException when handling file: {}", e);
-      e.printStackTrace();
+      LOGGER.warn("ClientPoolException when handling file: {}", e);
     } catch (StorageClientException e) {
-      LOGGER.info("StorageClientException when handling file: {}", e);
-      e.printStackTrace();
+      LOGGER.warn("StorageClientException when handling file: {}", e);
     } catch (AccessDeniedException e) {
-      LOGGER.info("AccessDeniedException when handling file: {}", e);
-      e.printStackTrace();
+      LOGGER.warn("AccessDeniedException when handling file: {}", e);
     } finally {
       if (adminSession != null) {
         try {
@@ -235,8 +229,7 @@ public class MediaCoordinator implements Runnable {
             try {
               LOGGER.info("Received JMS message for pid {}", msg.getStringProperty("pid"));
             } catch (JMSException e) {
-              LOGGER.info("JMS exception onMessage: {}", e);
-              e.printStackTrace();
+              LOGGER.warn("JMS exception onMessage: {}", e);
             }
             incoming.add(msg);
           }
@@ -394,13 +387,11 @@ public class MediaCoordinator implements Runnable {
       }
 
     } catch (StorageClientException e) {
-      LOGGER.info("StorageClientException when syncing media: {}",
+      LOGGER.warn("StorageClientException when syncing media: {}",
           path);
-      e.printStackTrace();
     } catch (AccessDeniedException e) {
-      LOGGER.info("AccessDeniedException when syncing media: {}",
+      LOGGER.warn("AccessDeniedException when syncing media: {}",
           path);
-      e.printStackTrace();
     }
   }
 
@@ -429,11 +420,9 @@ public class MediaCoordinator implements Runnable {
     } catch (StorageClientException e) {
       LOGGER.warn("StorageClientException while processing {}: {}",
           pid, e);
-      e.printStackTrace();
     } catch (AccessDeniedException e) {
       LOGGER.warn("AccessDeniedException while processing {}: {}",
           pid, e);
-      e.printStackTrace();
     } finally {
       try {
         if (sparseSession != null) {
@@ -467,7 +456,6 @@ public class MediaCoordinator implements Runnable {
       } catch (JMSException e) {
         LOGGER.warn("Got a JMSException while clearing duplicates: {}",
             e);
-        e.printStackTrace();
       }
     }
   }
@@ -553,7 +541,6 @@ public class MediaCoordinator implements Runnable {
 
                   } catch (Exception e) {
                     LOGGER.warn("Failed while processing PID '{}'", pid);
-                    e.printStackTrace();
 
                     LOGGER.warn("This job will be queued for retry in {} ms",
                         retryMs);
@@ -634,12 +621,10 @@ public class MediaCoordinator implements Runnable {
 
         } catch (JMSException e) {
           LOGGER.error("JMS exception while waiting for message: {}", e);
-          e.printStackTrace();
           LOGGER.error("Waiting {} ms before trying again",
               pollFrequency);
         } catch (Exception e) {
           LOGGER.error("Got exception in MediaCoordinator main loop: {}", e);
-          e.printStackTrace();
         }
 
         // Paranoia...

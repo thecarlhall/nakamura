@@ -172,7 +172,6 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
 
     } catch (JMSException e) {
       LOGGER.error("Failed when adding content PID to JMS queue: {}", e);
-      e.printStackTrace();
     }
   }
 
@@ -229,11 +228,9 @@ public class MediaListenerImpl implements MediaListener, EventHandler, FileUploa
         mediaCoordinator.recordTempVersion(path, tempVersion);
       } catch (FileNotFoundException e) {
         LOGGER.warn("Couldn't store temporary file: {}", e);
-        e.printStackTrace();
         return inputStream;
       } catch (IOException e) {
         LOGGER.warn("Couldn't store temporary file: {}", e);
-        e.printStackTrace();
         return inputStream;
       }
 
