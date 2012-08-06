@@ -24,6 +24,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,7 +43,8 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpMethodBase;
+import org.apache.commons.httpclient.HttpException;
+import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.UsernamePasswordCredentials;
 import org.apache.commons.httpclient.auth.AuthChallengeParser;
 import org.apache.commons.httpclient.auth.AuthPolicy;
@@ -49,6 +52,7 @@ import org.apache.commons.httpclient.auth.AuthScope;
 import org.apache.commons.httpclient.auth.AuthenticationException;
 import org.apache.commons.httpclient.auth.DigestScheme;
 import org.apache.commons.httpclient.auth.MalformedChallengeException;
+import org.apache.commons.httpclient.methods.DeleteMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.FilePart;
@@ -225,7 +229,7 @@ public class MatterhornMediaService implements MediaService {
   // POST our (potentially large) video file twice.  Basically, get the auth
   // challenge by sending an empty request and then only send our real payload
   // when we know auth will succeed.
-  private String preAuthenticateRequest(HttpClient client, HttpMethodBase authRequest)
+  private String preAuthenticateRequest(HttpClient client, HttpMethod authRequest)
     throws IOException, MalformedChallengeException, AuthenticationException{
     authRequest.addRequestHeader(new Header("X-Requested-Auth", "Digest"));
     authRequest.setDoAuthentication(false);
@@ -244,39 +248,39 @@ public class MatterhornMediaService implements MediaService {
     return null;
   }
 
+  private <M extends HttpMethod> M digestAuthed(HttpClient client, String uri,
+      Class<M> method) throws IOException,
+      MalformedChallengeException, AuthenticationException {
+    Constructor<M> constructor;
+    try {
+      constructor = method.getConstructor(String.class);
+      M httpMethod = constructor.newInstance(baseUrl + uri);
 
-  private PostMethod digestAuthedPostMethod(HttpClient client, String uri) throws IOException, MalformedChallengeException, AuthenticationException {
-    PostMethod authRequest = new PostMethod(baseUrl + uri);
-    String auth = preAuthenticateRequest(client, authRequest);
+      String auth = preAuthenticateRequest(client, httpMethod);
 
-    if (auth != null) {
-      PostMethod request = new PostMethod(baseUrl + uri);
-      request.addRequestHeader(new Header("Authorization", auth));
-      request.setDoAuthentication(false);
+      if (auth != null) {
+        M request = constructor.newInstance(baseUrl + uri);
 
-      return request;
+        request.addRequestHeader(new Header("Authorization", auth));
+        request.setDoAuthentication(false);
+
+        return request;
+      }
+      return null;
+    } catch (IllegalArgumentException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    } catch (InstantiationException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    } catch (InvocationTargetException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    } catch (SecurityException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(e.getMessage(), e);
     }
-
-    return null;
   }
-
-
-  private GetMethod digestAuthedGetMethod(HttpClient client, String uri) throws IOException, MalformedChallengeException, AuthenticationException {
-    GetMethod authRequest = new GetMethod(baseUrl + uri);
-    String auth = preAuthenticateRequest(client, authRequest);
-
-    if (auth != null) {
-      GetMethod request = new GetMethod(baseUrl + uri);
-      request.addRequestHeader(new Header("Authorization", auth));
-      request.setDoAuthentication(false);
-
-      return request;
-    }
-
-    return null;
-  }
-
-
 
   @Override
   public String createMedia(final File mediaFile, final String title, final String description, final String extension, String[] tags)
@@ -289,7 +293,7 @@ public class MatterhornMediaService implements MediaService {
     try {
       HttpClient client = new HttpClient();
 
-      post = digestAuthedPostMethod(client, "/ingest/addMediaPackage");
+      post = digestAuthed(client, "/ingest/addMediaPackage", PostMethod.class);
 
       Part[] parts = new Part[] {
         new StringPart("flavor", "presenter/source"),
@@ -336,7 +340,6 @@ public class MatterhornMediaService implements MediaService {
 
     } catch (IOException e) {
       LOG.error("IOException while processing media: {}", e);
-      e.printStackTrace();
 
       throw new MediaServiceException("IOException while processing media:" + e);
     } finally {
@@ -359,7 +362,7 @@ public class MatterhornMediaService implements MediaService {
           ids.getString("mediaPackageId"),
           ids.getString("metadataId"));
 
-      get = digestAuthedGetMethod(client, dcUrl);
+      get = digestAuthed(client, dcUrl, GetMethod.class);
 
       int returnCode = client.executeMethod(get);
       Document metadata = parseXML(get.getResponseBodyAsString());
@@ -377,7 +380,7 @@ public class MatterhornMediaService implements MediaService {
       final String xml = docToString(metadata);
 
       // Send the updated version back
-      post = digestAuthedPostMethod(client, dcUrl);
+      post = digestAuthed(client, dcUrl, PostMethod.class);
 
       Part[] parts = new Part[] {
         new FilePart("content",
@@ -454,7 +457,7 @@ public class MatterhornMediaService implements MediaService {
       String workflowUrl = String.format("/workflow/instance/%s.xml",
           ids.getString("workflowId"));
 
-      get = digestAuthedGetMethod(client, workflowUrl);
+      get = digestAuthed(client, workflowUrl, GetMethod.class);
 
       int returnCode = client.executeMethod(get);
 
@@ -464,7 +467,7 @@ public class MatterhornMediaService implements MediaService {
 
 
       for (String toUpdate : new String[] { "episode", "search" }) {
-        post = digestAuthedPostMethod(client, "/" + toUpdate + "/add");
+        post = digestAuthed(client, "/" + toUpdate + "/add", PostMethod.class);
 
         Part[] parts = new Part[] {
           new StringPart("mediapackage", mediaPackageXML)
@@ -563,7 +566,7 @@ public class MatterhornMediaService implements MediaService {
           ids.getString("workflowId"));
 
       HttpClient client = new HttpClient();
-      get = digestAuthedGetMethod(client, workflowUrl);
+      get = digestAuthed(client, workflowUrl, GetMethod.class);
       int returnCode = client.executeMethod(get);
 
       String s = null;
@@ -598,7 +601,33 @@ public class MatterhornMediaService implements MediaService {
 
   @Override
   public void deleteMedia(String id) throws MediaServiceException {
-    // TODO Auto-generated method stub
+    DeleteMethod delete = null;
+    try {
+      //
+      // delete the workflow
+      //
+
+      //
+      // delete the episode
+      //
+      // Get the current metadata
+      String dcUrl = String.format("/episode/delete/%s", id);
+
+      HttpClient client = new HttpClient();
+      delete = digestAuthed(client, dcUrl, DeleteMethod.class);
+
+      // http://${matterhorn_installation}/docs.html?path=/episode
+      // we only expect 204 or 500
+      int returnCode = client.executeMethod(delete);
+      if (returnCode == 500) {
+        throw new MediaServiceException("Error while deleting [" + id + "] from Matterhorn: " +
+            delete.getResponseBodyAsString());
+      }
+    } catch (HttpException e) {
+      throw new MediaServiceException(e.getMessage(), e);
+    } catch (IOException e) {
+      throw new MediaServiceException(e.getMessage(), e);
+    }
   }
 
   @Override
