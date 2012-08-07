@@ -116,26 +116,13 @@
       <scope>test</scope>
     </dependency>
  
- 	<!-- Apache amber
- 	<dependency>
- 		<groupId>org.apache.amber</groupId>
- 		<artifactId>oauth2-authzserver</artifactId>
- 		<version>0.22-incubating-SNAPSHOT</version>
- 	</dependency>
- 	
- 	<dependency>
-      <groupId>org.apache.sling</groupId>
-      <artifactId>org.apache.sling.api</artifactId>
-    </dependency>
+ 	<!-- OAuth Dependency -->
     <dependency>
-      <groupId>org.apache.sling</groupId>
-      <artifactId>org.apache.sling.auth.core</artifactId>
+      <artifactId>amber-oauth2-common</artifactId>
+      <groupId>org.apache.amber</groupId>
+      <version>0.31-incubating-SNAPSHOT</version>
     </dependency>
-    <dependency>
-      <groupId>org.apache.sling</groupId>
-      <artifactId>org.apache.sling.jcr.resource</artifactId>
-    </dependency>
- 	 -->
+ 
   </dependencies>
 
 

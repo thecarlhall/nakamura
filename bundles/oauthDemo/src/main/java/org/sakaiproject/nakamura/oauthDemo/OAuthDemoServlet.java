@@ -57,7 +57,16 @@ public class OAuthDemoServlet extends HttpServlet {
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
+		OAuthParams oauthParams = null;
+        oauthParams.setAuthzEndpoint(Utils.FACEBOOK_AUTHZ);
+        oauthParams.setTokenEndpoint(Utils.FACEBOOK_TOKEN);
+
 		//oauthHandler = new OauthServerHandler();
+        /*Session session = StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class));
+        ContentManager cm = session.getContentManager();
+        Content content = new Content(LitePersonalUtils.getPrivatePath(userId) + "/oauth", ImmutableMap.of("authorization_token", authorizationToken));
+        cm.update(content);*/
+
 		resp.getWriter().write("Hello World from Oauth Server: " );
 
 	}
