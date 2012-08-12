@@ -24,7 +24,11 @@ import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.sling.SlingServlet;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -57,6 +61,22 @@ public class OAuthDemoServlet extends HttpServlet {
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
+		
+		URL url = new URL("https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2F" +
+				"www.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&" +
+				"state=%2Fprofile&redirect_uri=https%3A%2F%2Foauth2-login-demo.appspot.com%2Fcode&response_type=code&" +
+				"client_id=812741506391.apps.googleusercontent.com&approval_prompt=force");
+	      URLConnection con = url.openConnection();
+
+	      BufferedReader in = new BufferedReader(
+	         new InputStreamReader(con.getInputStream()));
+
+	      String linea;
+	      while ((linea = in.readLine()) != null) {
+	         System.out.println(linea);
+	         resp.getWriter().write(linea);
+	      }
+	      /*
 		OAuthParams oauthParams = null;
         oauthParams.setAuthzEndpoint(Utils.FACEBOOK_AUTHZ);
         oauthParams.setTokenEndpoint(Utils.FACEBOOK_TOKEN);
