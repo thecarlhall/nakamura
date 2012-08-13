@@ -609,6 +609,7 @@ public class MatterhornMediaService implements MediaService {
       String workflowId = ids.getString("workflowId");
 
       try {
+        LOG.debug("Deleting from search");
         deleteSearch(mediaPkgId);
       } catch (Exception e) {
         LOG.error(e.getMessage(), e);
@@ -616,6 +617,7 @@ public class MatterhornMediaService implements MediaService {
       }
 
       try {
+        LOG.debug("Stopping workflow");
         stopWorkflow(workflowId);
       } catch (Exception e) {
         LOG.error(e.getMessage(), e);
@@ -623,6 +625,7 @@ public class MatterhornMediaService implements MediaService {
       }
 
       try {
+        LOG.debug("Deleting media package");
         deleteMediaPackage(mediaPkgId, metadataId);
       } catch (Exception e) {
         LOG.error(e.getMessage(), e);
@@ -630,6 +633,7 @@ public class MatterhornMediaService implements MediaService {
       }
 
       try {
+        LOG.debug("Deleting episode");
         deleteEpisode(mediaPkgId);
       } catch (Exception e) {
         LOG.error(e.getMessage(), e);

@@ -280,7 +280,7 @@ public class MediaCoordinator implements Runnable {
 
 
   private void syncMedia(String path, Content obj, ContentManager cm) throws IOException {
-    LOGGER.info("Processing media now...");
+    LOGGER.info("Processing media now ({})...", obj);
 
     try {
       MediaNode mediaNode = MediaNode.get(path, cm, true);
