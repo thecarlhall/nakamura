@@ -583,11 +583,11 @@ public class MatterhornMediaService implements MediaService {
         }
 
         public boolean isProcessing() {
-          return "RUNNING".equals(state);
+          return ("RUNNING".equals(state) || "INSTANTIATED".equals(state));
         }
 
         public boolean isError() {
-          return (!"RUNNING".equals(state) && !"SUCCEEDED".equals(state));
+          return (!isReady() && !isProcessing());
         }
       };
     } catch (JSONException e) {
