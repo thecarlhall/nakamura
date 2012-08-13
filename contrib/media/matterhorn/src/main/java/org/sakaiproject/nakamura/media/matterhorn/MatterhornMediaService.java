@@ -601,32 +601,147 @@ public class MatterhornMediaService implements MediaService {
 
   @Override
   public void deleteMedia(String id) throws MediaServiceException {
-    DeleteMethod delete = null;
+    Exception exception = null;
     try {
-      //
-      // delete the workflow
-      //
+      JSONObject ids = new JSONObject(id);
+      String mediaPkgId = ids.getString("mediaPackageId");
+      String metadataId = ids.getString("metadataId");
+      String workflowId = ids.getString("workflowId");
 
-      //
-      // delete the episode
-      //
-      // Get the current metadata
-      String dcUrl = String.format("/episode/delete/%s", id);
-
-      HttpClient client = new HttpClient();
-      delete = digestAuthed(client, dcUrl, DeleteMethod.class);
-
-      // http://${matterhorn_installation}/docs.html?path=/episode
-      // we only expect 204 or 500
-      int returnCode = client.executeMethod(delete);
-      if (returnCode == 500) {
-        throw new MediaServiceException("Error while deleting [" + id + "] from Matterhorn: " +
-            delete.getResponseBodyAsString());
+      try {
+        deleteSearch(mediaPkgId);
+      } catch (Exception e) {
+        LOG.error(e.getMessage(), e);
+        exception = e;
       }
-    } catch (HttpException e) {
+
+      try {
+        stopWorkflow(workflowId);
+      } catch (Exception e) {
+        LOG.error(e.getMessage(), e);
+        exception = e;
+      }
+
+      try {
+        deleteMediaPackage(mediaPkgId, metadataId);
+      } catch (Exception e) {
+        LOG.error(e.getMessage(), e);
+        exception = e;
+      }
+
+      try {
+        deleteEpisode(mediaPkgId);
+      } catch (Exception e) {
+        LOG.error(e.getMessage(), e);
+        exception = e;
+      }
+    } catch (JSONException e) {
       throw new MediaServiceException(e.getMessage(), e);
-    } catch (IOException e) {
-      throw new MediaServiceException(e.getMessage(), e);
+    }
+
+    if (exception != null) {
+      throw new MediaServiceException(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Delete a media package.
+   *
+   * <p><code>DELETE /files/mediapackage/{mediaPackageID}/{mediaPackageElementID}</code></p>
+   *
+   * @param mediaPkgId
+   * @param mediaPackageElementId
+   * @throws HttpException
+   * @throws IOException
+   * @throws MediaServiceException
+   */
+  private void deleteMediaPackage(String mediaPkgId, String mediaPackageElementId)
+      throws HttpException, IOException, MediaServiceException {
+    String dcUrl = String.format("/files/mediapackage/%s/%s", mediaPkgId,
+        mediaPackageElementId);
+
+    HttpClient client = new HttpClient();
+    DeleteMethod delete = digestAuthed(client, dcUrl, DeleteMethod.class);
+
+    // http://${matterhorn_installation}/docs.html?path=/files
+    // we only expect 200 or 500
+    int returnCode = client.executeMethod(delete);
+    if (returnCode / 100 != 2) {
+      throwException(delete, "deleting media package", dcUrl);
+    }
+  }
+
+  /**
+   * Delete a workflow.
+   *
+   * <p><code>DELETE /workflow/remove/{id}</code></p>
+   *
+   * @param workflowId
+   * @throws HttpException
+   * @throws IOException
+   * @throws MediaServiceException
+   */
+  private void stopWorkflow(String workflowId) throws HttpException, IOException,
+      MediaServiceException {
+    String dcUrl = "/workflow/stop";
+
+    HttpClient client = new HttpClient();
+    PostMethod post = digestAuthed(client, dcUrl, PostMethod.class);
+    post.addParameter("id", workflowId);
+
+    // http://${matterhorn_installation}/docs.html?path=/search
+    // we only expect 204
+    int returnCode = client.executeMethod(post);
+    if (returnCode / 100 != 2) {
+      throwException(post, "stopping the workflow", dcUrl);
+    }
+  }
+
+  /**
+   * Delete a media package from the search index.
+   *
+   * <p><code>DELETE /search/{id}</code></p>
+   *
+   * @param mediaPkgId
+   * @throws HttpException
+   * @throws IOException
+   * @throws MediaServiceException
+   */
+  private void deleteSearch(String mediaPkgId) throws HttpException, IOException,
+      MediaServiceException {
+    String dcUrl = String.format("/search/%s", mediaPkgId);
+
+    HttpClient client = new HttpClient();
+    DeleteMethod delete = digestAuthed(client, dcUrl, DeleteMethod.class);
+
+    // http://${matterhorn_installation}/docs.html?path=/search
+    // we only expect 204 or 500
+    int returnCode = client.executeMethod(delete);
+    if (returnCode / 100 != 2) {
+      throwException(delete, "deleting from search index", dcUrl);
+    }
+  }
+
+  /**
+   * Delete an episode of a media package.
+   *
+   * @param mediaPkgId
+   * @throws HttpException
+   * @throws IOException
+   * @throws MediaServiceException
+   */
+  private void deleteEpisode(String mediaPkgId) throws HttpException, IOException,
+      MediaServiceException {
+    String dcUrl = String.format("/episode/delete/%s", mediaPkgId);
+
+    HttpClient client = new HttpClient();
+    DeleteMethod delete = digestAuthed(client, dcUrl, DeleteMethod.class);
+
+    // http://${matterhorn_installation}/docs.html?path=/episode
+    // we only expect 204 or 500
+    int returnCode = client.executeMethod(delete);
+    if (returnCode / 100 != 2) {
+      throwException(delete, "deleting episode", dcUrl);
     }
   }
 
@@ -638,6 +753,13 @@ public class MatterhornMediaService implements MediaService {
   @Override
   public String getPlayerInitJS(String id) {
     return "";
+  }
+
+  private void throwException(HttpMethod method, String action, String msg)
+      throws MediaServiceException, IOException {
+    throw new MediaServiceException("Error while " + action + " [http code="
+        + method.getStatusCode() + ";" + msg + "] from Matterhorn: "
+        + method.getStatusText() + ": " + method.getResponseBodyAsString());
   }
 
 }
