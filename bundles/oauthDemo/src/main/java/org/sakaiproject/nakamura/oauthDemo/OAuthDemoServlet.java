@@ -98,6 +98,18 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
 		//resp.getWriter().write("Hello World from Oauth Server: " );
 
 	}
+	
+	protected void doPost(HttpServletRequest req, HttpServletResponse response)
+			throws ServletException, IOException {
+	      
+	      String url ="https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2F" +
+			"www.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&" +
+			"state=%2Fprofile&redirect_uri=https%3A%2F%2Foauth2-login-demo.appspot.com%2Fcode&response_type=code&" +
+			"client_id=812741506391.apps.googleusercontent.com&approval_prompt=force";
+	      
+	      response.sendRedirect(url);
+
+	}
 
 
 }
