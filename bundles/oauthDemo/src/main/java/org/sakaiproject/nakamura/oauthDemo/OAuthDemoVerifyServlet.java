@@ -27,6 +27,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.sling.SlingServlet;
+import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 
 @SlingServlet(methods={"GET"}, paths={"/system/sling/oauthDemoVerifier"})
@@ -41,7 +43,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet{
 	 */
 	private static final long serialVersionUID = 1L;
 
-	protected void doGet(HttpServletRequest req, HttpServletResponse response)
+	protected void doGet(SlingHttpServletRequest req, SlingHttpServletResponse response)
 			throws ServletException, IOException {
 		
 		response.getWriter().write("Hello World from Oauth Server: " );

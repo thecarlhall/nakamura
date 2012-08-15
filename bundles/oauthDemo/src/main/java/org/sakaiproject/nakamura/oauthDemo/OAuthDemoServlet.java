@@ -25,6 +25,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.sling.SlingServlet;
+import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 
 import java.io.BufferedReader;
@@ -63,7 +65,7 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
 	 * {@inheritDoc}
 	 * @see javax.servlet.http.HttpServlet#doGet(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
 	*/ 
-	protected void doGet(HttpServletRequest req, HttpServletResponse response)
+	protected void doGet(SlingHttpServletRequest req, SlingHttpServletResponse response)
 			throws ServletException, IOException {
 		
 		/*URL url = new URL("https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2F" +
@@ -103,7 +105,7 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
 
 	}
 	
-	protected void doPost(HttpServletRequest req, HttpServletResponse response)
+	protected void doPost(SlingHttpServletRequest req, SlingHttpServletResponse response)
 			throws ServletException, IOException {
 		LOGGER.error("Do Post");
 	      
