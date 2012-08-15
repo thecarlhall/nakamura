@@ -19,6 +19,8 @@
 
 package org.sakaiproject.nakamura.oauthDemo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -48,7 +50,9 @@ import javax.servlet.http.HttpServletResponse;
 
 //public class OAuthDemoServlet extends HttpServlet {
 public class OAuthDemoServlet extends SlingAllMethodsServlet {
-	
+	 
+	private static final Logger LOGGER = LoggerFactory.getLogger(OAuthDemoServlet.class);
+
 	//private OauthServerHandler oauthHandler;
 	/**
 	 *
@@ -101,6 +105,7 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
 	
 	protected void doPost(HttpServletRequest req, HttpServletResponse response)
 			throws ServletException, IOException {
+		LOGGER.error("Do Post");
 	      
 	      String url ="https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2F" +
 			"www.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&" +
