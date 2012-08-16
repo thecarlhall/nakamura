@@ -59,6 +59,11 @@
             <Bundle-Category> sakai-nakamura-sample </Bundle-Category>
             <!--- <Export-Package> org.sakaiproject.nakamura.samples.api.helloworld </Export-Package> -->
             <Private-Package> org.sakaiproject.nakamura.oauthClient </Private-Package>
+            <Import-Package>
+              org.codehaus.jettison.json;resolution:=optional,
+              *
+            </Import-Package>
+            <Embed-Dependency>amber-oauth2-common, amber-oauth2-client</Embed-Dependency>
           </instructions>
         </configuration>
       </plugin>
@@ -122,6 +127,11 @@
       <groupId>org.apache.amber</groupId>
       <version>0.31-incubating-SNAPSHOT</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.amber</groupId>
+      <artifactId>amber-oauth2-client</artifactId>
+      <version>0.31-incubating-SNAPSHOT</version>
+    </dependency>
  
 	<!-- HttpClient -->
  	<dependency>
@@ -137,10 +147,6 @@
     <dependency>
       <groupId>org.apache.sling</groupId>
       <artifactId>org.apache.sling.commons.osgi</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.sling</groupId>
-      <artifactId>org.apache.sling.commons.json</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.sling</groupId>
