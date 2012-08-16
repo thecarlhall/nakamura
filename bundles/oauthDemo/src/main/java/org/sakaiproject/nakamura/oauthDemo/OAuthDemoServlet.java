@@ -22,38 +22,25 @@ package org.sakaiproject.nakamura.oauthDemo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.felix.scr.annotations.Properties;
-import org.apache.felix.scr.annotations.Property;
+import org.apache.amber.oauth2.client.request.OAuthClientRequest;
+import org.apache.amber.oauth2.common.exception.OAuthSystemException;
 import org.apache.felix.scr.annotations.sling.SlingServlet;
+import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.net.URLConnection;
-
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  * The <code>OauthServerServlet</code> says Hello World (for the moment)
  */
 
 @SlingServlet(methods={"GET","POST"}, paths={"/system/sling/oauthDemo"})
-@Properties(value={
-	    @Property(name = "service.description", value = "The Sakai Foundation"),
-	    @Property(name = "service.vendor", value = "The Sakai Foundation") 
-})
-
-//public class OAuthDemoServlet extends HttpServlet {
 public class OAuthDemoServlet extends SlingAllMethodsServlet {
 	 
 	private static final Logger LOGGER = LoggerFactory.getLogger(OAuthDemoServlet.class);
 
-	//private OauthServerHandler oauthHandler;
 	/**
 	 *
 	 */
@@ -63,58 +50,32 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
 	 * {@inheritDoc}
 	 * @see javax.servlet.http.HttpServlet#doGet(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
 	*/ 
-	protected void doGet(HttpServletRequest req, HttpServletResponse response)
+	protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
 			throws ServletException, IOException {
-		
-		/*URL url = new URL("https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2F" +
-				"www.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&" +
-				"state=%2Fprofile&redirect_uri=https%3A%2F%2Foauth2-login-demo.appspot.com%2Fcode&response_type=code&" +
-				"client_id=812741506391.apps.googleusercontent.com&approval_prompt=force");
-	      URLConnection con = url.openConnection();
-
-	      BufferedReader in = new BufferedReader(
-	         new InputStreamReader(con.getInputStream()));
-
-	      String linea;
-	      while ((linea = in.readLine()) != null) {
-	         System.out.println(linea);
-	         resp.getWriter().write(linea);
-	      }*/
-	      
-	      String url ="https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2F" +
-			"www.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&" +
-			"state=%2Fprofile&redirect_uri=https%3A%2F%2Foauth2-login-demo.appspot.com%2Fcode&response_type=code&" +
-			"client_id=812741506391.apps.googleusercontent.com&approval_prompt=force";
-	      
-	      //HttpServletResponse response = null;
-	      response.sendRedirect(url);
-	      /*
-		OAuthParams oauthParams = null;
-        oauthParams.setAuthzEndpoint(Utils.FACEBOOK_AUTHZ);
-        oauthParams.setTokenEndpoint(Utils.FACEBOOK_TOKEN);
-
-		//oauthHandler = new OauthServerHandler();
-        /*Session session = StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class));
-        ContentManager cm = session.getContentManager();
-        Content content = new Content(LitePersonalUtils.getPrivatePath(userId) + "/oauth", ImmutableMap.of("authorization_token", authorizationToken));
-        cm.update(content);*/
-
-		//resp.getWriter().write("Hello World from Oauth Server: " );
-
-	}
-	
-	protected void doPost(HttpServletRequest req, HttpServletResponse response)
-			throws ServletException, IOException {
-		LOGGER.error("Do Post");
-	      
-	      String url ="https://accounts.google.com/o/oauth2/auth?scope=https%3A%2F%2F" +
-			"www.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&" +
-			"state=%2Fprofile&redirect_uri=https%3A%2F%2Foauth2-login-demo.appspot.com%2Fcode&response_type=code&" +
-			"client_id=812741506391.apps.googleusercontent.com&approval_prompt=force";
-	      
-	      response.sendRedirect(url);
-
+	  dispatch(request, response);
 	}
 
+  protected void doPost(SlingHttpServletRequest request, SlingHttpServletResponse response)
+			throws ServletException, IOException {
+		dispatch(request, response);
+	}
 
+  private void dispatch(SlingHttpServletRequest request, SlingHttpServletResponse response)
+      throws ServletException, IOException {
+    try {
+      // TODO make all of these settings configurable via OSGi properties
+      OAuthClientRequest oauthRequest = OAuthClientRequest
+          .authorizationLocation("https://accounts.google.com/o/oauth2/auth")
+          .setScope("http://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile")
+          .setState("/profile")
+          .setRedirectURI("http://localhost:8080/system/sling/oauthDemoVerifier")
+          .setResponseType("code")
+          .setClientId("812741506391.apps.googleusercontent.com")
+          .setParameter("approval_prompt", "force")
+          .buildQueryMessage();
+      response.sendRedirect(oauthRequest.getLocationUri());
+    } catch (OAuthSystemException e) {
+      throw new ServletException(e.getMessage(), e);
+    }
+  }
 }
