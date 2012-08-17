@@ -50,6 +50,7 @@ import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentException;
+import org.sakaiproject.nakamura.api.media.MediaMetadata;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaStatus;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
@@ -247,9 +248,8 @@ public class BrightCoveMediaService implements MediaService {
    *      java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
-  public String createMedia(File mediaFile, String title, String description,
-      String extension, String[] tags) throws MediaServiceException {
-    String response = sendMedia(title, description, extension, tags, mediaFile, null);
+  public String createMedia(File mediaFile, MediaMetadata metadata) throws MediaServiceException {
+    String response = sendMedia(mediaFile, metadata);
     LOG.debug(response);
     return response;
   }
@@ -261,9 +261,9 @@ public class BrightCoveMediaService implements MediaService {
    *      java.lang.String, java.lang.String, java.lang.String[])
    */
   @Override
-  public String updateMedia(String id, String title, String description, String[] tags)
+  public String updateMedia(MediaMetadata metadata)
     throws MediaServiceException {
-    String response = sendMedia(title, description, null, tags, null, id);
+    String response = sendMedia(null, metadata);
     LOG.debug(response);
     return response;
   }
@@ -430,9 +430,9 @@ public class BrightCoveMediaService implements MediaService {
   }
 
 
-  private String sendMedia(final String title, final String description, final String extension, final String[] tags,
-      final File mediaFile, final String id) throws MediaServiceException {
-    if (id == null && mediaFile == null) {
+  private String sendMedia(final File mediaFile, final MediaMetadata metadata)
+      throws MediaServiceException {
+    if (metadata.getId() == null && mediaFile == null) {
       throw new IllegalArgumentException("Must supply 'id' or 'mediaFile'");
     }
 
@@ -444,16 +444,16 @@ public class BrightCoveMediaService implements MediaService {
            * Assemble the JSON params
            */
           JSONObject media = new JSONObject()
-            .put("name", title)
-            .put("shortDescription", description)
-            .put("tags", Arrays.asList(tags));
+            .put("name", metadata.getTitle())
+            .put("shortDescription", metadata.getDescription())
+            .put("tags", Arrays.asList(metadata.getTags()));
 
           String method = "update_video";
 
           if (mediaFile != null) {
             method = "create_video";
           } else {
-            media.put("id", id);
+            media.put("id", metadata.getId());
           }
 
           JSONObject json = new JSONObject()
@@ -480,10 +480,10 @@ public class BrightCoveMediaService implements MediaService {
                     }
 
                     public String getFileName() {
-                      if (extension != null) {
-                        return title + "." + extension;
+                      if (metadata.getExtension() != null) {
+                        return metadata.getTitle() + "." + metadata.getExtension();
                       } else {
-                        return title;
+                        return metadata.getTitle();
                       }
                     }
 
@@ -522,7 +522,7 @@ public class BrightCoveMediaService implements MediaService {
             return String.valueOf(responseJSON.getLong("result"));
           } else {
             // An update.  Return the old ID
-            return id;
+            return metadata.getId();
           }
 
         } catch (JSONException e) {

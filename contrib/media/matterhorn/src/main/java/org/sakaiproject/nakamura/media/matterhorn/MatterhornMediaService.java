@@ -71,6 +71,7 @@ import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 import org.apache.sling.commons.osgi.PropertiesUtil;
 import org.osgi.service.component.ComponentException;
+import org.sakaiproject.nakamura.api.media.MediaMetadata;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.sakaiproject.nakamura.api.media.MediaStatus;
@@ -283,10 +284,10 @@ public class MatterhornMediaService implements MediaService {
   }
 
   @Override
-  public String createMedia(final File mediaFile, final String title, final String description, final String extension, String[] tags)
-    throws MediaServiceException {
+  public String createMedia(final File mediaFile, final MediaMetadata metadata)
+      throws MediaServiceException {
 
-    LOG.info("Processing media for {}", title);
+    LOG.info("Processing media for {}", metadata.getTitle());
 
     PostMethod post = null;
 
@@ -298,9 +299,9 @@ public class MatterhornMediaService implements MediaService {
       Part[] parts = new Part[] {
         new StringPart("flavor", "presenter/source"),
         new StringPart("contributor", "Sakai OAE"),
-        new StringPart("title", title),
-        new StringPart("description", description),
-        new StringPart("subject", StringUtils.join(tags, ", ")),
+        new StringPart("title", metadata.getTitle()),
+        new StringPart("description", metadata.getDescription()),
+        new StringPart("subject", StringUtils.join(metadata.getTags(), ", ")),
         new StringPart("creator", ""),
         new FilePart("track",
             new PartSource () {
@@ -313,10 +314,10 @@ public class MatterhornMediaService implements MediaService {
               }
 
               public String getFileName() {
-                if (extension != null) {
-                  return title + "." + extension;
+                if (metadata.getExtension() != null) {
+                  return metadata.getTitle() + "." + metadata.getExtension();
                 } else {
-                  return title;
+                  return metadata.getTitle();
                 }
               }
 
@@ -495,19 +496,18 @@ public class MatterhornMediaService implements MediaService {
 
 
   @Override
-  public String updateMedia(String id, String title, String description, String[] tags)
-    throws MediaServiceException {
+  public String updateMedia(MediaMetadata metadata) throws MediaServiceException {
 
     try {
-      JSONObject ids = new JSONObject(id);
+      JSONObject ids = new JSONObject(metadata.getId());
       HttpClient client = new HttpClient();
 
       // Get the Dublin Core metadata file
-      updateMetadata(ids, client, title, description, tags);
+      updateMetadata(ids, client, metadata.getTitle(), metadata.getDescription(), metadata.getTags());
       refreshIndexes(ids, client);
 
 
-      return id;
+      return metadata.getId();
 
     } catch (IOException e) {
       throw new MediaServiceException("Failed to update media: " + e);

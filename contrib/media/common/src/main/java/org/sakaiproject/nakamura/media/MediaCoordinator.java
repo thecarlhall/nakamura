@@ -53,6 +53,7 @@ import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 
 import org.sakaiproject.nakamura.api.files.FilesConstants;
 
+import org.sakaiproject.nakamura.api.media.MediaMetadata;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaStatus;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
@@ -333,11 +334,13 @@ public class MediaCoordinator implements Runnable {
 
             try {
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
-              String mediaId = mediaService.createMedia(mediaFile,
-                  version.getTitle(),
+              MediaMetadata metadata = new MediaMetadata(version.getTitle(),
                   version.getDescription(),
+                  version.getTags(),
                   version.getExtension(),
-                  version.getTags());
+                  version.getVersionId(),
+                  String.valueOf(obj.getProperty(Content.CREATED_BY_FIELD)));
+              String mediaId = mediaService.createMedia(mediaFile, metadata);
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
 
               mediaNode.storeMediaId(version, mediaId);
@@ -355,10 +358,12 @@ public class MediaCoordinator implements Runnable {
 
             try {
               TelemetryCounter.incrementValue("media", "Coordinator", "updates-started");
-              mediaService.updateMedia(mediaNode.getMediaId(version),
+              MediaMetadata metadata = new MediaMetadata(mediaNode.getMediaId(version),
                   version.getTitle(),
                   version.getDescription(),
-                  version.getTags());
+                  version.getTags(),
+                  String.valueOf(obj.getProperty(Content.CREATED_BY_FIELD)));
+              mediaService.updateMedia(metadata);
               TelemetryCounter.incrementValue("media", "Coordinator", "updates-finished");
 
               mediaNode.recordVersion(version);

@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import org.sakaiproject.nakamura.api.media.MediaMetadata;
 import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.ErrorHandler;
 import org.sakaiproject.nakamura.api.media.MediaStatus;
@@ -84,8 +85,8 @@ public class MediaCoordinatorTest {
 
     volatile public int failCount = 0;
 
-    public String createMedia(File media, String title, String description, String extension, String[] tags)
-      throws MediaServiceException {
+    public String createMedia(File media, MediaMetadata metadata)
+        throws MediaServiceException {
 
       if (failOnNextCreate) {
         failOnNextCreate = false;
@@ -99,24 +100,24 @@ public class MediaCoordinatorTest {
       }
 
 
-      created.add(ImmutableMap.of("title", title,
-                                  "description", description,
-                                  "extension", extension,
-                                  "tags", Arrays.asList(tags).toString()));
+      created.add(ImmutableMap.of("title", metadata.getTitle(),
+                                  "description", metadata.getDescription(),
+                                  "extension", metadata.getExtension(),
+                                  "tags", Arrays.asList(metadata.getTags()).toString()));
 
       return String.valueOf(System.currentTimeMillis());
     }
 
 
-    public String updateMedia(String id, String title, String description, String[] tags)
-      throws MediaServiceException {
+    public String updateMedia(MediaMetadata metadata)
+        throws MediaServiceException {
 
-      updated.add(ImmutableMap.of("id", id,
-                                  "title", title,
-                                  "description", description,
-                                  "tags", Arrays.asList(tags).toString()));
+      updated.add(ImmutableMap.of("id", metadata.getId(),
+                                  "title", metadata.getTitle(),
+                                  "description", metadata.getDescription(),
+                                  "tags", Arrays.asList(metadata.getTags()).toString()));
 
-      return id;
+      return metadata.getId();
     }
 
     public MediaStatus getStatus(String id) throws MediaServiceException, IOException {

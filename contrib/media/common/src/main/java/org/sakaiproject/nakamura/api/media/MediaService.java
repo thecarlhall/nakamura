@@ -33,8 +33,7 @@ public interface MediaService {
    * @return
    * @throws MediaServiceException
    */
-  String createMedia(File media, String title, String description, String extension, String[] tags)
-      throws MediaServiceException;
+  String createMedia(File media, MediaMetadata metadata) throws MediaServiceException;
 
   /**
    * Update the metadata for a media.
@@ -46,8 +45,7 @@ public interface MediaService {
    * @return
    * @throws MediaServiceException
    */
-  String updateMedia(String id, String title, String description, String[] tags)
-      throws MediaServiceException;
+  String updateMedia(MediaMetadata metadata) throws MediaServiceException;
 
   /**
    * Delete media.
