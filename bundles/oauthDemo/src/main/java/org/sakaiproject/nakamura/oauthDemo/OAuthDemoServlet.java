@@ -50,7 +50,7 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
   static final String AUTHZ_LOCATION = "authorizationLocation";
 
   // TODO require this be provided in the configuration
-  public static final String DEFAULT_SCOPE = "https://www.googleapis.com/auth/plus.me https://www.googleapis.com/auth/userinfo.profile";
+  public static final String DEFAULT_SCOPE = "https://www.googleapis.com/auth/userinfo.profile";
   @Property(value = OAuthDemoServlet.DEFAULT_SCOPE)
   static final String SCOPE = "scope";
 

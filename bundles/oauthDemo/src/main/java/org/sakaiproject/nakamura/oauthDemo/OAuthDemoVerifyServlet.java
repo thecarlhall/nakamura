@@ -18,31 +18,14 @@
 
 package org.sakaiproject.nakamura.oauthDemo;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Map;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.amber.oauth2.client.OAuthClient;
 import org.apache.amber.oauth2.client.URLConnectionClient;
 import org.apache.amber.oauth2.client.request.OAuthClientRequest;
-import org.apache.amber.oauth2.client.response.GitHubTokenResponse;
 import org.apache.amber.oauth2.client.response.OAuthAccessTokenResponse;
 import org.apache.amber.oauth2.client.response.OAuthAuthzResponse;
 import org.apache.amber.oauth2.common.exception.OAuthProblemException;
 import org.apache.amber.oauth2.common.exception.OAuthSystemException;
 import org.apache.amber.oauth2.common.message.types.GrantType;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.util.HttpURLConnection;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -51,6 +34,26 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.osgi.PropertiesUtil;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Map;
+
+import javax.servlet.ServletException;
+/*import org.apache.http.HttpException;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+*/
 
 @SlingServlet(methods = { "GET","POST" }, paths = { "/system/sling/oauthDemoVerifier" })
 @Properties(value = {
@@ -94,6 +97,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     redirectUri = PropertiesUtil.toString(props.get(REDIRECT_URI), DEFAULT_REDIRECT_URI);
   }
   
+  @SuppressWarnings("unused")
   private OAuthClientRequest getToken(String code){  
     OAuthClientRequest  oar_request = null;
    try {
@@ -113,44 +117,20 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     return oar_request;
     
   } 
-  
-  private void exchangeTokens(String code){
-    String urlParameters = "code="+ code + 
-        "&client_id="+ clientId +
-        "&client_secret=" + clientSecret +
-        "&redirect_uri=" + redirectUri +
-        "&grant_type=authorization_code";
-    URL url;
-    try {
-      url = new URL(tokenLocation);
-      HttpURLConnection connection = (HttpURLConnection) url.openConnection();           
-      connection.setDoOutput(true);
-      connection.setDoInput(true);
-      connection.setInstanceFollowRedirects(false); 
-      connection.setRequestMethod("POST"); 
-      connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); 
-      connection.setRequestProperty("charset", "utf-8");
-      connection.setRequestProperty("Content-Length", "" + Integer.toString(urlParameters.getBytes().length));
-      connection.setUseCaches (false);
-
-      DataOutputStream wr = new DataOutputStream(connection.getOutputStream ());
-      wr.writeBytes(urlParameters);
-      wr.flush();
-      wr.close();
-      connection.disconnect();
-
-    } catch (MalformedURLException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } 
-     }
-
+ 
   protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
       throws ServletException, IOException {
-    
+    String code = getCode(request);
+    dispatch2(code,response);
+  }
+  
+  protected void doPost(SlingHttpServletRequest request, SlingHttpServletResponse response)
+      throws ServletException, IOException {
+    String code = getCode(request);
+    dispatch2(code,response);     
+  }
+  
+  private String getCode(SlingHttpServletRequest request){
     OAuthAuthzResponse oar = null;
     try {
       oar = OAuthAuthzResponse.oauthCodeAuthzResponse(request);      
@@ -159,7 +139,12 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       e.printStackTrace();
     }
     String code = oar.getCode();
-    
+    return code;
+  }
+  
+  @SuppressWarnings("unused")
+  private void dispatch(String code, SlingHttpServletResponse response)
+      throws ServletException, IOException {
 
     response.getWriter().write( "Hello World from Oauth Server: " + code );
 
@@ -175,7 +160,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       
       OAuthClient client = new OAuthClient(new URLConnectionClient());
       OAuthAccessTokenResponse oauthResponse = null;
-      oauthResponse = client.accessToken(oauthRequest);
+      //oauthResponse = client.accessToken(oauthRequest);
 
       //response.getWriter().append("Access Token: " + oauthResponse.getAccessToken());
       
@@ -184,28 +169,85 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     } catch (OAuthSystemException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
-    } catch (OAuthProblemException e) {
+    } //catch (OAuthProblemException e) {
+      // TODO Auto-generated catch block
+      //e.printStackTrace();
+    //}
+  }
+  
+  private void dispatch2(String code , SlingHttpServletResponse response){
+    String urlParameters = "code="+ code+
+    		"&client_id="+ clientId + 
+    		"&client_secret="+ clientSecret + 
+    		"&redirect_uri="+ redirectUri + 
+        "&grant_type=" + "authorization_code";
+    
+    String request = tokenLocation;
+    URL url;
+    try {
+      url = new URL(request);
+      URLConnection connection = url.openConnection();       
+      connection.setDoOutput(true);
+      connection.setDoInput(true);
+      connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); 
+      connection.setRequestProperty("charset", "utf-8");
+      connection.setRequestProperty("Content-Length", "" + Integer.toString(urlParameters.getBytes().length));
+      connection.setUseCaches (false);
+
+      DataOutputStream wr = new DataOutputStream(connection.getOutputStream ());
+      wr.writeBytes(urlParameters);
+      wr.flush();
+      
+      // Get the response
+      BufferedReader rd = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+      String line;
+      while ((line = rd.readLine()) != null) {
+        response.getWriter().write(line);
+      }
+
+      rd.close();
+      wr.close();
+      
+    } catch (MalformedURLException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
-    }
-
-    
-   //response.getWriter().append( "Hello World from Oauth Server: " + code );
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } 
 
   }
   
-  protected void doPost(SlingHttpServletRequest request, SlingHttpServletResponse response)
-      throws ServletException, IOException {
-    response.getWriter().append( "Hello World from Oauth ");
-    OAuthAuthzResponse oar = null;
-    try {
-      oar = OAuthAuthzResponse.oauthCodeAuthzResponse(request);      
-    } catch (OAuthProblemException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
-    String code = oar.getCode();
-    response.getWriter().write( "Hello World from Oauth Server: " + code );
+  /*private void dispatch3(String code , SlingHttpServletResponse response){
 
+  try {
+    HttpClient client = new DefaultHttpClient();
+    HttpPost post = new HttpPost(tokenLocation);
+    List<NameValuePair> data = new ArrayList<NameValuePair>();
+    data.add(new BasicNameValuePair("code", code));
+    data.add(new BasicNameValuePair("client_id", clientId));
+    data.add(new BasicNameValuePair("client_secret", clientSecret));
+    data.add(new BasicNameValuePair("redirect_uri", redirectUri));
+    data.add(new BasicNameValuePair("grant_type", "authorization_code"));
+    post.setEntity(new UrlEncodedFormEntity(data));
+    
+    HttpResponse httpResponse = client.execute(post);
+    BufferedReader rd = new BufferedReader(new InputStreamReader(httpResponse.getEntity().getContent()));
+    String line = "";
+    while ((line = rd.readLine()) != null) {
+      response.getWriter().write(line);
+    }
+  } catch (IOException e) {
+    // TODO Auto-generated catch block
+    e.printStackTrace();
   }
+  // handle response.
+ catch (URISyntaxException e) {
+    // TODO Auto-generated catch block
+    e.printStackTrace();
+  } catch (HttpException e) {
+  // TODO Auto-generated catch block
+  e.printStackTrace();
+}
+  }*/
 }
