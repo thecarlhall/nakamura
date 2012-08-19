@@ -49,7 +49,11 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+//import org.sakaiproject.nakamura.api.lite.Session;
+
+
 import javax.servlet.ServletException;
+
 
 
 @SlingServlet(methods = { "GET","POST" }, paths = { "/system/sling/oauthDemoVerifier" })
@@ -132,7 +136,8 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
   private String getCode(SlingHttpServletRequest request){
     OAuthAuthzResponse oar = null;
     try {
-      oar = OAuthAuthzResponse.oauthCodeAuthzResponse(request);      
+      oar = OAuthAuthzResponse.oauthCodeAuthzResponse(request);
+      oar.getExpiresIn();
     } catch (OAuthProblemException e) {
       LOGGER.error(e.getMessage(), e);
     }
@@ -142,8 +147,9 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
   
   private void dispatch(String code, SlingHttpServletResponse response)
       throws ServletException, IOException {
+	  
 
-    response.getWriter().write( "Request token: " + code );
+    response.getWriter().append( "\n Request token: " + code );
 
     try {
       OAuthClientRequest oauthRequest = OAuthClientRequest
@@ -160,6 +166,9 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       OAuthAccessTokenResponse oauthResponse = client.accessToken(oauthRequest, cl);
 
       response.getWriter().append("\n Access Token: " + oauthResponse.getAccessToken());
+      response.getWriter().append("\n Refresh Token: " + oauthResponse.getRefreshToken());
+      response.getWriter().append("\n Expires in: " + oauthResponse.getExpiresIn());
+      
       response.getWriter().append("\n Get resource: " + getResource(oauthResponse.getAccessToken()));
       
     } catch (OAuthSystemException e) {
@@ -250,4 +259,11 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     
   }
   
+  private void storeTokens(SlingHttpServletRequest request){
+    //Session session;
+    /*    StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class));
+    ContentManager cm = session.getContentManager();
+    Content content = new Content(LitePersonalUtils.getPrivatePath(userId) + "/oauth", ImmutableMap.of("authorization_token", authorizationToken));
+    cm.update(content);*/
+  }
 }

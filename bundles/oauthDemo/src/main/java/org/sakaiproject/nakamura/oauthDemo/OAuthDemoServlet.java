@@ -105,7 +105,7 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
    */
   protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
       throws ServletException, IOException {
-    dispatch(request, response);
+	  dispatchOffline(request, response);
   }
 
   /**
@@ -136,6 +136,33 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
           .setRedirectURI(redirectUri)
           .setResponseType(responseType)
           .setClientId(clientId)
+          .setParameter("approval_prompt", approvalPrompt)
+          .buildQueryMessage();
+      response.sendRedirect(oauthRequest.getLocationUri());
+    } catch (OAuthSystemException e) {
+      throw new ServletException(e.getMessage(), e);
+    }
+  }
+  
+  /**
+   * Dispatches a redirect request to the OAuth server, with offline access
+   *
+   * @param request
+   * @param response
+   * @throws ServletException
+   * @throws IOException
+   */
+  private void dispatchOffline(SlingHttpServletRequest request, SlingHttpServletResponse response)
+      throws ServletException, IOException {
+    try {
+      OAuthClientRequest oauthRequest = OAuthClientRequest
+          .authorizationLocation(authorizationLocation)
+          .setScope(scope)
+          .setState(state)
+          .setRedirectURI(redirectUri)
+          .setResponseType(responseType)
+          .setClientId(clientId)
+          .setParameter("access_type", "offline")
           .setParameter("approval_prompt", approvalPrompt)
           .buildQueryMessage();
       response.sendRedirect(oauthRequest.getLocationUri());
