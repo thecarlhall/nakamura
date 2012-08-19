@@ -23,9 +23,11 @@ import org.apache.amber.oauth2.client.URLConnectionClient;
 import org.apache.amber.oauth2.client.request.OAuthClientRequest;
 import org.apache.amber.oauth2.client.response.OAuthAccessTokenResponse;
 import org.apache.amber.oauth2.client.response.OAuthAuthzResponse;
+import org.apache.amber.oauth2.client.response.OAuthJSONAccessTokenResponse;
 import org.apache.amber.oauth2.common.exception.OAuthProblemException;
 import org.apache.amber.oauth2.common.exception.OAuthSystemException;
 import org.apache.amber.oauth2.common.message.types.GrantType;
+import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -43,6 +45,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 /*import org.apache.http.HttpException;
@@ -98,7 +102,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
   }
   
   @SuppressWarnings("unused")
-  private OAuthClientRequest getToken(String code){  
+  private OAuthClientRequest setTokenQuery(String code){  
     OAuthClientRequest  oar_request = null;
    try {
       oar_request = OAuthClientRequest
@@ -142,7 +146,6 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     return code;
   }
   
-  @SuppressWarnings("unused")
   private void dispatch(String code, SlingHttpServletResponse response)
       throws ServletException, IOException {
 
@@ -160,19 +163,22 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       
       OAuthClient client = new OAuthClient(new URLConnectionClient());
       OAuthAccessTokenResponse oauthResponse = null;
+      Class<? extends OAuthAccessTokenResponse> cl = OAuthJSONAccessTokenResponse.class;
+      oauthResponse = client.accessToken(oauthRequest, cl);
+
       //oauthResponse = client.accessToken(oauthRequest);
 
       //response.getWriter().append("Access Token: " + oauthResponse.getAccessToken());
       
-      response.sendRedirect(oauthRequest.getLocationUri());
+      //response.sendRedirect(oauthRequest.getLocationUri());
 
     } catch (OAuthSystemException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
-    } //catch (OAuthProblemException e) {
+    } catch (OAuthProblemException e) {
       // TODO Auto-generated catch block
-      //e.printStackTrace();
-    //}
+      e.printStackTrace();
+    }
   }
   
   private void dispatch2(String code , SlingHttpServletResponse response){
@@ -199,12 +205,17 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       wr.flush();
       
       // Get the response
+      response.getWriter().write("Oauth response: ");
       BufferedReader rd = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-      String line;
+      String line, message="";
       while ((line = rd.readLine()) != null) {
-        response.getWriter().write(line);
+        message += line;
+        response.getWriter().append(line);
       }
-
+      response.getWriter().append("\n");
+      String access_token = getAccessToken(message);
+      response.getWriter().append("Access token: " + access_token + "\n");
+      response.getWriter().append("Get resource: " + getResource(access_token)+"");
       rd.close();
       wr.close();
       
@@ -217,6 +228,43 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     } 
 
   }
+  
+  private String getAccessToken(String message) {
+    Pattern pattern = Pattern.compile("access_token\" : \"[^\"]+");
+    String cleanPattern = "access_token\" : \"";
+    Matcher matcher = pattern.matcher(message);
+    if (matcher.find()){
+      String access_token = matcher.group(); 
+      return access_token.replaceAll(cleanPattern, "");
+      
+    }
+    return null; 
+  }
+
+  private String getResource(String accessToken){
+    URL url;
+    try {
+      url = new URL("https://www.googleapis.com/oauth2/v1/userinfo?access_token="+accessToken);
+      URLConnection con = url.openConnection();
+      BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+
+      String line, resource= "";
+      while ((line = in.readLine()) != null) {
+        resource+= line;
+      }
+      return resource;
+
+    } catch (MalformedURLException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+    return null;
+    
+  }
+  
   
   /*private void dispatch3(String code , SlingHttpServletResponse response){
 
