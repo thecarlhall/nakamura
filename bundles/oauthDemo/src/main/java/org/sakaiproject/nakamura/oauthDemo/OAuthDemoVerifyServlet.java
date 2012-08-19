@@ -151,7 +151,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
   private void dispatch(String code, SlingHttpServletResponse response)
       throws ServletException, IOException {
 
-    response.getWriter().write( "Hello World from Oauth Server: " + code );
+    response.getWriter().write( "Request token: " + code );
 
     try {
       OAuthClientRequest oauthRequest = OAuthClientRequest
@@ -167,10 +167,9 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       Class<? extends OAuthAccessTokenResponse> cl = OAuthJSONAccessTokenResponse.class;
       OAuthAccessTokenResponse oauthResponse = client.accessToken(oauthRequest, cl);
 
-      response.getWriter().append("Access Token: " + oauthResponse.getAccessToken());
+      response.getWriter().append("\n Access Token: " + oauthResponse.getAccessToken());
+      response.getWriter().append("\n Get resource: " + getResource(oauthResponse.getAccessToken()));
       
-      //response.sendRedirect(oauthRequest.getLocationUri());
-
     } catch (OAuthSystemException e) {
       LOGGER.error(e.getMessage(), e);
     } catch (OAuthProblemException e) {
@@ -178,6 +177,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     }
   }
   
+  @SuppressWarnings("unused")
   private void dispatch2(String code , SlingHttpServletResponse response){
     String urlParameters = "code="+ code+
     		"&client_id="+ clientId + 
@@ -258,37 +258,4 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     
   }
   
-  
-  /*private void dispatch3(String code , SlingHttpServletResponse response){
-
-  try {
-    HttpClient client = new DefaultHttpClient();
-    HttpPost post = new HttpPost(tokenLocation);
-    List<NameValuePair> data = new ArrayList<NameValuePair>();
-    data.add(new BasicNameValuePair("code", code));
-    data.add(new BasicNameValuePair("client_id", clientId));
-    data.add(new BasicNameValuePair("client_secret", clientSecret));
-    data.add(new BasicNameValuePair("redirect_uri", redirectUri));
-    data.add(new BasicNameValuePair("grant_type", "authorization_code"));
-    post.setEntity(new UrlEncodedFormEntity(data));
-    
-    HttpResponse httpResponse = client.execute(post);
-    BufferedReader rd = new BufferedReader(new InputStreamReader(httpResponse.getEntity().getContent()));
-    String line = "";
-    while ((line = rd.readLine()) != null) {
-      response.getWriter().write(line);
-    }
-  } catch (IOException e) {
-    // TODO Auto-generated catch block
-    e.printStackTrace();
-  }
-  // handle response.
- catch (URISyntaxException e) {
-    // TODO Auto-generated catch block
-    e.printStackTrace();
-  } catch (HttpException e) {
-  // TODO Auto-generated catch block
-  e.printStackTrace();
-}
-  }*/
 }
