@@ -63,7 +63,7 @@
               org.codehaus.jettison.json;resolution:=optional,
               *
             </Import-Package>
-            <Embed-Dependency>amber-oauth2-common, amber-oauth2-client</Embed-Dependency>
+            <Embed-Dependency>amber-oauth2-common, amber-oauth2-client, jettison</Embed-Dependency>
           </instructions>
         </configuration>
       </plugin>

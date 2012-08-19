@@ -27,7 +27,6 @@ import org.apache.amber.oauth2.client.response.OAuthJSONAccessTokenResponse;
 import org.apache.amber.oauth2.common.exception.OAuthProblemException;
 import org.apache.amber.oauth2.common.exception.OAuthSystemException;
 import org.apache.amber.oauth2.common.message.types.GrantType;
-import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
@@ -36,6 +35,8 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.osgi.PropertiesUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -64,6 +65,9 @@ import org.apache.http.message.BasicNameValuePair;
     @Property(name = "service.description", value = "The Sakai Foundation"),
     @Property(name = "service.vendor", value = "The Sakai Foundation") })
 public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
+  private static final Logger LOGGER = LoggerFactory
+      .getLogger(OAuthDemoVerifyServlet.class);
+
   /**
 	 * 
 	 */
@@ -115,8 +119,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
          .buildBodyMessage();
      
    } catch (OAuthSystemException e) {
-     // TODO Auto-generated catch block
-     e.printStackTrace();
+     LOGGER.error(e.getMessage(), e);
    }
     return oar_request;
     
@@ -125,13 +128,13 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
   protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
       throws ServletException, IOException {
     String code = getCode(request);
-    dispatch2(code,response);
+    dispatch(code,response);
   }
   
   protected void doPost(SlingHttpServletRequest request, SlingHttpServletResponse response)
       throws ServletException, IOException {
     String code = getCode(request);
-    dispatch2(code,response);     
+    dispatch(code,response);     
   }
   
   private String getCode(SlingHttpServletRequest request){
@@ -139,8 +142,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     try {
       oar = OAuthAuthzResponse.oauthCodeAuthzResponse(request);      
     } catch (OAuthProblemException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     }
     String code = oar.getCode();
     return code;
@@ -162,22 +164,17 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
           .buildBodyMessage();
       
       OAuthClient client = new OAuthClient(new URLConnectionClient());
-      OAuthAccessTokenResponse oauthResponse = null;
       Class<? extends OAuthAccessTokenResponse> cl = OAuthJSONAccessTokenResponse.class;
-      oauthResponse = client.accessToken(oauthRequest, cl);
+      OAuthAccessTokenResponse oauthResponse = client.accessToken(oauthRequest, cl);
 
-      //oauthResponse = client.accessToken(oauthRequest);
-
-      //response.getWriter().append("Access Token: " + oauthResponse.getAccessToken());
+      response.getWriter().append("Access Token: " + oauthResponse.getAccessToken());
       
       //response.sendRedirect(oauthRequest.getLocationUri());
 
     } catch (OAuthSystemException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     } catch (OAuthProblemException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     }
   }
   
@@ -220,11 +217,9 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       wr.close();
       
     } catch (MalformedURLException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     } 
 
   }
@@ -255,11 +250,9 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       return resource;
 
     } catch (MalformedURLException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     }
     return null;
     
