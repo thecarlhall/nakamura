@@ -50,12 +50,12 @@ public class OAuthDemoServlet extends SlingAllMethodsServlet {
   static final String AUTHZ_LOCATION = "authorizationLocation";
 
   // TODO require this be provided in the configuration
-  public static final String DEFAULT_SCOPE = "http://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
+  public static final String DEFAULT_SCOPE = "https://www.googleapis.com/auth/userinfo.profile";
   @Property(value = OAuthDemoServlet.DEFAULT_SCOPE)
   static final String SCOPE = "scope";
 
   // TODO require this be provided in the configuration
-  public static final String DEFAULT_CLIENT_ID = "812741506391.apps.googleusercontent.com";
+  public static final String DEFAULT_CLIENT_ID = "215879716306.apps.googleusercontent.com";
   @Property(value = OAuthDemoServlet.DEFAULT_CLIENT_ID)
   static final String CLIENT_ID = "clientId";
 
