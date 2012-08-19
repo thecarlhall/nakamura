@@ -170,6 +170,7 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
       response.getWriter().append("\n Expires in: " + oauthResponse.getExpiresIn());
       
       response.getWriter().append("\n Get resource: " + getResource(oauthResponse.getAccessToken()));
+      refreshToken(oauthResponse.getRefreshToken(),response);
       
     } catch (OAuthSystemException e) {
       LOGGER.error(e.getMessage(), e);
@@ -257,6 +258,36 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
     }
     return null;
     
+  }
+  
+  private void refreshToken(String refreshToken, SlingHttpServletResponse response){
+	  try {
+	      OAuthClientRequest oauthRequest = OAuthClientRequest
+	          .tokenLocation(tokenLocation)
+	          .setClientId(clientId)
+	          .setClientSecret(clientSecret)
+	          .setRefreshToken(refreshToken)
+	          .setGrantType(GrantType.REFRESH_TOKEN)
+	          .buildBodyMessage();
+	      
+	      OAuthClient client = new OAuthClient(new URLConnectionClient());
+	      Class<? extends OAuthAccessTokenResponse> cl = OAuthJSONAccessTokenResponse.class;
+	      OAuthAccessTokenResponse oauthResponse = client.accessToken(oauthRequest, cl);
+	      
+	      response.getWriter().append("\n Access Token: " + oauthResponse.getAccessToken());
+	      response.getWriter().append("\n Expires in: " + oauthResponse.getExpiresIn());
+	      
+	      response.getWriter().append("\n Get resource: " + getResource(oauthResponse.getAccessToken()));
+	      
+	    } catch (OAuthSystemException e) {
+	        LOGGER.error(e.getMessage(), e);
+	      } catch (OAuthProblemException e) {
+	        LOGGER.error(e.getMessage(), e);
+	      } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
   }
   
   private void storeTokens(SlingHttpServletRequest request){
