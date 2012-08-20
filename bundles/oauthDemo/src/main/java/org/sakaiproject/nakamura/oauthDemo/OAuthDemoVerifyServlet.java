@@ -18,6 +18,19 @@
 
 package org.sakaiproject.nakamura.oauthDemo;
 
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.servlet.ServletException;
+
 import org.apache.amber.oauth2.client.OAuthClient;
 import org.apache.amber.oauth2.client.URLConnectionClient;
 import org.apache.amber.oauth2.client.request.OAuthClientRequest;
@@ -35,24 +48,17 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.commons.osgi.PropertiesUtil;
+import org.sakaiproject.nakamura.api.lite.Session;
+import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.lite.content.Content;
+import org.sakaiproject.nakamura.api.lite.content.ContentManager;
+import org.sakaiproject.nakamura.util.LitePersonalUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-//import org.sakaiproject.nakamura.api.lite.Session;
-
-
-import javax.servlet.ServletException;
+import com.google.common.collect.ImmutableMap;
 
 
 
@@ -290,11 +296,16 @@ public class OAuthDemoVerifyServlet extends SlingAllMethodsServlet {
 
   }
   
-  private void storeTokens(SlingHttpServletRequest request){
-    //Session session;
-    /*    StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class));
+  private void storeTokens(SlingHttpServletRequest request, String authorizationToken)
+      throws StorageClientException, AccessDeniedException {
+    Session session = StorageClientUtils.adaptToSession(request.getResourceResolver()
+        .adaptTo(javax.jcr.Session.class));
     ContentManager cm = session.getContentManager();
-    Content content = new Content(LitePersonalUtils.getPrivatePath(userId) + "/oauth", ImmutableMap.of("authorization_token", authorizationToken));
-    cm.update(content);*/
+    String path = LitePersonalUtils.getPrivatePath(request
+        .getRemoteUser()) + "/oauth";
+    Map<String, Object> props = ImmutableMap.<String, Object> of("authorization_token",
+        authorizationToken);
+    Content content = new Content(path, props);
+    cm.update(content);
   }
 }
