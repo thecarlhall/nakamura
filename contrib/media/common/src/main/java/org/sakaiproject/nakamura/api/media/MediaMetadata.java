@@ -29,6 +29,8 @@ public class MediaMetadata {
   private String user;
   private String extension;
   private String versionId;
+  private String contentId;
+  
 
   public MediaMetadata() {
   }
@@ -43,13 +45,14 @@ public class MediaMetadata {
   }
 
   public MediaMetadata(String title, String description, String[] tags, String extension,
-      String versionId, String user) {
+      String versionId, String user, String contentId) {
     this.title = title;
     this.description = description;
     this.tags = tags;
     this.extension = extension;
     this.versionId = versionId;
     this.user = user;
+    this.contentId = contentId;
   }
 
   public String getId() {
@@ -98,6 +101,14 @@ public class MediaMetadata {
 
   public void setExtension(String extension) {
     this.extension = extension;
+  }
+
+  public String getContentId() {
+    return contentId;
+  }
+
+  public void setContentId(String contentId) {
+    this.contentId = contentId;
   }
 
   public String getVersionId() {

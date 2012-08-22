@@ -339,7 +339,8 @@ public class MediaCoordinator implements Runnable {
                   version.getTags(),
                   version.getExtension(),
                   version.getVersionId(),
-                  String.valueOf(obj.getProperty(Content.CREATED_BY_FIELD)));
+                  String.valueOf(obj.getProperty(Content.CREATED_BY_FIELD)),
+                  obj.getPath());
               String mediaId = mediaService.createMedia(mediaFile, metadata);
               TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
 
