@@ -18,7 +18,7 @@
 package org.sakaiproject.nakamura.api.media;
 
 /**
- *
+ * Project-level exception for things that go wrong.
  */
 public class MediaServiceException extends Exception {
 

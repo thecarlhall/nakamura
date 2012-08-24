@@ -25,6 +25,9 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Data object for information about an instance of media.
+ */
 class Version {
 
   private String pid;

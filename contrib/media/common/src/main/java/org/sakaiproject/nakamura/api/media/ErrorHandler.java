@@ -18,7 +18,9 @@
  */
 package org.sakaiproject.nakamura.api.media;
 
-
+/**
+ * Interface for error handlers involved with media coordination.
+ */
 public interface ErrorHandler {
   void error(String pid);
 }

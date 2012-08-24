@@ -21,6 +21,9 @@ package org.sakaiproject.nakamura.media;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Utility class to delay execution.
+ */
 class Slowdown {
 
   private long delay;

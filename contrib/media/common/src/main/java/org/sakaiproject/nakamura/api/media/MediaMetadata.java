@@ -18,7 +18,7 @@
 package org.sakaiproject.nakamura.api.media;
 
 /**
- *
+ * Data object for metadata related to media.
  */
 public class MediaMetadata {
   private String id;

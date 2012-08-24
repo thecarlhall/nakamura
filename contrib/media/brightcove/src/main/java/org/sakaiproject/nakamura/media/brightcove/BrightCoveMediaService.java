@@ -57,7 +57,9 @@ import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+/**
+ * Implementation of {@link MediaService} to interface with a BrightCove server.
+ */
 @Component(metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service
 public class BrightCoveMediaService implements MediaService {

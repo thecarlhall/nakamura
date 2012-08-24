@@ -85,7 +85,7 @@ import org.xml.sax.SAXException;
 
 
 /**
- *
+ * Implementation of {@link MediaService} to interface with a Matterhorn server.
  */
 @Component(enabled = true, metatype = true, policy = ConfigurationPolicy.REQUIRE)
 @Service

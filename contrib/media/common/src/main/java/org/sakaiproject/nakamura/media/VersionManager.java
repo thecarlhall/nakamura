@@ -30,7 +30,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
 
-
+/**
+ * Manage versions of media related to an instance of content.
+ */
 class VersionManager {
 
   private ContentManager contentManager;
@@ -49,14 +51,13 @@ class VersionManager {
 
   // Get the versions metadata for 'pid' from the oldest version to newest.
   public List<Version> getVersionsMetadata(String pid) throws StorageClientException, AccessDeniedException {
-    List<Content> versions = new ArrayList<Content>();
 
     Content latest = contentManager.get(pid);
-
     if (latest == null) {
-      return null;
+      return Collections.emptyList();
     }
 
+    List<Content> versions = new ArrayList<Content>();
     versions.add(latest);
 
     for (String versionId : contentManager.getVersionHistory(pid)) {

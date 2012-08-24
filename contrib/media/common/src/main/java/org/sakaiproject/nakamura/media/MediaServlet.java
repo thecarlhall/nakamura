@@ -55,7 +55,12 @@ import org.slf4j.LoggerFactory;
 
 
 /**
+ * Servlet endpoint for accessing media.
  *
+ * <ul>
+ * <li>Responds to GET only.</li>
+ * <li>Required parameters: pid</li>
+ * </ul>
  */
 @Component(metatype = true)
 @Service
@@ -149,16 +154,5 @@ public class MediaServlet extends HttpServlet {
     } catch (AccessDeniedException e) {
       throw new ServletException(e.getMessage(), e);
     }
-  }
-
-  @Override
-  protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
-  }
-
-  @Override
-  protected void doDelete(HttpServletRequest req, HttpServletResponse resp)
-    throws ServletException, IOException {
-    super.doDelete(req, resp);
   }
 }

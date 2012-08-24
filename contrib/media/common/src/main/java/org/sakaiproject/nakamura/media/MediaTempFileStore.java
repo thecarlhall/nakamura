@@ -23,16 +23,15 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-
+/**
+ * Temporary storage entity for files related to media that is to be synchronized with an
+ * external media transcoder.
+ */
 public class MediaTempFileStore {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MediaTempFileStore.class); 

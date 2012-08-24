@@ -60,7 +60,11 @@ import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.sakaiproject.nakamura.api.media.ErrorHandler;
 import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
 
-
+/**
+ * Coordinator for media operations. Handles new media and updates to existing media.
+ * Create a pool of workers to handle uploading changes to external services as
+ * implemented using the {@link MediaService} interface.
+ */
 public class MediaCoordinator implements Runnable {
   private static final Logger LOGGER = LoggerFactory.getLogger(MediaCoordinator.class); 
 

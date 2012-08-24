@@ -30,8 +30,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
 
-class MediaUtils
-{
+class MediaUtils {
   private static Map<String,String> mimeTypeToExtensionMap;
 
   static {

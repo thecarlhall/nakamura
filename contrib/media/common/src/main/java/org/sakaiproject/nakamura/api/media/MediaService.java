@@ -21,6 +21,9 @@ package org.sakaiproject.nakamura.api.media;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * Interface for services that handle creating, updating, deleting and displaying media.
+ */
 public interface MediaService {
   /**
    * Create media with supplied metadata.
