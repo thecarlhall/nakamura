@@ -70,7 +70,10 @@
       <groupId>org.apache.sling</groupId>
       <artifactId>org.apache.sling.jcr.api</artifactId>
     </dependency>
-    
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
     <!-- Sakai dependencies -->
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
