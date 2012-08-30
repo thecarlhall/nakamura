@@ -58,7 +58,7 @@ import org.sakaiproject.nakamura.api.media.MediaService;
 import org.sakaiproject.nakamura.api.media.MediaStatus;
 import org.sakaiproject.nakamura.api.media.MediaServiceException;
 import org.sakaiproject.nakamura.api.media.ErrorHandler;
-import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
+//import org.sakaiproject.nakamura.util.telemetry.TelemetryCounter;
 
 /**
  * Coordinator for media operations. Handles new media and updates to existing media.
@@ -298,12 +298,12 @@ public class MediaCoordinator implements Runnable {
         for (String mediaId : mediaIds) {
           try {
             LOGGER.debug("Deleting media [{}]", mediaId);
-            TelemetryCounter.incrementValue("media", "Coordinator", "deletes-started");
+//            TelemetryCounter.incrementValue("media", "Coordinator", "deletes-started");
 
             mediaService.deleteMedia(mediaId);
 
             LOGGER.debug("Deleted media [{}]", mediaId);
-            TelemetryCounter.incrementValue("media", "Coordinator", "deletes-finished");
+//            TelemetryCounter.incrementValue("media", "Coordinator", "deletes-finished");
           } catch (MediaServiceException e) {
             LOGGER.error("Got MediaServiceException during delete [" + mediaId + "]", e);
           }
@@ -319,7 +319,7 @@ public class MediaCoordinator implements Runnable {
 
           if (!isMedia(version.getMimeType())) {
             LOGGER.info("This version isn't a video.  Skipped.");
-            TelemetryCounter.incrementValue("media", "Coordinator", "skips");
+//            TelemetryCounter.incrementValue("media", "Coordinator", "skips");
             continue;
           }
 
@@ -337,7 +337,7 @@ public class MediaCoordinator implements Runnable {
             }
 
             try {
-              TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
+//              TelemetryCounter.incrementValue("media", "Coordinator", "uploads-started");
               MediaMetadata metadata = new MediaMetadata(version.getTitle(),
                   version.getDescription(),
                   version.getTags(),
@@ -346,7 +346,7 @@ public class MediaCoordinator implements Runnable {
                   String.valueOf(obj.getProperty(Content.CREATED_BY_FIELD)),
                   obj.getPath());
               String mediaId = mediaService.createMedia(mediaFile, metadata);
-              TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
+//              TelemetryCounter.incrementValue("media", "Coordinator", "uploads-finished");
 
               mediaNode.storeMediaId(version, mediaId);
 
@@ -362,14 +362,14 @@ public class MediaCoordinator implements Runnable {
                 version, path);
 
             try {
-              TelemetryCounter.incrementValue("media", "Coordinator", "updates-started");
+//              TelemetryCounter.incrementValue("media", "Coordinator", "updates-started");
               MediaMetadata metadata = new MediaMetadata(mediaNode.getMediaId(version),
                   version.getTitle(),
                   version.getDescription(),
                   version.getTags(),
                   String.valueOf(obj.getProperty(Content.CREATED_BY_FIELD)));
               mediaService.updateMedia(metadata);
-              TelemetryCounter.incrementValue("media", "Coordinator", "updates-finished");
+//              TelemetryCounter.incrementValue("media", "Coordinator", "updates-finished");
 
               mediaNode.recordVersion(version);
 
@@ -420,7 +420,7 @@ public class MediaCoordinator implements Runnable {
         if (!isMedia(mimeType)) {
           LOGGER.info("Path '{}' isn't a media file (type is: {}).  Skipped.",
               pid, mimeType);
-          TelemetryCounter.incrementValue("media", "Coordinator", "skips");
+//          TelemetryCounter.incrementValue("media", "Coordinator", "skips");
           return;
         }
       }
@@ -602,7 +602,7 @@ public class MediaCoordinator implements Runnable {
                     if (maxRetries >= 0 && (retriesSoFar + 1) > maxRetries) {
                       LOGGER.error("Giving up on {} after {} failed retry attempts.",
                           pid, retriesSoFar);
-                      TelemetryCounter.incrementValue("media", "Coordinator", "failures");
+//                      TelemetryCounter.incrementValue("media", "Coordinator", "failures");
 
                       retryCounts.remove(pid);
                       failedMsg.acknowledge();
@@ -613,7 +613,7 @@ public class MediaCoordinator implements Runnable {
                     } else {
                       int retry = retriesSoFar + 1;
                       LOGGER.info("Requeueing job for pid '{}' (retry #{})", pid, retry);
-                      TelemetryCounter.incrementValue("media", "Coordinator", "retries");
+//                      TelemetryCounter.incrementValue("media", "Coordinator", "retries");
 
                       retryCounts.put(pid, retry);
                       incoming.add(failedMsg);
